@@ -717,6 +717,35 @@ A distinct category, separate from formal Tax/Proforma Invoices: a pre-printed *
 
 ---
 
+## 25. Site Photos — Stage Detection (Real Examples)
+
+A batch of real site photos, spanning several projects, gives a concrete basis for the question of how AI should look at an uploaded photo and determine what installation stage it shows — this is the mechanism Section 16/21's Timeline Intelligence depends on ("stage durations inferred from photo upload timestamps").
+
+### What a stage-detection vocabulary looks like from real photos
+
+Unlike every document type in Sections 22–24, a site photo carries **no extractable text or title block** — classification has to be visual-content-based (a vision model prompted against a known stage vocabulary), not field extraction. The real photos reviewed map cleanly onto the site-installation track already confirmed in Sections 20/21/23:
+
+| Visual signal in the photo | Stage |
+|---|---|
+| Loose soil/paver removed, earthing rod + green cable coiled in a pit | Civil / Earthing |
+| Mounting rails and conduit pipes laid out on the roof, no panels yet | Structure & Conduit |
+| Panels present but angled/leaning, uneven rows, not flush to the rails | Panel Mounting — In Progress |
+| Panels flat, aligned, full rows, cabling dressed along the rails | Panel Mounting — Complete |
+| ACDB/DCDB enclosure open, showing internal breakers/contactors and color-coded phase wiring | Electrical Wiring |
+| ACDB/DCDB closed and wall-mounted, inverter installed and powered on (status LEDs lit) | Inverter Commissioned |
+
+This is a direct, real-world confirmation that photo-based stage inference is tractable — the visual differences between "structure only," "panels going on," and "panels done and wired" are large and consistent — but it also means **AI confidence on a photo classification will generally be lower and fuzzier than on a text document**, so the same `ai_confidence` / `extraction_status` (Principle 4) pattern used for Documents should apply here too, with low-confidence stage guesses flagged for human confirmation rather than silently advancing a milestone.
+
+### Not every uploaded image is a "progress photo"
+
+Two of the images reviewed weren't site photos at all: a **field-annotated copy of the panel layout drawing** (the installer had circled/highlighted per-zone panel counts directly on a printed copy, apparently re-marked over multiple site visits) and a **handwritten stringing/combiner sketch** drawn from scratch on plain paper. Both are photographed *paper documents*, not photographed *installation progress* — the same photo-vs-paper-document ambiguity already seen with Gate Passes and receipts (Section 24). The AI classifier needs an earlier fork: is this image a photo of the physical site, or a photo of a document/drawing? — before attempting stage detection on it. The annotated layout sheet is also a hint that **progress could eventually be tracked at the per-zone/per-panel level**, not just per-stage, since the crew is already marking off zones by hand — worth noting as a future refinement, not something to build for v1.
+
+### Photos serve two purposes at once
+
+The finished-inverter photo carries a physical **"NRG SOLAR" sticker** stuck onto the equipment — visible branding, put there deliberately. Combined with the "worker on a sunlit rooftop among palm trees" composition of the near-complete panel photo, it's clear the same upload can simultaneously (a) advance a `Project_Milestones` site-installation checkpoint and (b) be a strong candidate photo for the Marketing module (Section 17) — reinforcing that photo AI extraction should tag both a stage classification *and* a marketing-suitability signal (clear branding, good composition, no identifiable bystanders needing consent), rather than treating internal progress-tracking and outward-facing content selection as two separate passes over the same image.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
