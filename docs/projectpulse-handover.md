@@ -746,6 +746,38 @@ The finished-inverter photo carries a physical **"NRG SOLAR" sticker** stuck ont
 
 ---
 
+## 26. Google Drive Integration — Linking Existing Folders & Auto-Creating New Ones (Real Structure Audit)
+
+NRG's real project folders live today under two separate top-level Drive folders — "INDUSTRIAL APPLICATION" (~150+ subfolders) and "SPP" (~150+ subfolders) — which the user will consolidate into one location. Inspected both listings directly, plus the full contents of two real project folders, to ground how ProjectPulse should link to what already exists and auto-create folders for new projects.
+
+### Folder naming is not machine-parseable
+
+Subfolder names follow at least five different patterns with no consistent rule: `{Client}_{KW}kw` ("Vala Industries 25kw"), `{Client}_{KW} KW` ("SHERWOOD VILLA_23.70 KW"), `{Client}_{KW}KW SPP` ("AVDHOOT CORPORATION_31.20KW SPP" — the "SPP" suffix appearing even inside the "INDUSTRIAL APPLICATION" folder), `{Client}_{KW} Kw_{code}` with a trailing tag (`_RC`, `_AP`, `_CY` — matching the reference-number scheme variants already found in Section 24), a bare date-prefixed name ("221221 Dahej 1KW Offgrid"), and, for every folder created since mid-2026, just the plain client name with no KW at all ("Anilkumar dua," "MOTHER S SCHOOL"). Client name spelling/spacing/case also varies between duplicates of the same project (e.g. "POLO CLUM GYMKHANA" vs. "POLO CLUB GYMKHANA"). **Folder name cannot be the link key** — only the Drive folder ID is stable.
+
+### The same project already has duplicate folders across the two locations
+
+At least eight project names appear as separate folders (different Drive IDs) in *both* "INDUSTRIAL APPLICATION" and "SPP" — e.g. "SUCHI FATENERS_150 KW," "SHERWOOD VILLA_23.70 KW," "AVDHOOT CORPORATION_31.20KW SPP," "AGARWAL D GASSING_19.80 KW." This is exactly the "currently in 2 locations" problem the user flagged — it's not just two parent folders to merge, it's genuine duplicate project folders that need to be resolved to one canonical folder per project, not simply moved.
+
+### Not every subfolder is a project
+
+Both top-level folders also contain **non-project subfolders sitting at the same level as real project folders** — "DRONE PHOTO" and "GEB PAYMENT RECEIPT" are shared category folders, not projects — plus **loose reference/template files** at the top level outside any project folder ("CA CERTIFICATE SAMPLE FOR HT CONNECTION.pdf," "GEB SOLAR ESTIMATE COPY.PDF" — a real example of the §23 DISCOM Feasibility Letter, kept as a template). An automatic "every subfolder under the root is a project" import would misclassify these.
+
+### Section 4's subfolder structure does not exist in practice today
+
+Opened two real project folders directly. One (recently created, "POPULAR SWITCH GEAR P. LTD") holds 3 loose PDFs. The other (Rajkamal Engineering, more mature) holds ~50 files — drawings, 28 site photos, KYC documents, GEDA/CEIG letters, invoices, quotation — **all loose in one flat directory**, no `Documents / Engineering Drawings / Materials / Finance / Photos & Videos` subfolders at all. Filenames carry the only descriptive signal ("Rajkamal_SLD.pdf," "Site Photo (18).jpeg," "Geda Registration Letter.pdf"), and one file — "Combine Documents.pdf" — is a merged PDF bundling several distinct document types into one upload, the same pattern seen in Section 22's `Test_Inspection_Dipen.pdf`. **This means Document Type has to come from AI content classification, not folder location** — Section 4's subfolder taxonomy was never actually the categorization mechanism in practice, so nothing is lost by not retrofitting it onto old folders.
+
+### One thing already validated as the right pattern
+
+Folders created before ~mid-2026 are owned by an individual account (`cyardi@nrgtechnologists.com`); everything created since is owned by a shared **`projects@nrgtechnologists.com`** account. NRG has already moved to a service-account-driven folder-creation pattern — this is exactly the mechanism ProjectPulse's backend should use (a Drive service account, not a personal login) to create folders programmatically, so nothing new needs to be introduced there.
+
+### Design recommendation
+
+- **Link, don't derive.** `projects.google_drive_folder_id` (the Drive folder ID) is the durable link — filename/folder-name parsing is a matching *hint* only, never authoritative, given the five naming patterns above.
+- **New projects: auto-create, and enforce one convention going forward.** When a `projects` row is created, call the Drive API (via a service account, matching the `projects@` pattern already in use) to create one folder under a single designated root, using one consistent name format from here on (e.g. `{ClientName}_{KW}kW_{nrg_internal_ref}`), and store the returned folder ID. Since folder creation becomes programmatic, it's essentially free to also create the Section 4 subfolders at that point for new projects — even though it means old and new projects won't look the same internally, which is fine since AI typing doesn't depend on folder location anyway.
+- **Existing ~300 folders: an import/review workflow, not a blind script.** Given confirmed duplicate folders and non-project subfolders mixed in, linking has to be: enumerate folders under the consolidated root → AI-suggest a match to an existing project (or "new project," or "not a project — skip") using folder name + a peek at its documents → surface likely duplicates found across the old two-location split → require human confirmation before finalizing each link. This is exactly the kind of "AI suggests, human confirms" flow Principle 4 already establishes for document extraction — the same posture applies to onboarding the folder structure itself.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
