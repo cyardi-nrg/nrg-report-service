@@ -569,6 +569,47 @@ Do the residential-subsidy line (this workbook) and the commercial/industrial li
 
 ---
 
+## 21. Current-State Audit — "GEDA Portal" Workbook (Registration & Compliance Tracking)
+
+Reviewed a second live Google Sheet ("Geda Portal -2024-2025") tracking registration/compliance with **GEDA** (Gujarat Energy Development Agency — the state nodal agency, already named in Section 6's Financial Obligations examples). Confirms yet another tracker exists alongside the two audited in Section 20, and reveals the milestone/status problem is more structurally significant than Section 16 assumed.
+
+### Two tabs, two different milestone sets
+
+- **"GR" tab (residential, prefix `GR-001`, `GR-002`…):** milestones are Document Uploaded → Document Verified → Feasibility Approved → Estimate Generated → Estimate Paid → CEIG Applied → SLD Approved → Meter Bought → Meter for Testing → Meter Tested → Material Dispatched → Installation Complete → CEIG Inspection → Submit to GEB → Meter Installed → Site Photos.
+- **"GI" tab (commercial/industrial — "Grid Interactive," prefix `GI-001`, `GI-002`…, client names matching the BOM workbook in Section 19, e.g. Unisource Engineers, Asky Metals, Reactive Poly, Shreeji Agarbatti):** a *different* milestone set — GEDA Application → GEDA Letter → GEDA Fees → Technical Feasibility → Estimate Paid → CEIG Application → CEIG Satisfactory Report → CEIG Final Report → SLD → SLD Equipment → SLD Earthing → "All in one" → Site Photos — tracked mostly as **Y / N / "-" flags, not dates**.
+
+Combined with Section 20's DISCOM subsidy funnel (Estimate Generated → Subsidy Received → Subsidy Claimed) and the physical site-installation stage tracker (Structure fitting → … → Meter Installed), **a single project is independently tracked against at least three unrelated milestone sequences** — DISCOM subsidy processing, GEDA registration/compliance (itself different for residential vs. commercial), and physical site work — each with its own vocabulary, its own reference number, and no linkage between them today beyond the applicant's name.
+
+### New entity implied: `Project_External_References`
+
+Every project already carries **multiple, independently-issued reference numbers**: NRG's own `NRG/24-25/xxx`, a GEDA registration number (`GR-xxx` residential or `GI-xxx` commercial), and a DISCOM consumer number (Section 20). A single `reference_number` column on `Projects` can't hold this — it needs a small typed table:
+
+```sql
+create table project_external_references (
+  reference_id    uuid primary key default gen_random_uuid(),
+  project_id      uuid not null references projects(project_id),
+  reference_type  text not null
+                   check (reference_type in ('nrg_internal','discom_consumer_number','geda_residential','geda_commercial','ceig')),
+  reference_value text not null,
+  created_at      timestamptz not null default now(),
+  unique (reference_type, reference_value)
+);
+```
+
+### Revises Section 16's assumption
+
+Section 16 modeled Timeline Intelligence as **one** linear stage sequence per project. This audit shows that's wrong: NRG actually runs **multiple concurrent, independently-defined milestone tracks** per project (DISCOM subsidy, GEDA compliance, CEIG inspection, physical site work), and the milestone set itself depends on project type (residential vs. commercial). The schema for Section 16 should be revisited as a generic `Project_Milestones` table — (`project_id`, `track` e.g. `'discom_subsidy' | 'geda_registration' | 'ceig_inspection' | 'site_installation'`, `milestone_key`, `status` [not_started/in_progress/done], `completed_date` nullable since source data is often a flag not a date, `source_document_id`) — rather than a fixed sequential column list, since each track has a different, evolving vocabulary of checkpoints.
+
+### Still outstanding from the earlier ask
+
+This workbook is a registration/compliance tracker, not a customer-contacts record — it doesn't answer the multiple-contacts-per-customer question from Section 5 (Owner/Purchase/Electrical/Accounts/Maintenance roles). Still worth a real example if one exists; not blocking.
+
+### Further evidence for Principle 1 / spreadsheet fragility
+
+More `#REF!` and `#DIV/0!` errors present in this workbook (a large block of broken formula cells at the end of the GI tab) — the third workbook in a row to show live formula breakage, on top of client records for the *same* commercial projects (Unisource, Asky Metals, Reactive Poly, etc.) already being tracked separately in the Section 19 BOM workbook. That's the same customer's data now confirmed fragmented across at least **three separate spreadsheets**, not just tabs within one.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -579,8 +620,8 @@ Continue database design by defining:
 4. User roles and permissions.
 5. Management dashboard metrics based only on objective, measurable data.
 6. Financial Obligations schema detail to support Quoted vs Invoiced vs Received vs Pending reconciliation, and Tally ledger import/matching.
-7. Timeline/stage tracking schema — stage definitions, triggering events (document/photo upload), and duration computation.
+7. Timeline/stage tracking schema — now scoped by Section 21 as a `Project_Milestones` table supporting multiple concurrent tracks (DISCOM subsidy, GEDA registration, CEIG inspection, physical site work) with type-dependent milestone sets, not one linear sequence.
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
 10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order / Vendor Quote as document types, derived stock ledger, reorder levels, and the Vendor Quotes table for AI-extracted quote comparison and price history.
-11. `Projects` / `Customers` / `Customer_Contacts` full schema — resolve Section 20's open question (shared table with a discriminator vs. a subsidy-specific satellite table) first, then incorporate `consumer_number`/`discom`/`division`, the subsidy-application funnel status, and a secrets-managed home for monitoring-portal credentials.
+11. `Projects` / `Customers` / `Customer_Contacts` full schema — resolve Section 20's open question (shared table with a discriminator vs. a subsidy-specific satellite table) first, then incorporate `consumer_number`/`discom`/`division`, the subsidy-application funnel status, `Project_External_References` (Section 21), and a secrets-managed home for monitoring-portal credentials.
