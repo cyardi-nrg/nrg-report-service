@@ -778,6 +778,142 @@ Folders created before ~mid-2026 are owned by an individual account (`cyardi@nrg
 
 ---
 
+## 27. `Projects` / `Customers` / Drive Integration — Full Schema
+
+Resolves Section 20's open question and Section 26's linking design into actual tables. `Customers`, `Customer_Contacts`, `Employees`, and `Partners` are defined here too, since `Projects` references all of them.
+
+### Resolving Section 20's open question
+
+**Decision: one `projects` table with a `project_type` discriminator**, not a separate satellite table per business line. Reasoning: the residential-subsidy and commercial/industrial lines share every downstream table already designed — `Documents`, `Boms`/`BOM_Items`, `Financial_Obligations`, `Project_Milestones`, `Project_External_References` — only the *milestone vocabulary* differs by type (Section 21), and that's already handled by `project_milestones.track`/`milestone_key` being data, not schema. A satellite table would just add a join for no real benefit. This is a reversible call — nothing below prevents splitting later if a real divergence shows up.
+
+### `Customers`
+
+```sql
+create table customers (
+  customer_id             uuid primary key default gen_random_uuid(),
+  name                    text not null,          -- Applicant Name / company name, as it appears on documents
+  customer_type           text not null default 'individual' check (customer_type in ('individual','company')),
+  gstin                   text,
+  pan                     text,
+  address                 text,
+  area                    text,                    -- e.g. "Bharuch", "Karelibaug" — matches real workbook data
+  google_maps_link        text,
+  email                   text,
+  primary_contact_number  text,
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now()
+);
+```
+
+### `Customer_Contacts`
+
+```sql
+create table customer_contacts (
+  contact_id    uuid primary key default gen_random_uuid(),
+  customer_id   uuid not null references customers(customer_id),
+  name          text not null,
+  role          text not null,   -- 'owner' | 'purchase' | 'electrical' | 'accounts' | 'maintenance' | 'other' — free text, per Section 5's "etc."
+  phone         text,
+  email         text,
+  is_primary    boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+
+create index on customer_contacts (customer_id);
+```
+
+### `Employees`
+
+```sql
+create table employees (
+  employee_id   uuid primary key default gen_random_uuid(),
+  name          text not null,
+  role          text,             -- e.g. 'Sales Person', 'Electrical Supervisor'
+  phone         text,
+  email         text,
+  license_no    text,             -- e.g. the Electrical Supervisor permit no. seen on drawing sign-offs (Section 23)
+  active        boolean not null default true,
+  created_at    timestamptz not null default now()
+);
+```
+
+### `Partners`
+
+```sql
+create table partners (
+  partner_id      uuid primary key default gen_random_uuid(),
+  name            text not null,
+  category        text not null,   -- 'fabricator' | 'electrician' | 'civil_contractor' | 'transporter' | 'design_consultant' | 'vendor' | 'other'
+                                     -- 'design_consultant' added per Section 23; free text, not a hard enum, per the same reasoning as bom_items.category
+  contact_number  text,
+  email           text,
+  gstin           text,
+  address         text,
+  created_at      timestamptz not null default now()
+);
+```
+
+### `Projects`
+
+```sql
+create table projects (
+  project_id              uuid primary key default gen_random_uuid(),
+  customer_id             uuid not null references customers(customer_id),
+  site_address            text,
+  project_type            text not null check (project_type in ('residential_subsidy','commercial_industrial')),
+  status                  text not null default 'active'
+                           check (status in ('active','commissioned','on_hold','cancelled')),
+                           -- a coarse lifecycle flag only — physical/regulatory progress lives in project_milestones (Section 21), not here
+  discom                  text,          -- utility name, e.g. "MGVCL" — Section 20
+  division                text,          -- DISCOM sub-division — Section 20
+  sales_person_id         uuid references employees(employee_id),
+  google_drive_folder_id  text unique,   -- the durable link from Section 26; null until linked or auto-created
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now()
+);
+
+create index on projects (customer_id);
+```
+
+`consumer_number` deliberately isn't a column here — Section 21 already covers it as a `project_external_references` row (`reference_type = 'discom_consumer_number'`), consistent with a project carrying multiple external reference numbers rather than one fixed field. `discom`/`division` are different in kind — attributes of the grid connection itself, not an identifier — so they stay as plain columns.
+
+**Monitoring-portal credentials** (Section 20's plaintext-in-spreadsheet finding) do not get a table here — they belong in the application's secrets manager (e.g. Supabase Vault or an equivalent encrypted store), referenced from `projects` by an opaque secret ID if needed, never stored as a readable column in this schema.
+
+Every other table already designed (`boms`, `documents`, `financial_obligations`, `project_external_references`, `project_milestones`) hangs off `project_id` as before — nothing about this table changes those.
+
+### Drive folder linking
+
+**New projects — auto-create, don't ask.** On `projects` row creation, the application calls the Drive API (via the same service-account pattern already in use — `projects@nrgtechnologists.com` — per Section 26) to create one folder under a single designated root, named with one enforced convention (`{CustomerName}_{KW}kW_{nrg_internal_ref}`), and writes the returned ID into `google_drive_folder_id`. Standard subfolders (`Documents`, `Engineering Drawings`, `Materials`, `Finance`, `Photos & Videos`) can be created at the same time for organizational tidiness — but per Section 26's finding, `documents.document_type` (AI-classified) remains the actual source of truth for what a file is, regardless of which subfolder it physically sits in.
+
+**Existing ~300 folders — a review queue, not a script.** A staging table holds AI's best-guess matches for a human to confirm before anything is linked:
+
+```sql
+create table drive_folder_import_candidates (
+  candidate_id              uuid primary key default gen_random_uuid(),
+  drive_folder_id           text not null unique,
+  drive_folder_name         text not null,
+  drive_parent_id           text not null,
+  suggested_project_id      uuid references projects(project_id),    -- AI's best-guess match to an already-linked project
+  suggested_customer_name   text,       -- AI's parse of the folder name / first few documents, for the "this is a new project" case
+  suggested_kw              numeric(10,3),
+  match_confidence          numeric(3,2),
+  duplicate_of_candidate_id uuid references drive_folder_import_candidates(candidate_id),
+                             -- set when this folder looks like the same project as another candidate (Section 26's confirmed duplicate-folder problem)
+  is_project_folder         boolean,    -- AI's guess; false for things like "DRONE PHOTO", "GEB PAYMENT RECEIPT"
+  status                    text not null default 'pending'
+                             check (status in ('pending','confirmed_new_project','confirmed_existing_project','merged','rejected_not_a_project')),
+  reviewed_by               uuid references employees(employee_id),
+  reviewed_at               timestamptz,
+  created_at                timestamptz not null default now()
+);
+
+create index on drive_folder_import_candidates (status);
+```
+
+Resolving a candidate is the only thing that writes to `projects.google_drive_folder_id`: `confirmed_new_project` creates a `projects` row and links it; `confirmed_existing_project` links to `suggested_project_id` (or a manually-picked one); `merged` means this folder's contents get moved into another folder's project rather than kept separate; `rejected_not_a_project` closes the candidate with no project created. This queue is also exactly where the eight-plus confirmed cross-location duplicates from Section 26 get resolved one by one, with a human picking which folder (or a merge of both) becomes canonical.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -792,4 +928,4 @@ Continue database design by defining:
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
 10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order / Vendor Quote as document types, derived stock ledger, reorder levels, and the Vendor Quotes table for AI-extracted quote comparison and price history.
-11. `Projects` / `Customers` / `Customer_Contacts` full schema — resolve Section 20's open question (shared table with a discriminator vs. a subsidy-specific satellite table) first, then incorporate `consumer_number`/`discom`/`division`, the subsidy-application funnel status, `Project_External_References` (Section 21), and a secrets-managed home for monitoring-portal credentials.
+11. ~~`Projects` / `Customers` / `Customer_Contacts` full schema~~ — done, see Section 27 (single table with a `project_type` discriminator, `Employees`/`Partners` defined alongside, Drive folder linking including the `drive_folder_import_candidates` review queue for the ~300 existing folders). Still open: the subsidy-application funnel status (Section 20's "Estimate Generated → Subsidy Received → Subsidy Claimed") belongs in `project_milestones` (Section 21) once that table gets its own DDL pass — not solved yet.
