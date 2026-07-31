@@ -881,6 +881,30 @@ create index on projects (customer_id);
 
 Every other table already designed (`boms`, `documents`, `financial_obligations`, `project_external_references`, `project_milestones`) hangs off `project_id` as before — nothing about this table changes those.
 
+### `Documents`
+
+Referenced by `boms.source_document_id` and `material_transactions.source_document_id` since Section 19, but never given its own DDL — only described in prose back in Section 5. Drafted now so the schema is actually self-consistent and runnable; treat this as first-pass, not as settled as the tables around it. `document_type` stays free text deliberately — Sections 22–24 catalogued a long real taxonomy (Quote, Purchase Order, Proforma Invoice, Tax Invoice, Delivery Challan, Debit Note, Payment Proof, SLD, Equipment/Earthing/Panel/Structural drawings, GEDA Application/Feasibility Letter/Registration Letter, Test Inspection Application, CEI Approval Letter, Inspection Report, Site Photo, …) but turning that into a hard enum is exactly the still-open "Document Types and AI extraction rules" item on the Next Session list.
+
+```sql
+create table documents (
+  document_id             uuid primary key default gen_random_uuid(),
+  project_id              uuid not null references projects(project_id),
+  google_drive_file_id    text not null unique,
+  document_type           text,          -- free text, AI-classified; nullable until classified
+  version                 integer not null default 1,   -- a re-issued drawing/document is a new version, not an overwrite — Section 23
+  supersedes_document_id  uuid references documents(document_id),
+  uploaded_by             uuid references employees(employee_id),
+  upload_date             timestamptz not null default now(),
+  ai_status                text not null default 'pending'
+                            check (ai_status in ('pending','processing','extracted','failed','confirmed')),
+  ai_confidence            numeric(3,2),
+  created_at               timestamptz not null default now()
+);
+
+create index on documents (project_id);
+create index on documents (document_type);
+```
+
 ### Drive folder linking
 
 **New projects — auto-create, don't ask.** On `projects` row creation, the application calls the Drive API (via the same service-account pattern already in use — `projects@nrgtechnologists.com` — per Section 26) to create one folder under a single designated root, named with one enforced convention (`{CustomerName}_{KW}kW_{nrg_internal_ref}`), and writes the returned ID into `google_drive_folder_id`. Standard subfolders (`Documents`, `Engineering Drawings`, `Materials`, `Finance`, `Photos & Videos`) can be created at the same time for organizational tidiness — but per Section 26's finding, `documents.document_type` (AI-classified) remains the actual source of truth for what a file is, regardless of which subfolder it physically sits in.
