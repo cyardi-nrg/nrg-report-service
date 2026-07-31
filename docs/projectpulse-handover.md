@@ -322,6 +322,51 @@ This was not part of the original frozen architecture (Sections 1–12) and shou
 
 ---
 
+## 18. New Module: Inventory Intelligence (Zero Manual Entry)
+
+Extends Principle 3 ("AI extracts everything possible from uploaded documents") from the project level to a **central inventory/warehouse** level: stock position should be derivable entirely from scanned documents, with no manual stock entry.
+
+### Source Documents (new document types)
+
+- **Purchase Invoice** — material inward to warehouse. AI extracts: material, quantity, rate, vendor, date.
+- **Delivery Challan** — material outward from warehouse (typically to a project site). AI extracts: material, quantity, destination/project, date. This is the same event that feeds "Purchased/Sent" quantity in Section 13's material tracking — inventory and project material tracking share this source document.
+- **Material Return Note** — material returned from site back to warehouse. AI extracts: material, quantity, source project, date. Also feeds the "Returned" figure in Section 13.
+- **Purchase Order** — needed as a document type so open (placed but not yet received) orders can be tracked separately from received stock.
+
+### Derived Stock Ledger (computed, not entered)
+
+Per material, a running ledger built purely from the documents above:
+
+```
+Current Stock = Σ(Purchase Invoices) − Σ(Delivery Challans out) + Σ(Material Returns)
+```
+
+No user ever types a stock quantity — it is always a computed projection over scanned documents, consistent with Principle 2.
+
+### Reorder Intelligence
+
+- **Reorder Level** — a threshold per material. This is business judgment, not something extractable from a document, so per Principle 2 it is one of the few things a user *does* enter/maintain directly.
+- **Open Orders** — quantity on outstanding Purchase Orders not yet matched to a received Purchase Invoice.
+- **Requirement Forecast** — projected need pulled from planned quantities (Engineering BOM, Section 7/8) across active and upcoming projects, ideally sharpened by the BOM Recommendation Engine (Section 14) rather than raw planned figures alone.
+- **Shortfall** = (Immediate + forecast requirement) − (Current Stock + Open Orders).
+
+### Price Intelligence
+
+- Every Purchase Invoice line item captures material, vendor, rate, and date — this builds an automatic price history per material per vendor over time.
+- At reorder time, the system should show past purchase price(s) alongside the current quote(s) being considered, so a price increase/decrease is visible before the order is placed.
+
+### Open Design Question — "Online" Quote Comparison
+
+The requirement is to compare quotes from multiple vendors, including current market/online pricing, at reorder time. This needs a decision before schema design, since it determines the source of "online" data:
+
+- **(a)** Vendor quotes arrive as documents (email/PDF) and are scanned/extracted the same way as invoices — consistent with the zero-manual-entry principle, but only as good as what vendors send.
+- **(b)** Live price lookup from vendor websites/portals or a market price feed — would need per-vendor integration or web search/scraping, which is a materially different (and more fragile) capability than document AI extraction.
+- **(c)** A hybrid: scanned quotes as the primary record, with an optional manual/online reference price for comparison.
+
+This should be resolved before defining the Vendor Quotes table and reorder workflow.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -335,3 +380,4 @@ Continue database design by defining:
 7. Timeline/stage tracking schema — stage definitions, triggering events (document/photo upload), and duration computation.
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
+10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order as document types, derived stock ledger, reorder levels, and resolution of the online quote comparison design question above.
