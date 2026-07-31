@@ -370,11 +370,172 @@ This needs a **Vendor Quotes** table (Quote, Vendor, Material, Quantity, Rate, D
 
 ---
 
+## 19. `BOM_Items` — Full Schema Definition
+
+A single flat `BOM_Items` table cannot support Section 8's Four Sources of Truth on its own, because Purchased/Used/Returned quantities arrive as **multiple discrete events over time** (Section 13's 20m + 30m + 50m dispatch example), not a single number to overwrite. The schema is therefore three related tables: a planned-quantity table, a canonical material master (needed so the Recommendation Engine in Section 14 can compare "DC Cable" across projects, not just within one), and a movement ledger that both this and the Inventory module (Section 18) share as their single source of transactional truth. Variance figures are computed, never stored.
+
+### `Materials` (canonical master, cross-project)
+
+```sql
+create table materials (
+  material_id     uuid primary key default gen_random_uuid(),
+  category        text not null,          -- e.g. Structure, Cabling, Panels, Inverter, Safety System
+  canonical_name  text not null,          -- normalized name, e.g. "DC Cable 4 sq mm"
+  default_unit    text not null,          -- e.g. Meter, Nos, Kg, Sq.Meter
+  aliases         text[],                 -- raw name variants AI has seen across BOMs/invoices, for matching
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  unique (category, canonical_name)
+);
+```
+
+Without this table, "DC Cable" on one project's BOM and "DC Cable 4mm Red" on another's would never be recognized as the same material, and Section 14's per-kW consumption benchmarks would be impossible to compute.
+
+**Validated against a real BOM workbook (Spp_Bill_of_Material_2025.pdf, ~30 past projects).** This changed two things below versus the first draft of this schema:
+
+1. Every project sheet carries a **header block** of project/financial summary fields (order value, estimate, margin, price/watt, panel wattage, panel count, KW, person in charge, sales person, estimated vs. actual total price) that is *not* per-line-item — it describes the BOM as a whole. That needs its own table, not columns bolted onto `bom_items`.
+2. The line items are consistently grouped under **15 fixed categories** in a fixed order (Solar Panels, GI Pipe Panel Structure, Strut Channel Structure, Inverter, ACDB, DCDB, DC Cable, AC Cable, Earthing Cable, Earthing Pits, LA, Misc, Walkway, Safety System, Installation) — not every project uses every category (e.g. a project uses either GI Pipe *or* Strut Channel structure, not both, and Walkway/Safety System are often zero), but the taxonomy itself is stable across NRG's business. Each line item's planned quantity is itself formula-derived inside the workbook from higher-level drivers (panel count, frame count, legs per frame, etc.) — per Section 10 that calculation engine is **not** rebuilt in ProjectPulse; AI extraction only needs the resulting quantity, not the formula, but the driver values are worth capturing as free text for traceability.
+3. The workbook already tracks **Estimated vs. Actual** quantity/rate/total per line item manually, as single overwritten values — this is exactly the variance concept from Section 8/9, just without the multi-dispatch aggregation Section 13 requires. The schema below formalizes what NRG is already doing by hand, and fixes its main limitation (one "actual" number, not a sum of dispatch events).
+
+### `Boms` (one row per uploaded Engineering BOM — the header/summary block)
+
+```sql
+create table boms (
+  bom_id                uuid primary key default gen_random_uuid(),
+  project_id            uuid not null references projects(project_id),
+  source_document_id    uuid not null references documents(document_id),  -- the uploaded Engineering BOM file
+  version                integer not null default 1,        -- a project may get a revised BOM upload
+  panel_wattage          numeric(10,2),      -- e.g. 620 (Wp per panel)
+  panel_count            integer,
+  kw_capacity            numeric(10,3),      -- panel_count * panel_wattage / 1000
+  order_value            numeric(14,2),      -- quoted order value
+  estimated_total_cost    numeric(14,2),      -- sum of bom_items.estimated_cost, as extracted
+  estimated_margin        numeric(14,2),
+  price_per_watt_estimated numeric(10,2),
+  actual_total_cost       numeric(14,2),      -- rolls up from bom_item_variance.actual_cost
+  price_per_watt_actual   numeric(10,2),
+  person_in_charge       uuid references employees(employee_id),
+  sales_person           uuid references employees(employee_id),
+  ai_confidence          numeric(3,2),
+  extraction_status      text not null default 'ai_extracted'
+                          check (extraction_status in ('ai_extracted','confirmed','corrected')),
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now()
+);
+
+create index on boms (project_id);
+```
+
+A project can have more than one `boms` row over its life (a revised estimate re-uploaded) — `bom_items` always belongs to one specific `boms` row, so old and new versions never mix.
+
+### `BOM_Items` (planned line items, one row per material within one BOM upload)
+
+```sql
+create table bom_items (
+  bom_item_id           uuid primary key default gen_random_uuid(),
+  bom_id                uuid not null references boms(bom_id),
+  material_id           uuid references materials(material_id),   -- nullable until AI match is confirmed
+  category              text not null,      -- one of NRG's ~15 standard categories; see note below
+  description           text not null,      -- raw text as it appears in the Engineering BOM
+  specification          text,
+  unit                  text not null,
+  calculation_basis      text,               -- raw driver values from the workbook, e.g. "No of panels 74, frames 7, legs/frame 4" — for traceability only, not recalculated
+  preferred_vendor_id     uuid references partners(partner_id),   -- the "Vendor" column seen against some line items
+  planned_quantity       numeric(14,3) not null,
+  planned_rate           numeric(14,2) not null,   -- sourced from NRG's rate card ("Pricing for BOM" sheet) at extraction time
+  estimated_cost         numeric(14,2) not null,   -- as extracted from the workbook, not recomputed
+  ai_confidence          numeric(3,2),       -- 0.00–1.00
+  extraction_status      text not null default 'ai_extracted'
+                          check (extraction_status in ('ai_extracted','confirmed','corrected')),
+  confirmed_by           uuid references employees(employee_id),
+  confirmed_at           timestamptz,
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now()
+);
+
+create index on bom_items (bom_id);
+create index on bom_items (material_id);
+```
+
+`extraction_status` / `confirmed_by` / `confirmed_at` exist to satisfy Principle 4 — if an engineer corrects an AI-extracted quantity, that correction is recorded, not silently overwritten on the next AI pass. `category` is deliberately left as free text rather than a hard database enum — the ~15-category list should be maintained as an application-level reference (seeded from the real workbook) so a genuinely new category (e.g. battery storage on a future hybrid project) doesn't require a migration, while AI extraction is still guided to match the existing list first.
+
+### `Material_Transactions` (movement ledger — shared by BOM variance tracking and Inventory, Section 18)
+
+```sql
+create table material_transactions (
+  transaction_id      uuid primary key default gen_random_uuid(),
+  material_id         uuid not null references materials(material_id),
+  bom_item_id         uuid references bom_items(bom_item_id),   -- null for a warehouse purchase not yet tied to a project
+  project_id          uuid references projects(project_id),     -- null for warehouse-level purchase; set on issue/return
+  movement_type        text not null
+                         check (movement_type in ('purchased','issued_to_site','returned_to_warehouse')),
+  quantity             numeric(14,3) not null,
+  rate                 numeric(14,2),      -- populated for 'purchased'; null for issue/return
+  vendor_id            uuid references partners(partner_id),    -- populated for 'purchased'
+  transaction_date     date not null,
+  source_document_id   uuid not null references documents(document_id),
+                         -- Purchase Invoice / Delivery Challan / Material Return Note
+  ai_confidence        numeric(3,2),
+  created_at           timestamptz not null default now()
+);
+
+create index on material_transactions (material_id);
+create index on material_transactions (bom_item_id);
+create index on material_transactions (project_id);
+```
+
+Each dispatch, purchase, or return is its own row — the 20m/30m/50m example from Section 13 is three `issued_to_site` rows against the same `bom_item_id`, summed rather than overwritten.
+
+**Design assumption — "Used at Site" quantity:** no explicit "material consumption" document has been defined yet, so actual usage is derived as `issued_to_site − returned_to_warehouse` (whatever wasn't returned is assumed used). If a dedicated site consumption/wastage document is introduced later, `used_at_site` can be added as a fourth `movement_type` without changing this schema.
+
+**Design simplification — actual cost:** `actual_cost` below is computed only from `purchased` transactions directly linked to a `bom_item_id` (material bought specifically for that project's BOM). Materials drawn from general warehouse stock purchased earlier at a different rate would need a costing method (e.g. weighted-average or FIFO) to attribute a rate — left as an open item for the Inventory schema pass, not solved here.
+
+### `BOM_Item_Variance` (derived view — the Section 8/9 comparison, nothing stored)
+
+```sql
+create view bom_item_variance as
+select
+  b.bom_item_id,
+  b.bom_id,
+  bm.project_id,
+  b.category,
+  b.description,
+  b.unit,
+  b.planned_quantity,
+  coalesce(sum(t.quantity) filter (where t.movement_type = 'issued_to_site'), 0)          as dispatched_quantity,
+  coalesce(sum(t.quantity) filter (where t.movement_type = 'returned_to_warehouse'), 0)   as returned_quantity,
+  coalesce(sum(t.quantity) filter (where t.movement_type = 'issued_to_site'), 0)
+    - coalesce(sum(t.quantity) filter (where t.movement_type = 'returned_to_warehouse'), 0)   as used_quantity,
+  b.planned_quantity
+    - (coalesce(sum(t.quantity) filter (where t.movement_type = 'issued_to_site'), 0)
+       - coalesce(sum(t.quantity) filter (where t.movement_type = 'returned_to_warehouse'), 0)) as quantity_variance,
+  b.estimated_cost,
+  coalesce(sum(t.quantity * t.rate) filter (where t.movement_type = 'purchased'), 0)       as actual_cost,
+  coalesce(sum(t.quantity * t.rate) filter (where t.movement_type = 'purchased'), 0) - b.estimated_cost as cost_variance
+from bom_items b
+join boms bm on bm.bom_id = b.bom_id
+left join material_transactions t on t.bom_item_id = b.bom_item_id
+group by b.bom_item_id, b.bom_id, bm.project_id, b.category, b.description, b.unit, b.planned_quantity, b.estimated_cost;
+```
+
+This directly mirrors — and formalizes — the Estimated/Actual columns already present by hand in NRG's workbook, with the multi-dispatch summing Section 13 requires added on top.
+
+This view is what Section 9 (Material Intelligence, Cost Intelligence) reads from directly — no separate variance-calculation code path, no risk of the stored and derived numbers drifting apart.
+
+### How this connects to other modules
+
+- **Inventory (Section 18):** the same `material_transactions` table is the derived stock ledger — `purchased` rows with `project_id null` are warehouse inflow, `issued_to_site`/`returned_to_warehouse` rows are outflow/inflow against a project. No separate inventory ledger table is needed.
+- **BOM Recommendation Engine (Section 14):** because `bom_items` and `material_transactions` both key off `material_id`, historical `used_quantity` can be aggregated across all past projects per material, normalized by `boms.kw_capacity`, to produce the "113m of DC cable per 100kW" suggestion.
+- **Vendor Quotes (Section 18):** structurally parallel to `material_transactions` rows of type `purchased` but representing an offer, not a completed purchase — kept as a separate table so unselected quotes don't pollute actual cost/stock calculations.
+- **Financial Obligations (Section 6/15):** `boms.order_value`, `estimated_total_cost`, and `actual_total_cost` give the BOM-side numbers to reconcile against — the gap between order value and BOM cost is where margin, GST, and the JDA/meter/strengthening pass-through charges live.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
 
-1. `BOM_Items` table (complete schema), including dispatch-level tracking (multiple partial shipments per line item, sent/received/returned quantities).
+1. ~~`BOM_Items` table (complete schema)~~ — done, see Section 19.
 2. Document Types and AI extraction rules.
 3. Document processing workflow.
 4. User roles and permissions.
