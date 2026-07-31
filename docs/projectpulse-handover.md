@@ -948,6 +948,12 @@ This doesn't change the schema — `material_transactions` stays the single sour
 - Point that synthetic row's `source_document_id` at the **same document as the BOM's own `boms.source_document_id`** (the workbook itself), not a separate Delivery Challan. That single detail is enough to distinguish "backfilled aggregate" from "real per-dispatch tracking" later, with no new column needed: `material_transactions.source_document_id = boms.source_document_id` on a row means it's a legacy aggregate; anything else is a genuine dispatch/purchase/return event.
 - This is a one-time backfill script the build session runs per historical project, not a schema change — flagging it now so it isn't discovered as a surprise gap when someone asks why an old project's variance numbers look sparse.
 
+### Confirmed scope boundary: dispatch/return-level tracking starts from go-live, not retroactively
+
+For any project predating ProjectPulse, ProjectPulse will only ever know one net "used" figure per material — not how many separate dispatches made it up, and not whether any of it was returned. Concretely, against Section 9's Material Intelligence outputs, **historical projects get**: Material Variance (planned vs. the one legacy actual figure) and Cost Variance — because both only need the single Actual Qty/Rate the workbook already had. **Historical projects do not get**: Excess/Short Purchase broken out from Wastage, or Unreturned Material specifically — those require knowing sent vs. received vs. returned as separate numbers, which were never recorded. Only projects that start generating real Delivery Challan/Material Out/Material In documents *after* go-live get the full breakdown.
+
+Practically, this is already visible in the data without a new flag: a `bom_item` whose only `material_transactions` row has `source_document_id = boms.source_document_id` (Section 28's backfill marker) is a legacy/limited-data project; anything with a genuine per-document transaction history is fully tracked. The intelligence layer (whenever it's built) should read that distinction and show "Limited historical data" rather than presenting a legacy project's numbers with the same confidence as a fully-tracked one.
+
 ---
 
 ## Next Session
