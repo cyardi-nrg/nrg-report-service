@@ -355,15 +355,18 @@ No user ever types a stock quantity — it is always a computed projection over 
 - Every Purchase Invoice line item captures material, vendor, rate, and date — this builds an automatic price history per material per vendor over time.
 - At reorder time, the system should show past purchase price(s) alongside the current quote(s) being considered, so a price increase/decrease is visible before the order is placed.
 
-### Open Design Question — "Online" Quote Comparison
+### Resolved — Quote Comparison Design
 
-The requirement is to compare quotes from multiple vendors, including current market/online pricing, at reorder time. This needs a decision before schema design, since it determines the source of "online" data:
+"Online" refers to how the quotes are uploaded (via the app), not a live web/market price lookup — this is option (a) from the earlier draft, confirmed:
 
-- **(a)** Vendor quotes arrive as documents (email/PDF) and are scanned/extracted the same way as invoices — consistent with the zero-manual-entry principle, but only as good as what vendors send.
-- **(b)** Live price lookup from vendor websites/portals or a market price feed — would need per-vendor integration or web search/scraping, which is a materially different (and more fragile) capability than document AI extraction.
-- **(c)** A hybrid: scanned quotes as the primary record, with an optional manual/online reference price for comparison.
+- When reordering, the 2–4 vendor quotes received (typically as PDF/email/photo) are **uploaded** into the system.
+- AI extracts each quote (vendor, material line items, rate, quantity, validity, terms) with **no manual entry**, the same as every other document type.
+- The system auto-generates a **comparison summary** across the uploaded quotes (e.g. rate per item side-by-side, cheapest/most expensive, delta vs. last purchase price from Section 18's price history).
+- Every extracted quote is **stored permanently** — not just used transiently for the reorder decision. Stored quotes feed back into:
+  - **Price Intelligence** (Section 18) — extending the price-history-per-vendor dataset even for quotes that weren't ultimately chosen.
+  - **BOM Recommendation Engine** (Section 14) — quoted rates contribute to future cost estimation, not just quantity estimation.
 
-This should be resolved before defining the Vendor Quotes table and reorder workflow.
+This needs a **Vendor Quotes** table (Quote, Vendor, Material, Quantity, Rate, Date, Project/Reorder Reference, Selected Y/N) as a new document-derived entity, structurally similar to Purchase Invoices but representing an offer rather than a completed transaction.
 
 ---
 
@@ -380,4 +383,4 @@ Continue database design by defining:
 7. Timeline/stage tracking schema — stage definitions, triggering events (document/photo upload), and duration computation.
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
-10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order as document types, derived stock ledger, reorder levels, and resolution of the online quote comparison design question above.
+10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order / Vendor Quote as document types, derived stock ledger, reorder levels, and the Vendor Quotes table for AI-extracted quote comparison and price history.
