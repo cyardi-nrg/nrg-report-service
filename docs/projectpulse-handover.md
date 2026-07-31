@@ -674,6 +674,49 @@ The system capacity (kW) shows up, independently re-typed, at every stage: the Q
 
 ---
 
+## 24. Document Types — Financial, Inventory & Payment-Proof Documents (Real Examples)
+
+A final, large batch of real documents covers the money and material side end-to-end: Debit Notes, a real Tally ledger export, GST Tax Invoices with e-Way Bills, vendor and customer Purchase Orders, panel/inverter procurement batch logs, Material In/Out vouchers, Delivery Challans, handwritten Gate Passes, and a range of payment-proof documents (receipt book, UPI/Paytm/PayZapp screenshots, a photographed cheque, a bank statement excerpt).
+
+### Debit Notes recover pass-through charges against a government receipt
+
+Two real Debit Notes show the actual mechanics behind Section 6/15's "customer payment ≠ NRG revenue" model: NRG pays a government charge itself first (via its own DISCOM/GEDA portal login), then issues a **Debit Note** to the customer for that exact amount, explicitly citing the government receipt number as proof — e.g. "for MGVCL Estimate and Strengthening Charges... MGVCL Receipt No.HHH1081796/797" (₹57,340), and "for GEDA Registration Charges... Receipt No: ER/2025-26/28187" (₹15,340). The source receipts were also seen directly: a **DGVCL Payment Acknowledgement** (breaking one payment into "Service connection estimate charges as per GERC" + "Bi-Directional Meter Charges") and a **GEDA Receipt-Cum-Tax Invoice** (Registration Fee + CGST 9% + SGST 9%, referencing the GEDA Application No.). **Debit Note is therefore a distinct document type**, and it should always be extractable as a 1:1 pair with the government receipt it references — this is how a `financial_obligations` row's `settlement_method = 'via_nrg_debit_note'` gets evidenced.
+
+### Real Tally ledger shape
+
+A genuine Tally "Ledger Account" export (Reactive Polymers Limited, one financial year) gives the actual voucher shape NRG's bookkeeping already uses: columns Date / Particulars (free-text narration) / **Vch Type** (`Payment`, `Receipt`, `Sales`, `Journal`) / Vch No. / Debit / Credit, with a running Closing Balance. Notably: a `Payment` voucher for the MGVCL Debit Note amount, a `Sales` voucher whose narration embeds the full system description ("70.56 KW SOLAR POWER PACK, Growatt 50 KW Inverter... WITH SYSTEM, STRUCTURE, WALKWAY & AC CABLES EXTRA 80 METER"), and a `Journal` voucher recording **TDS the customer deducted from NRG's own invoice** ("RS 19,20,302 @2% TDS =38406"). This confirms the Tally reconciliation feature (Section 15) needs to parse four voucher types, and that the free-text narration — not a structured field — is where receipt numbers and system specs actually live, so extraction has to be tolerant of unstructured text, not just column-mapped.
+
+### Tax Invoice splits System (5% GST) from Installation (18% GST)
+
+Real GST Tax Invoices (residential and commercial) consistently show **two line items with different HSN codes and GST rates**: the physical system as goods ("... KW SOLAR POWER PACK," HSN `85414300`, 5% GST) and "INSTALLATION (SOLAR ROOFTOP)" as a service (HSN `998717`, 18% GST) — each with its own CGST/SGST split. Every Tax Invoice is paired with an auto-generated **e-Way Bill** (its own document, referencing the Tax Invoice number, with transporter/vehicle/QR code details). This means `financial_obligations` (or the `sales_documents` line items feeding it) needs at least two categories with different tax treatment — goods vs. installation service — not one lump "system cost." A much smaller **Service/Visit Charge invoice** (HSN `998729`, 18% GST, e.g. ₹500 "Site Visit Charges," referencing a support-ticket-style Buyer's Order No. with a `TKT-` prefix) confirms NRG also runs ad-hoc chargeable service visits outside the main installation sale — a minor but real invoice subtype.
+
+### Purchase Order is bidirectional
+
+Section 22 documented a customer's PO *to* NRG (confirming a sale). This batch adds the mirror case: **NRG's own PO to a vendor** ("PHOTOVOLTAIC SOLAR," buying one inverter, 100% NEFT terms) — same document label, opposite direction, and structurally the trigger for a `material_transactions` `purchased` row rather than a `boms.order_value`. The schema needs a `direction`/`counterparty_role` (customer vs. vendor) on Purchase Orders, since "Purchase Order" alone doesn't disambiguate which.
+
+### Inventory documents — real names, and a direction-ambiguity problem
+
+NRG's actual document names differ slightly from Section 18's invented ones, and are worth aligning to: **"Material Out"** (a Tally-style voucher, no rate/amount, used for internal transfers — e.g. cable reels handed to an installer/rider), **"Material In"** (the mirror, receiving material back — e.g. unused cable/pipe returned from a completed project site), and **"Delivery Challan"** (a more formal, partner-facing version of the same outward movement, e.g. panels/pipes/earthing kit sent to Rajkamal Engineering for a specific system size). On top of these, a physical pre-printed **"Gate Pass"** pad is *also* used for both directions, disambiguated only by a handwritten annotation ("Received Materials") — meaning **document type/template alone cannot reliably determine movement direction** for a meaningful share of NRG's real paperwork; AI extraction has to read content (to/from party, any handwritten direction note) rather than trust the template name.
+
+A pre-printed **"Residential Customer Delivery Challan"** checklist template independently validates the BOM category taxonomy from Section 19 — it lists the same categories (Panel, Inverter, ACDB, DCDB, Earthing Rod/Bag, Lightning Arrester, GI Pipes 60×40/40×40, Conduit Pipes, Electrical Kit, Fabrication Kit) as fixed line items to be filled in by hand, plus an "Assigned To" field tagging which install crew/person the material is going with — worth adding an `assigned_to` (Partner/Employee) field to `material_transactions`.
+
+### Procurement batch logs: DCR/NDCR flag and serial-to-project traceability
+
+Internal "Solar Panel Ref List" and "Inverter Ref List" logs are NRG's manual precursor to the `Materials`/`material_transactions` design: one row per purchase batch (Date, Invoice No., Supplier, Make, Wattage/KW, Quantity, and a sequential internal **Ref No.** like `18-19-P-01` — fiscal-year + type-letter + sequence, a real precedent for a batch/lot identifier). Two things worth adding to the schema:
+
+- **DCR/NDCR flag on panels** — Domestic Content Requirement status is tracked per purchase batch, since it affects government-scheme eligibility (ties to Section 6/15's subsidy obligations) and isn't a field the current design captures.
+- **Serial-to-project traceability, including replacement/RMA** — the Inverter Ref List ties specific serial numbers to specific customers/projects by free-text name, and includes at least one explicit warranty replacement ("REPLACEMENT NEW 80 KW... AGAINST SR NO: 9080KMTU245W0025... Rel New Inveter"). `material_transactions`/serial tracking needs to support a unit being superseded by a replacement serial against the same project, not just a one-time assignment.
+
+### More reference-number scheme variants
+
+Real invoices show yet more internal numbering conventions beyond Section 21's `NRG/24-25/xxx` and `GR/GI-xxx`: an "Other References" tag of `NRG/26-27/RESI/GEDA` on one invoice, and a Buyer's Order No. of `NRG/RESI/26-27/RC101` on another — inconsistently applied (not every invoice carries the same tag format). This further reinforces that `Project_External_References` (Section 21) needs to stay a flexible, extensible list rather than a fixed enum — NRG's own internal numbering isn't even fully standardized yet.
+
+### New document type: Payment Proof
+
+A distinct category, separate from formal Tax/Proforma Invoices: a pre-printed **Cash/Cheque Receipt book** (with an explicit "against Invoice No." field when filled in — the cleanest case for matching), photographed **physical cheques**, and **UPI/Paytm/PayZapp payment-confirmation screenshots** (Transaction ID, RRN, payer's display name, amount, date — but usually *no* invoice reference at all), plus cropped **bank-statement line excerpts**. These are the actual evidentiary source for the "Received" amount in Financial Obligations reconciliation (Section 6/15). The reconciliation challenge this exposes: when a payment-proof document has no invoice number (most UPI screenshots), matching it to the right obligation will have to fall back on amount + date + payer-name fuzzy matching — worth flagging as a real (not hypothetical) AI-matching problem to design for, not an edge case.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
