@@ -531,6 +531,44 @@ This view is what Section 9 (Material Intelligence, Cost Intelligence) reads fro
 
 ---
 
+## 20. Current-State Audit — "National Portal" Workbook (Residential Subsidy Business Line)
+
+Reviewed a live Google Sheet (`202425_7021200_SPP_National_Portal`) tracking ~230+ customer records, reference numbers `NRG/24-25/702` onward. This is a **second business line** distinct from the commercial/industrial projects in the BOM workbook (Section 19's source): small residential rooftop installs sold through a **government subsidy scheme**, applied for via a DISCOM "National Portal." Same company, same eventual ProjectPulse system, but a materially different lifecycle (subsidy application → subsidy claim, vs. Section 6's JDA/meter/strengthening charges for larger jobs). Whether these two lines share one `projects` table with a type/track discriminator, or need parallel structures, is now an open question (see below).
+
+### Tab inventory
+
+| Tab (approx. purpose) | Key columns | Maps to |
+|---|---|---|
+| **Dispatch Documentation** | Reference Number, Consumer Number, Applicant Name, Address, Panel/Inverter Make & specs, Dispatch Date, Panel/Inverter serial numbers, auto-generated PDF file link | `Documents` (Section 5) — this tab is effectively driven by a Google Sheets add-on ("Document Studio") that renders one PDF per row and writes the Drive link back into the sheet |
+| **Customer / Sales Master** | Date, Reference Number, **Consumer Number**, Applicant Name, Address, **Discom**, **Division**, Contact, Area, Reference Category/Person, Sales Person, Panel/Inverter specs, KW, Structure Height (**`#REF!` on every row** — a broken formula), Per-kW rate, Total Amount, System Cost, **Status** (free-text funnel stage: "Estimate Generated" → "Subsidy Recieved" → "Subsidy Claimed" …) | `Projects` + `Customers` (Section 5) — the closest thing to a project master record NRG currently has |
+| **Enquiry / Lead** | Reference Number, SR number, Estimate Generated, Applicant, Discom, Inverter/Panel Wanted, Suggested/Finalized Structure Amount | Designed but **currently empty/unused** — a pre-sale lead-tracking tab nobody is filling in |
+| **Payment Collection** | Reference Number, Dispatched, Installed, No. of Panels, Total System amount, 1st/2nd/3rd Check, Remaining amount | `Financial Obligations` (Section 6/15) — tracks NRG-revenue installments only, not the DISCOM/subsidy pass-through amounts |
+| **Material Dispatch Planning** | Reference Number, Panel/Inverter specs, KW, Structure Height, **60×40 Pipe / 40×40 Pipe / Conduit Pipe / Earthing Kit / Cement Bag / ACDB / DCDB quantities**, and a **"Combined detail for pasting in Whatsapp group"** auto-concatenated text column | `BOM_Items` (Section 19) for the quantities, and a manual proof-of-concept for the **Marketing module** (Section 17) — NRG is already hand-assembling WhatsApp update text per customer today |
+| **Installation Status — Site Work** | Reference Number, Dispatch Date, Structure Height, Vendor, **Structure fitting / Panel fitting / Cement grouting / Inverter / ACDB-DCDB / Earthing / LA dates**, **MGVCL Submit date**, **Meter Install date**, Setup online monitoring (Y/N) | `material_transactions` timing + the **Timeline Intelligence** stage list (Section 16) — real stage names, more granular than what Section 16 guessed |
+| **Installation Status — Serials & Monitoring** | Reference Number, Inverter/Panel serials + manufacturer address, **monitoring portal User Name/Password** | Duplicates most of the Dispatch Documentation tab; the monitoring credentials are stored **in plaintext in the spreadsheet** |
+| **Structure Calculation** (reference table) | Panel count/KW → required pipe lengths, ACDB/DCDB routing, cement bags | Engineering lookup data, same role as the Cable Sizing table found in the BOM workbook — feeds Material Dispatch Planning's formulas, not itself project data |
+| **Panel/Inverter Master** (reference table) | Panel Make/Series/Efficiency; Inverter Make/Series | Validates the `Materials` catalog concept (Section 19), scoped here to panels/inverters |
+| **Document Studio Logs** | Automation run timestamps | System/integration log, not business data |
+
+### What this confirms
+
+- **Section 16 (Timeline Intelligence)** is directly validated — real stage names are: Dispatch → Structure fitting → Panel fitting → Cement grouting → Inverter → ACDB/DCDB → Earthing → LA → DISCOM Submit → Meter Install → Monitoring setup. Worth replacing Section 16's illustrative stage list with these once the schema is defined.
+- **Section 17 (Marketing module)** is validated by the "Combined detail for pasting in Whatsapp group" column — NRG is already manually building this today for every customer.
+- **The `Materials` catalog (Section 19)** is validated by the Panel/Inverter Master tab.
+
+### What this changes / adds
+
+- **New fields needed on `Projects`/`Customers`:** `consumer_number` (the DISCOM utility account number — a customer/site identifier independent of NRG's own reference number), `discom` (utility name, e.g. MGVCL), `division` (DISCOM sub-division). None of these were in Section 5's original field list, which was written before seeing this residential-subsidy workflow.
+- **A funnel/status concept distinct from Section 16's install-stage tracking:** the "Status" column here (Estimate Generated → Subsidy Received → Subsidy Claimed) is a subsidy-application lifecycle, separate from physical installation progress — the schema needs both, not one conflated field.
+- **Security concern to carry forward:** monitoring-portal credentials must go into a proper secrets store when this is rebuilt — never a plaintext column, even in a real database.
+- **The single biggest justification for Principle 1** found in this audit: one customer's data is currently split across 6 actively-used tabs (Customer Master, Payment Collection, Material Dispatch Planning, two separate Installation Status tabs, Dispatch Documentation), each independently re-entering Applicant Name/Address/Contact/Sales Person/KW. That duplication — and the live `#REF!` formula error it's already produced — is the concrete case for a single source of truth.
+
+### Open question
+
+Do the residential-subsidy line (this workbook) and the commercial/industrial line (Section 19's BOM workbook) share one `projects` table with a `project_type`/`scheme` discriminator and optional subsidy-specific fields, or does the subsidy lifecycle (application → claim, DISCOM-specific fields) warrant a separate extension table keyed to `projects`? Recommend deciding this before drafting `Projects`/`Customers`/`Customer_Contacts` in full, since it changes whether those tables carry nullable subsidy columns or reference a satellite table.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -545,3 +583,4 @@ Continue database design by defining:
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
 10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order / Vendor Quote as document types, derived stock ledger, reorder levels, and the Vendor Quotes table for AI-extracted quote comparison and price history.
+11. `Projects` / `Customers` / `Customer_Contacts` full schema — resolve Section 20's open question (shared table with a discriminator vs. a subsidy-specific satellite table) first, then incorporate `consumer_number`/`discom`/`division`, the subsidy-application funnel status, and a secrets-managed home for monitoring-portal credentials.
