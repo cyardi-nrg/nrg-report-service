@@ -610,12 +610,37 @@ More `#REF!` and `#DIV/0!` errors present in this workbook (a large block of bro
 
 ---
 
+## 22. Document Types — Real Examples (Sales & Compliance Documents)
+
+Reviewed four real documents NRG's team would upload to a project folder: a customer-facing Quote, a customer's Purchase Order, a Proforma Invoice, and a CEIG Test Inspection application + approval letter. Together they give the actual sales/compliance document sequence and confirm several open design points.
+
+### Document sequence confirmed
+
+`Quote` → customer confirms with a `Purchase Order` → NRG bills a milestone with a `Proforma Invoice` → (later, not seen here but implied by the PO's General Terms) `Tax Invoice` / `Delivery Challan` per GST rules → compliance submissions (`Test Inspection Application`, `CEI Approval Letter`) run in parallel once installation nears completion.
+
+### Per-document findings
+
+- **Quote / Solar Rooftop Proposal** (multi-page: cover, letter, Quotation Details, Cost Breakdown table, Bank Details, Payment Terms, Document Requirements checklist, spec sheets, Services Included, Terms & Conditions, marketing/catalog pages) — the Cost Breakdown table **already itemizes exactly Section 6's obligation split** inside one "Gross Cost": system cost+GST, GEDA Application & Processing Charges, Meter Charges, GEB Line Strengthening Charges, an optional add-on (Walkway), and a discount. This is the earliest artifact that should seed `financial_obligations` rows at project creation — each cost-breakdown line maps to an `obligation_type`. It also carries a **Document Requirements checklist** (11 KYC/compliance documents the customer must supply: electricity bill, land ownership proof, GST cert, PAN/Aadhaar, board resolution, etc.) — worth its own `required_documents` reference list per project type, so ProjectPulse can show what's still missing.
+- **Purchase Order / Work Order** — the customer's own PO text makes the "customer payment ≠ NRG revenue" split explicit: it prices the base contract, then lists costs **"not considered in above proposal... shall be paid directly by Customer"** (GEDA Charges ₹15,340, Net metering/Discom feasibility charges ~₹2,50,000, land cleaning, module cleaning contract) — i.e., this is the authoritative source for `financial_obligations.settlement_method` (direct-to-third-party vs. via-NRG). It also confirms staged Payment Terms (10% advance / 85% before dispatch / 5% after commissioning+net-meter) and GST/e-way-bill/TDS/MSMED compliance clauses that any generated Tax Invoice or Delivery Challan will need to satisfy.
+- **Proforma Invoice** — one line item, tied explicitly to a payment milestone ("PROFORMA AGAINST 10% ADVANCE ALONG WITH PURCHASE ORDER"), not a GST Tax Invoice. Confirms `sales_documents` needs a `document_type` (`quote`/`purchase_order`/`proforma_invoice`/`tax_invoice`/`delivery_challan`) and should link to the specific Financial Obligations installment it bills, not just the project total.
+- **Test Inspection Application (CEIG) + CEI Approval Letter** — a government-portal PDF (`ceicedeservice.gujarat.gov.in`) with highly structured fields: Consumer Number, Solar Plant table (Make/Capacity/Modules), Inverter Details, **Megger test readings** (R-Y/Y-B/R-B/RYB-Earth IR values), **Earth Pit Resistance** (4 pits), contractor/supervisor license numbers, satisfactory-remarks flags — followed by the Inspector's signed approval letter referencing the same Consumer Number. These are genuinely measurable facts (Principle 5) with a fixed, well-known shape — a strong candidate for a small dedicated `electrical_test_records` table rather than generic AI Facts rows, and this document type feeds the CEIG track of `Project_Milestones` (Section 21).
+
+### Confirms Consumer Number as the cross-system anchor
+
+The same DISCOM Consumer Number appears in the CEIG test inspection doc as in the GEDA and National Portal workbooks (Section 20/21). Of the three external reference types, Consumer Number is the one that shows up consistently across DISCOM, GEDA, and CEIG documents — it should be the primary key AI extraction uses to match an uploaded document to the right project, with Applicant Name as a fallback when Consumer Number isn't printed on a document (e.g. the Quote, issued before a consumer number exists).
+
+### Inconsistency worth flagging back to NRG
+
+The Quote bundles GEDA/Meter/GEB-strengthening charges into one customer-facing "Gross Cost," while this particular PO calls the same categories out as billed directly by the customer. Whether pass-through charges are bundled into NRG's contract price or billed direct seems to vary deal-by-deal — which is exactly why Section 6 models Financial Obligations as individual rows with their own settlement method, rather than one total.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
 
 1. ~~`BOM_Items` table (complete schema)~~ — done, see Section 19.
-2. Document Types and AI extraction rules.
+2. Document Types and AI extraction rules — real examples gathered in Section 22 (Quote, Purchase Order, Proforma Invoice, Test Inspection/CEI Approval); still need the full Document Type enum + extraction-field mapping written up as schema.
 3. Document processing workflow.
 4. User roles and permissions.
 5. Management dashboard metrics based only on objective, measurable data.
