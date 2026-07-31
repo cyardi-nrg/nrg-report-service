@@ -938,6 +938,18 @@ Resolving a candidate is the only thing that writes to `projects.google_drive_fo
 
 ---
 
+## 28. Historical Backfill — No Material-Transaction Event Log Exists
+
+Confirmed directly: NRG does **not** keep a separate material-transaction log today. The BOM workbook's single "Actual Qty Used" / "Actual Rate" columns per line item (Section 19) *are* the only record of what actually happened on a historical project — there is no per-dispatch history to import into `material_transactions` for anything already completed or in progress before ProjectPulse goes live.
+
+This doesn't change the schema — `material_transactions` stays the single source of truth going forward, populated as real Delivery Challans/Material Out/Material In documents get uploaded for new activity. It changes how **historical projects get backfilled**:
+
+- For each historical `bom_items` row, create **one synthetic `material_transactions` row** using the workbook's existing Actual Qty/Rate figures (`movement_type = 'issued_to_site'`, `quantity`/`rate` = the Actual columns), rather than leaving history-less rows with zero transactions (which would make `bom_item_variance` silently show a false "0 used" instead of "not tracked at this granularity").
+- Point that synthetic row's `source_document_id` at the **same document as the BOM's own `boms.source_document_id`** (the workbook itself), not a separate Delivery Challan. That single detail is enough to distinguish "backfilled aggregate" from "real per-dispatch tracking" later, with no new column needed: `material_transactions.source_document_id = boms.source_document_id` on a row means it's a legacy aggregate; anything else is a genuine dispatch/purchase/return event.
+- This is a one-time backfill script the build session runs per historical project, not a schema change — flagging it now so it isn't discovered as a surprise gap when someone asks why an old project's variance numbers look sparse.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
