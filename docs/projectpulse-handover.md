@@ -488,12 +488,30 @@ Each dispatch, purchase, or return is its own row — the 20m/30m/50m example fr
 
 **Design assumption — "Used at Site" quantity:** no explicit "material consumption" document has been defined yet, so actual usage is derived as `issued_to_site − returned_to_warehouse` (whatever wasn't returned is assumed used). If a dedicated site consumption/wastage document is introduced later, `used_at_site` can be added as a fourth `movement_type` without changing this schema.
 
-**Design simplification — actual cost:** `actual_cost` below is computed only from `purchased` transactions directly linked to a `bom_item_id` (material bought specifically for that project's BOM). Materials drawn from general warehouse stock purchased earlier at a different rate would need a costing method (e.g. weighted-average or FIFO) to attribute a rate — left as an open item for the Inventory schema pass, not solved here.
+**Design simplification — actual cost:** *(resolved — see Section 31)* Originally, `actual_cost` here only counted `purchased` transactions directly linked to a `bom_item_id`, which meant it silently showed 0 for any project drawing material from pooled warehouse stock (the common case, per Section 31's weighted-average discussion) rather than material bought earmarked for one job. The view below is the corrected version.
 
 ### `BOM_Item_Variance` (derived view — the Section 8/9 comparison, nothing stored)
 
 ```sql
 create view bom_item_variance as
+with movement as (
+  select
+    bom_item_id,
+    sum(quantity) filter (where movement_type = 'issued_to_site') as dispatched_quantity,
+    sum(quantity) filter (where movement_type = 'returned_to_warehouse') as returned_quantity
+  from material_transactions
+  where bom_item_id is not null
+  group by bom_item_id
+),
+cost as (
+  select
+    bom_item_id,
+    sum(attributed_cost) filter (where movement_type = 'issued_to_site')
+      - sum(attributed_cost) filter (where movement_type = 'returned_to_warehouse') as actual_cost
+  from material_transaction_cost   -- Section 31 — weighted-average cost attribution
+  where bom_item_id is not null
+  group by bom_item_id
+)
 select
   b.bom_item_id,
   b.bom_id,
@@ -502,20 +520,17 @@ select
   b.description,
   b.unit,
   b.planned_quantity,
-  coalesce(sum(t.quantity) filter (where t.movement_type = 'issued_to_site'), 0)          as dispatched_quantity,
-  coalesce(sum(t.quantity) filter (where t.movement_type = 'returned_to_warehouse'), 0)   as returned_quantity,
-  coalesce(sum(t.quantity) filter (where t.movement_type = 'issued_to_site'), 0)
-    - coalesce(sum(t.quantity) filter (where t.movement_type = 'returned_to_warehouse'), 0)   as used_quantity,
-  b.planned_quantity
-    - (coalesce(sum(t.quantity) filter (where t.movement_type = 'issued_to_site'), 0)
-       - coalesce(sum(t.quantity) filter (where t.movement_type = 'returned_to_warehouse'), 0)) as quantity_variance,
+  coalesce(m.dispatched_quantity, 0) as dispatched_quantity,
+  coalesce(m.returned_quantity, 0) as returned_quantity,
+  coalesce(m.dispatched_quantity, 0) - coalesce(m.returned_quantity, 0) as used_quantity,
+  b.planned_quantity - (coalesce(m.dispatched_quantity, 0) - coalesce(m.returned_quantity, 0)) as quantity_variance,
   b.estimated_cost,
-  coalesce(sum(t.quantity * t.rate) filter (where t.movement_type = 'purchased'), 0)       as actual_cost,
-  coalesce(sum(t.quantity * t.rate) filter (where t.movement_type = 'purchased'), 0) - b.estimated_cost as cost_variance
+  coalesce(c.actual_cost, 0) as actual_cost,
+  coalesce(c.actual_cost, 0) - b.estimated_cost as cost_variance
 from bom_items b
 join boms bm on bm.bom_id = b.bom_id
-left join material_transactions t on t.bom_item_id = b.bom_item_id
-group by b.bom_item_id, b.bom_id, bm.project_id, b.category, b.description, b.unit, b.planned_quantity, b.estimated_cost;
+left join movement m on m.bom_item_id = b.bom_item_id
+left join cost c on c.bom_item_id = b.bom_item_id;
 ```
 
 This directly mirrors — and formalizes — the Estimated/Actual columns already present by hand in NRG's workbook, with the multi-dispatch summing Section 13 requires added on top.
@@ -1162,6 +1177,64 @@ order by vqi.material_id, vqi.rate;
 ```
 
 `material_quote_comparison` is the direct answer to "show the last purchase price and compare the quotes received" — every quote line for a material sits alongside what it was last actually bought for, with the delta already computed, ordered cheapest-first. Nothing needs to be looked up manually at reorder time.
+
+---
+
+## 31. Costing Material Drawn From Pooled Stock, and Two Design Questions Resolved by Discussion
+
+Three real questions came up about a purchase not tied to any one project (e.g. buying DC cable in bulk): how to track what was used where and at what rate; how to avoid a person's filing mistake breaking that; and how to handle one big order that gets split across many clients (concretely, a 100kW panel order across 15 sites).
+
+### Weighted-average costing (confirmed — implemented here)
+
+The gap: cost variance already worked when material was purchased specifically for one project's BOM (Section 19's original `actual_cost`), but showed nothing for material drawn from a shared warehouse pool — which is the *normal* case for bulk items like cable. **Decision: weighted-average costing**, not FIFO — simpler, and good enough for variance analysis rather than formal COGS accounting. To avoid a completed project's reported cost silently drifting every time a new purchase updates a simple running average, this uses the average **as of the date of each issue**, not "current average":
+
+```sql
+create view material_purchase_running_avg as
+select
+  transaction_id,
+  material_id,
+  transaction_date,
+  quantity,
+  rate,
+  sum(quantity) over w as cumulative_quantity,
+  sum(quantity * rate) over w as cumulative_value,
+  (sum(quantity * rate) over w) / nullif(sum(quantity) over w, 0) as weighted_avg_rate
+from material_transactions
+where movement_type = 'purchased' and rate is not null
+window w as (partition by material_id order by transaction_date, transaction_id);
+
+create view material_transaction_cost as
+select
+  it.transaction_id,
+  it.material_id,
+  it.bom_item_id,
+  it.project_id,
+  it.movement_type,
+  it.transaction_date,
+  it.quantity,
+  coalesce(it.rate, avg_rate.weighted_avg_rate) as effective_rate,
+  it.quantity * coalesce(it.rate, avg_rate.weighted_avg_rate) as attributed_cost
+from material_transactions it
+left join lateral (
+  select p.weighted_avg_rate
+  from material_purchase_running_avg p
+  where p.material_id = it.material_id
+    and p.transaction_date <= it.transaction_date
+  order by p.transaction_date desc, p.transaction_id desc
+  limit 1
+) avg_rate on true
+where it.movement_type in ('issued_to_site', 'returned_to_warehouse');
+```
+
+`coalesce(it.rate, avg_rate.weighted_avg_rate)` matters for one specific reason: Section 28's historical backfill puts a real rate directly on a legacy `issued_to_site` row (the workbook's own Actual Rate), and that has to win outright rather than triggering a weighted-average lookup against purchase history that, for an old project, may not even exist. Going forward, real per-dispatch `issued_to_site` rows have no rate of their own (per Section 19's original design) and fall through to the weighted-average lookup automatically. `bom_item_variance` (Section 19, now corrected above) sums this per `bom_item_id`, netting returns against issues the same way it already nets quantity.
+
+### Filing mistakes: don't trust the folder, trust the content
+
+If a person has to choose between a project folder and a warehouse folder, they will sometimes choose wrong. The fix isn't a smarter folder scheme — Section 26 already found folder location was never a reliable signal for anything else, and the same logic extends here: **AI reads every document's content (client name, consumer number, project reference) and matches it to a project regardless of where it was uploaded**, flagging a mismatch if the folder disagrees with what the document actually says, rather than trusting placement blindly. No schema change — this is a rule for the extraction pipeline to follow, not a table.
+
+### A bulk order split across many clients — already handled
+
+Confirmed no new schema is needed: one PO/invoice creates one (or a few) `purchased` transaction(s) at warehouse level (`project_id` null); as material physically goes out to each of the (e.g.) 15 sites, each gets its own `issued_to_site` row with its own project, quantity, and (for serialized items like panels) its own slice of `serial_numbers` out of the batch. `material_stock` already nets all of this correctly regardless of how many projects draw from one purchase, and `material_requirement`/`material_shortfall` (Section 29) already aggregate demand across every active project's BOM for that material — which is exactly what would justify placing one bulk order in the first place.
 
 ---
 
