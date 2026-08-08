@@ -956,6 +956,119 @@ Practically, this is already visible in the data without a new flag: a `bom_item
 
 ---
 
+## 29. Inventory: Purchase Orders and the Shortfall Calculation
+
+Directly answers "can this manage panel/inverter/DC cable/AC cable/ACDB/DCDB inventory, and tell me what to buy once an order is confirmed?" — yes, and the material-agnostic design already covers those examples (they're literally 6 of the ~15 `materials.category` values from Section 19). What's new here is formalizing the two pieces of Section 18 that were only ever prose: **Open Orders** (placed but not yet received — distinct from a completed `purchased` transaction) and the **Shortfall** calculation itself.
+
+### `Purchase_Orders` / `Purchase_Order_Items`
+
+A PO is placed before stock is received, so it can't just be a `material_transactions` row (those represent completed movements). It needs its own header + line items, with `material_transactions` linking back to the line it fulfills:
+
+```sql
+create table purchase_orders (
+  purchase_order_id   uuid primary key default gen_random_uuid(),
+  vendor_id            uuid not null references partners(partner_id),
+  source_document_id   uuid references documents(document_id),  -- the NRG-to-vendor PO document itself, Section 24
+  order_date           date,
+  status               text not null default 'open'
+                        check (status in ('open','partially_received','received','cancelled')),
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create table purchase_order_items (
+  purchase_order_item_id uuid primary key default gen_random_uuid(),
+  purchase_order_id       uuid not null references purchase_orders(purchase_order_id),
+  material_id              uuid not null references materials(material_id),
+  ordered_quantity         numeric(14,3) not null,
+  rate                     numeric(14,2),
+  created_at               timestamptz not null default now()
+);
+
+create index on purchase_order_items (purchase_order_id);
+create index on purchase_order_items (material_id);
+
+alter table material_transactions
+  add column purchase_order_item_id uuid references purchase_order_items(purchase_order_item_id);
+  -- populated only when a 'purchased' row is receiving against an open PO line, rather than an untracked/spot purchase
+
+alter table material_transactions
+  add column serial_numbers text[];
+  -- for serialized items (panels, inverters — Section 24's Ref List traceability): the specific serial(s) this row covers. Null for bulk materials (cable, pipe).
+
+alter table materials
+  add column reorder_level numeric(14,3);
+  -- business judgment, per Section 18 — one of the few things a user enters directly rather than an AI-extracted figure
+```
+
+`received_quantity` per PO line is deliberately **not** a stored column — it's derived from summing `material_transactions` rows that reference the line, same "compute, don't store" pattern as `bom_item_variance` (Section 19).
+
+### The Shortfall calculation, as views
+
+```sql
+create view material_stock as
+select
+  material_id,
+  coalesce(sum(quantity) filter (where movement_type = 'purchased'), 0)
+    - coalesce(sum(quantity) filter (where movement_type = 'issued_to_site'), 0)
+    + coalesce(sum(quantity) filter (where movement_type = 'returned_to_warehouse'), 0) as current_stock
+from material_transactions
+group by material_id;
+
+create view material_open_orders as
+select
+  poi.material_id,
+  sum(poi.ordered_quantity - coalesce(received.qty, 0)) as open_order_quantity
+from purchase_order_items poi
+join purchase_orders po on po.purchase_order_id = poi.purchase_order_id
+left join (
+  select purchase_order_item_id, sum(quantity) as qty
+  from material_transactions
+  where movement_type = 'purchased' and purchase_order_item_id is not null
+  group by purchase_order_item_id
+) received on received.purchase_order_item_id = poi.purchase_order_item_id
+where po.status in ('open','partially_received')
+group by poi.material_id;
+
+create view material_requirement as
+-- outstanding BOM demand: planned quantity not yet dispatched, across active projects
+select
+  bi.material_id,
+  sum(bi.planned_quantity - coalesce(issued.qty, 0)) as outstanding_requirement
+from bom_items bi
+join boms b on b.bom_id = bi.bom_id
+join projects p on p.project_id = b.project_id
+left join (
+  select bom_item_id, sum(quantity) as qty
+  from material_transactions
+  where movement_type = 'issued_to_site'
+  group by bom_item_id
+) issued on issued.bom_item_id = bi.bom_item_id
+where p.status = 'active' and bi.material_id is not null
+group by bi.material_id
+having sum(bi.planned_quantity - coalesce(issued.qty, 0)) > 0;
+
+create view material_shortfall as
+select
+  m.material_id,
+  m.category,
+  m.canonical_name,
+  m.default_unit,
+  m.reorder_level,
+  coalesce(s.current_stock, 0) as current_stock,
+  coalesce(o.open_order_quantity, 0) as open_order_quantity,
+  coalesce(r.outstanding_requirement, 0) as outstanding_requirement,
+  coalesce(r.outstanding_requirement, 0) - (coalesce(s.current_stock, 0) + coalesce(o.open_order_quantity, 0)) as shortfall
+from materials m
+left join material_stock s on s.material_id = m.material_id
+left join material_open_orders o on o.material_id = m.material_id
+left join material_requirement r on r.material_id = m.material_id;
+```
+
+`material_shortfall.shortfall > 0` is the direct answer to "once an order is confirmed, what do I need to purchase": the moment a new project's BOM is extracted into `bom_items`, its `planned_quantity` per material flows straight into `material_requirement`, gets netted against current stock and anything already on order, and any material that comes up short is right there — no separate "check inventory" step, it's just querying this view. `current_stock < reorder_level` (independent of any specific project) is the general low-stock alert Section 18 described.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -969,5 +1082,5 @@ Continue database design by defining:
 7. Timeline/stage tracking schema — now scoped by Section 21 as a `Project_Milestones` table supporting multiple concurrent tracks (DISCOM subsidy, GEDA registration, CEIG inspection, physical site work) with type-dependent milestone sets, not one linear sequence.
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
-10. Inventory Intelligence schema — Purchase Invoice / Delivery Challan / Material Return / Purchase Order / Vendor Quote as document types, derived stock ledger, reorder levels, and the Vendor Quotes table for AI-extracted quote comparison and price history.
+10. Inventory Intelligence schema — mostly done, see Section 29 (`Purchase_Orders`/`Purchase_Order_Items`, `reorder_level`, `material_stock`/`material_open_orders`/`material_requirement`/`material_shortfall` views). Still open: the `Vendor_Quotes` table for AI-extracted quote comparison and price history (Section 18) hasn't been given DDL yet.
 11. ~~`Projects` / `Customers` / `Customer_Contacts` full schema~~ — done, see Section 27 (single table with a `project_type` discriminator, `Employees`/`Partners` defined alongside, Drive folder linking including the `drive_folder_import_candidates` review queue for the ~300 existing folders). Section 20's subsidy-application funnel ("Estimate Generated → Subsidy Received → Subsidy Claimed") is now explicitly out of scope — the subsidy pays out directly to the customer's bank account, never touching NRG, so `project_milestones` only needs to cover DISCOM feasibility, GEDA registration, CEIG inspection, and site work (all things NRG itself is responsible for).
