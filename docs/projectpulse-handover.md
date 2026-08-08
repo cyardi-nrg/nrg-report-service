@@ -1069,6 +1069,102 @@ left join material_requirement r on r.material_id = m.material_id;
 
 ---
 
+## 30. Reorder Alerts, Last Purchase Price, and Vendor Quote Comparison
+
+Resolves the last open piece of Inventory Intelligence: `Vendor_Quotes` (designed in prose in Section 18, never given DDL) — plus the reminder mechanism and price-comparison views needed to actually act on a low-stock situation, not just detect one.
+
+### `Vendor_Quotes` / `Vendor_Quote_Items`
+
+```sql
+create table vendor_quotes (
+  vendor_quote_id      uuid primary key default gen_random_uuid(),
+  vendor_id            uuid not null references partners(partner_id),
+  source_document_id   uuid references documents(document_id),  -- the uploaded quote (PDF/photo/email) — Section 18
+  quote_date           date,
+  valid_until          date,
+  terms                text,          -- payment/delivery terms, as extracted, free text
+  is_selected          boolean not null default false,   -- did this quote win the reorder decision
+  purchase_order_id    uuid references purchase_orders(purchase_order_id),  -- set once this quote converts into an actual PO
+  created_at           timestamptz not null default now()
+);
+
+create table vendor_quote_items (
+  vendor_quote_item_id  uuid primary key default gen_random_uuid(),
+  vendor_quote_id       uuid not null references vendor_quotes(vendor_quote_id),
+  material_id           uuid not null references materials(material_id),
+  quantity              numeric(14,3),
+  rate                  numeric(14,2) not null,
+  ai_confidence         numeric(3,2),
+  created_at            timestamptz not null default now()
+);
+
+create index on vendor_quote_items (vendor_quote_id);
+create index on vendor_quote_items (material_id);
+```
+
+Every uploaded quote is stored permanently, selected or not — Section 18's reasoning still holds: unselected quotes still feed price history, and quoted rates feed the BOM Recommendation Engine's future cost estimation, not just the immediate reorder decision.
+
+### Reorder alerting — who gets notified, and not repeatedly
+
+```sql
+alter table materials
+  add column reorder_responsible_employee_id uuid references employees(employee_id);
+  -- optional specific owner for this material's alerts; falls back to a general "purchase" role broadcast if null
+
+create table reorder_alerts (
+  reorder_alert_id             uuid primary key default gen_random_uuid(),
+  material_id                  uuid not null references materials(material_id),
+  detected_at                  timestamptz not null default now(),
+  stock_at_detection           numeric(14,3) not null,
+  reorder_level_at_detection   numeric(14,3) not null,
+  status                       text not null default 'open'
+                                check (status in ('open','acknowledged','ordered','dismissed')),
+  resolved_by                  uuid references employees(employee_id),
+  resolved_at                  timestamptz,
+  created_at                   timestamptz not null default now()
+);
+
+create index on reorder_alerts (material_id);
+create index on reorder_alerts (status);
+```
+
+**This table is what stops the reminder from nagging every run for the same unresolved shortage.** A scheduled application job checks `material_stock.current_stock <= materials.reorder_level`; for each material already below threshold with no existing `open`/`acknowledged` alert, it inserts one row and sends a notification (email/WhatsApp/push — application-layer, not something the database does itself) to `reorder_responsible_employee_id`, or to everyone with a purchase-facing `role` if no specific owner is set. The alert clears to `ordered` automatically once a `purchase_orders` row gets created for that material, or `dismissed` by a human — either way, no further reminders fire for that same instance.
+
+### Last purchase price and quote comparison, together
+
+```sql
+create view material_last_purchase as
+select distinct on (material_id)
+  material_id,
+  vendor_id,
+  rate,
+  transaction_date
+from material_transactions
+where movement_type = 'purchased'
+order by material_id, transaction_date desc;
+
+create view material_quote_comparison as
+select
+  vqi.material_id,
+  vq.vendor_id,
+  vq.vendor_quote_id,
+  vqi.rate as quoted_rate,
+  vq.quote_date,
+  vq.valid_until,
+  vq.is_selected,
+  lp.rate as last_purchase_rate,
+  lp.transaction_date as last_purchase_date,
+  vqi.rate - lp.rate as delta_vs_last_purchase
+from vendor_quote_items vqi
+join vendor_quotes vq on vq.vendor_quote_id = vqi.vendor_quote_id
+left join material_last_purchase lp on lp.material_id = vqi.material_id
+order by vqi.material_id, vqi.rate;
+```
+
+`material_quote_comparison` is the direct answer to "show the last purchase price and compare the quotes received" — every quote line for a material sits alongside what it was last actually bought for, with the delta already computed, ordered cheapest-first. Nothing needs to be looked up manually at reorder time.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -1082,5 +1178,5 @@ Continue database design by defining:
 7. Timeline/stage tracking schema — now scoped by Section 21 as a `Project_Milestones` table supporting multiple concurrent tracks (DISCOM subsidy, GEDA registration, CEIG inspection, physical site work) with type-dependent milestone sets, not one linear sequence.
 8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
-10. Inventory Intelligence schema — mostly done, see Section 29 (`Purchase_Orders`/`Purchase_Order_Items`, `reorder_level`, `material_stock`/`material_open_orders`/`material_requirement`/`material_shortfall` views). Still open: the `Vendor_Quotes` table for AI-extracted quote comparison and price history (Section 18) hasn't been given DDL yet.
+10. ~~Inventory Intelligence schema~~ — done, see Sections 29-30 (`Purchase_Orders`/`Purchase_Order_Items`, `reorder_level`, stock/requirement/shortfall views, `Vendor_Quotes`/`Vendor_Quote_Items`, `reorder_alerts`, `material_last_purchase`/`material_quote_comparison`).
 11. ~~`Projects` / `Customers` / `Customer_Contacts` full schema~~ — done, see Section 27 (single table with a `project_type` discriminator, `Employees`/`Partners` defined alongside, Drive folder linking including the `drive_folder_import_candidates` review queue for the ~300 existing folders). Section 20's subsidy-application funnel ("Estimate Generated → Subsidy Received → Subsidy Claimed") is now explicitly out of scope — the subsidy pays out directly to the customer's bank account, never touching NRG, so `project_milestones` only needs to cover DISCOM feasibility, GEDA registration, CEIG inspection, and site work (all things NRG itself is responsible for).
