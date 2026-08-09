@@ -1556,6 +1556,37 @@ join materials m on m.material_id = ssi.material_id;
 
 "Panels in June vs. August" is `stock_group = 'panels'`, two `statement_period` values, one filtered query against this view — no special comparison logic needed.
 
+## 35. Direct (Non-Project) Sales — Product Lines Outside Solar PV
+
+`materials.stock_group` (Section 34) being free text turned out to matter immediately: NRG also stocks and sells product lines that never become a "project" at all — Havells heat pumps, solar dryers, solar water heaters. Confirmed by discussion:
+
+- These are **simple retail sales off existing stock**, not installed/tracked projects — no GEDA/CEIG/DISCOM milestones, no BOM engineering categories, no `financial_obligations` quoted/invoiced/received funnel. `financial_obligations` stays project-only, unchanged.
+- **Different sized models (200L, 300L heat pump, etc.) are just new `materials` rows**, same as any other material — `category` = 'Heat Pump', `canonical_name` = '200 LTR' / '300 LTR'. Added the normal way: AI extracts from a scanned invoice, matches against `aliases` or creates a new row. No schema change needed for this part — `materials.category`/`aliases`/`unique(category, canonical_name)` (Section 27) already support it.
+
+What *did* need a schema change — three gaps, all closed in migration 0008:
+
+```sql
+-- material_transactions had no movement_type for "sold off the shelf,
+-- no project involved" — distinct from issued_to_site, which specifically
+-- means project-site dispatch and feeds bom_item_variance.
+alter table material_transactions drop constraint material_transactions_movement_type_check;
+alter table material_transactions add constraint material_transactions_movement_type_check
+  check (movement_type in ('purchased','issued_to_site','returned_to_warehouse','sold_direct'));
+
+-- always link a sold_direct row back to which invoice line it was sold
+-- against, per NRG ("Link with invoice is always good to have")
+alter table material_transactions
+  add column sales_invoice_item_id uuid references sales_invoice_items(invoice_item_id);
+
+-- sales_invoices (Section 32) required project_id — a direct sale has none
+alter table sales_invoices alter column project_id drop not null;
+alter table sales_invoices add column customer_id uuid references customers(customer_id);
+alter table sales_invoices add constraint sales_invoices_project_or_customer_check
+  check (project_id is not null or customer_id is not null);
+```
+
+A `sold_direct` row always has `project_id`/`bom_item_id` null — `material_stock`/`material_shortfall` (Section 29) already net every non-`'purchased'` movement type against stock, so this reduces stock correctly with no view changes. Project-linked invoices are unaffected (`project_id` set, `customer_id` stays null, reachable via `projects.customer_id`); a direct sale sets `customer_id` instead and leaves `project_id` null.
+
 ---
 
 ## Next Session
