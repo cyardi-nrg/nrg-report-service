@@ -1443,6 +1443,121 @@ This assumes milestones within a track are substantially achieved in real sequen
 
 ---
 
+## 33. BOM Generation — Driven by the Private SPP Sheet, Priced from Tally
+
+Revisits Section 10's frozen decision ("don't replace the Engineering Workbook in V1") for one specific case: small/standard systems where an engineer wants to enter a handful of driver values (panel count derived from the Quote's KW/wattage, structure height, rows, frame length, legs per frame, string count) and get a prefilled BOM to review, rather than building one from scratch. Two corrections from the first pass at this design, now settled:
+
+- **Rates never come from a static reference sheet.** They come from real purchase history — `material_weighted_avg_rate` (Section 31), fed by NRG's live Tally connection — because a manually-maintained rate sheet is exactly the kind of staleness causing inaccurate quantity/rate data today.
+- **The calculation logic itself stays in NRG's private SPP sheet, not reimplemented in ProjectPulse.** The sheet keeps doing what it already does correctly (lookup/formula-driven quantities from the same driver inputs it uses today); ProjectPulse's job is to write inputs in and read calculated quantities back out, not to own the formulas. This avoids two systems' worth of logic quietly drifting apart, and access control (only NRG's owner can edit the sheet) comes for free from Google's own sharing permissions.
+
+**The exact input/output cell or named-range contract with the sheet is deferred** — building the concept first, mapping the integration later. What's needed now is just what a generated BOM records about itself:
+
+```sql
+alter table boms add column origin text not null default 'uploaded_workbook'
+  check (origin in ('uploaded_workbook','system_calculated'));
+alter table boms add column generation_inputs jsonb;
+  -- the driver values sent to the sheet: panel_count, rows, frame_length_ft, structure_height_ft, legs_per_frame, string_count, etc.
+```
+
+`boms.source_document_id` stays `not null` even for a calculated BOM — once approved, the system generates a clean output (the same kind of printable BOM NRG already produces by hand) and logs *that* as the Document, so "documents are the source of truth" (Principle 1) holds without an exception carved out for this path. The approval step needs no new mechanism — `extraction_status`/`confirmed_by`/`confirmed_at` (already on `boms`) works exactly the same whether the BOM came from an upload or a calculation; a calculated BOM just starts in `ai_extracted` (machine-produced, unconfirmed) like any other.
+
+**Tally as a live source, not just an upload target.** Since NRG is connecting Tally directly (via MCP), `tally_ledger_entries` (Section 32) needs to record how a row arrived, not just where its document is:
+
+```sql
+alter table tally_ledger_entries add column sync_source text not null default 'manual_upload'
+  check (sync_source in ('manual_upload','tally_live_sync'));
+```
+
+`source_document_id` was already nullable in Section 32's design, which turns out to be exactly right for this — a live-synced entry has no uploaded document at all.
+
+## 34. Monthly Stock Statement — Editable, Reconcilable, Bank-Facing
+
+A live `material_stock` query (Section 29) answers "what does the system think we have right now" — not what the answer was as of a specific past date, and not something that can hold a physical-count reconciliation. A bank stock statement needs both: a frozen point-in-time record, and room to record that physical count and book count disagree (which they will) without losing either number.
+
+```sql
+create table stock_statements (
+  stock_statement_id  uuid primary key default gen_random_uuid(),
+  statement_period     date not null,    -- the period-end date this statement represents, e.g. 2026-06-30
+  status                text not null default 'draft' check (status in ('draft','finalized')),
+  finalized_by           uuid references employees(employee_id),
+  finalized_at            timestamptz,
+  source_document_id      uuid references documents(document_id),  -- the PDF actually submitted to the bank, once generated
+  created_at               timestamptz not null default now(),
+  updated_at               timestamptz not null default now(),
+  unique (statement_period)
+);
+
+create table stock_statement_items (
+  stock_statement_item_id  uuid primary key default gen_random_uuid(),
+  stock_statement_id        uuid not null references stock_statements(stock_statement_id),
+  material_id                 uuid not null references materials(material_id),
+  book_quantity                 numeric(14,3) not null,   -- system-computed as of statement_period — see material_stock_as_of below
+  physical_quantity             numeric(14,3),             -- entered after the physical count; null until counted
+  declared_quantity             numeric(14,3) not null,    -- what actually goes on the statement — editable, the final word
+  rate                          numeric(14,2) not null,    -- valuation rate as of statement_period, from real purchase history (Tally-fed)
+  notes                         text,                       -- why declared differs from book, if it does
+  created_at                    timestamptz not null default now(),
+  updated_at                    timestamptz not null default now(),
+  unique (stock_statement_id, material_id)
+);
+
+create index on stock_statement_items (stock_statement_id);
+create index on stock_statement_items (material_id);
+```
+
+`declared_quantity` is deliberately a plain, always-editable column, not derived — it defaults to the physical count once one exists, but stays overridable with a note, since not everything gets captured accurately and the person signing off on a bank submission needs the final say.
+
+**Point-in-time correctness matters here specifically because statements get generated after the fact.** `material_stock` has no date parameter — it always means "now." A statement for June generated a week into July, using the live view, would silently include July's transactions. Two date-scoped lookups fix this:
+
+```sql
+create function material_stock_as_of(as_of_date date)
+returns table(material_id uuid, current_stock numeric) as $$
+  select
+    material_id,
+    coalesce(sum(quantity) filter (where movement_type = 'purchased'), 0)
+      - coalesce(sum(quantity) filter (where movement_type = 'issued_to_site'), 0)
+      + coalesce(sum(quantity) filter (where movement_type = 'returned_to_warehouse'), 0)
+  from material_transactions
+  where transaction_date <= as_of_date
+  group by material_id;
+$$ language sql stable;
+
+create function material_weighted_avg_rate_as_of(p_material_id uuid, as_of_date date)
+returns numeric as $$
+  select weighted_avg_rate
+  from material_purchase_running_avg
+  where material_id = p_material_id and transaction_date <= as_of_date
+  order by transaction_date desc, transaction_id desc
+  limit 1;
+$$ language sql stable;
+```
+
+The second one mirrors the LATERAL-join logic `material_transaction_cost` (Section 31) already uses for costing — same weighted-average machinery, reused for stock valuation instead of BOM cost variance.
+
+**Grouping** — "Panels / Cables / Hardware" is coarser than `materials.category` (the ~15 BOM categories: DC Cable, AC Cable, ACDB, Structure, etc.), and doesn't need to match it — a statement is a reporting artifact, a BOM category drives engineering logic. Confirmed as a separate field:
+
+```sql
+alter table materials add column stock_group text;
+  -- coarse rollup for statements/reporting: 'panels' | 'inverters' | 'cables' | 'hardware' | 'electrical_accessories' | 'safety' | 'other'
+```
+
+**Month-over-month comparison** falls out once statements are real rows rather than a live query:
+
+```sql
+create view stock_statement_summary as
+select
+  ss.statement_period, ss.status,
+  m.stock_group, m.category, m.material_id, m.canonical_name,
+  ssi.declared_quantity, ssi.rate, ssi.declared_quantity * ssi.rate as amount
+from stock_statement_items ssi
+join stock_statements ss on ss.stock_statement_id = ssi.stock_statement_id
+join materials m on m.material_id = ssi.material_id;
+```
+
+"Panels in June vs. August" is `stock_group = 'panels'`, two `statement_period` values, one filtered query against this view — no special comparison logic needed.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -1454,7 +1569,7 @@ Continue database design by defining:
 5. Management dashboard metrics based only on objective, measurable data.
 6. ~~Financial Obligations schema~~ — done, see Section 32 (`financial_obligations`, `sales_invoices`/`sales_invoice_items`, `payment_receipts`, `tally_ledger_entries`, `financial_obligation_reconciliation`/`project_financial_summary` views).
 7. ~~Timeline/stage tracking schema~~ — done, see Section 32 (`project_milestones`, four tracks: `geda_registration`/`discom_feasibility`/`ceig_inspection`/`site_installation`; `project_milestone_durations` view).
-8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks).
+8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks). Distinct from Section 33's sheet-driven BOM generation for standard systems — the Recommendation Engine learns from historical actual usage; Section 33 drives NRG's existing, already-trusted formula sheet. Both can coexist.
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
 10. ~~Inventory Intelligence schema~~ — done, see Sections 29-30 (`Purchase_Orders`/`Purchase_Order_Items`, `reorder_level`, stock/requirement/shortfall views, `Vendor_Quotes`/`Vendor_Quote_Items`, `reorder_alerts`, `material_last_purchase`/`material_quote_comparison`).
 11. ~~`Projects` / `Customers` / `Customer_Contacts` full schema~~ — done, see Section 27 (single table with a `project_type` discriminator, `Employees`/`Partners` defined alongside, Drive folder linking including the `drive_folder_import_candidates` review queue for the ~300 existing folders). Section 20's subsidy-application funnel ("Estimate Generated → Subsidy Received → Subsidy Claimed") is now explicitly out of scope — the subsidy pays out directly to the customer's bank account, never touching NRG, so `project_milestones` only needs to cover DISCOM feasibility, GEDA registration, CEIG inspection, and site work (all things NRG itself is responsible for).
