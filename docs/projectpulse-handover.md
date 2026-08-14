@@ -1589,12 +1589,58 @@ A `sold_direct` row always has `project_id`/`bom_item_id` null — `material_sto
 
 ---
 
+## 36. Document Type Taxonomy — Full Reference List and Extraction-Field Mapping
+
+Sections 22-25 gathered real examples one batch at a time but never assembled them into the actual `document_type` reference list this whole system depends on — `documents.document_type` (Section 27) has been provisional free text since it was first drafted. This closes that out. Stays free text, an app-level reference list, same reasoning as `bom_items.category` — NRG's document vocabulary is long and still growing, not a fixed DB enum.
+
+**Sales & compliance**: `quote`, `purchase_order_customer`, `purchase_order_vendor` (Section 24 found "Purchase Order" alone doesn't disambiguate direction — same document label, opposite direction, so the taxonomy splits it into two values rather than adding a schema column), `proforma_invoice`, `tax_invoice`, `service_visit_invoice`, `e_way_bill`, `debit_note`, `government_receipt`.
+
+**GEDA/CEIG/DISCOM chain**: `geda_application`, `feasibility_letter`, `geda_registration_letter`, `test_inspection_application`, `ceig_drawing_approval`, `ceig_inspection_report`.
+
+**Engineering drawings**: `single_line_diagram`, `equipment_layout`, `earthing_layout`, `panel_roof_layout_plan`, `structural_roof_slab_plan`, `field_sketch` (the handwritten stringing/combiner sketch case from Section 25 — a photographed document, not a photographed site).
+
+**Inventory/material movement**: `material_out`, `material_in`, `delivery_challan`, `gate_pass` — per Section 24, template/type alone can't reliably determine movement direction for a meaningful share of these (a Gate Pass is used for both directions, disambiguated only by a handwritten note); extraction has to read content, not trust the document_type label.
+
+**Financial reconciliation**: `tally_ledger_export`, `payment_proof` — one type covers the receipt book, photographed cheques, UPI/Paytm/PayZapp screenshots, and bank-statement excerpts alike, since the payment *method* is already captured on `payment_receipts.payment_method`, not the document itself.
+
+**KYC/compliance checklist**: `electricity_bill`, `land_ownership_proof`, `pan_card`, `aadhaar_card`, `gst_certificate`, `board_resolution`, `udyam_msme_certificate`, `incorporation_certificate`, `passport_photo`, `undertaking`, `dg_set_approval`. These populate nothing beyond `documents` itself — Section 22/23's `required_documents` checklist (still not exactly consistent between the Quote's list and GEDA's own list) is an app-level reference list per `project_type`, checked off against whichever of these types have been uploaded for a project. No new table: it's a query, not stored state.
+
+**Visual**: `site_photo` — classified by a vision model against Section 25's stage vocabulary, not field extraction. Needs an earlier fork in the pipeline first (photo of the physical site vs. photo of a paper document/drawing/sketch) before stage detection runs.
+
+### Extraction-field mapping (what each type feeds)
+
+| document_type | Feeds |
+|---|---|
+| `quote` | seeds `financial_obligations` rows at project creation, one per Cost Breakdown line (Section 22) |
+| `purchase_order_customer` | confirms the sale; `financial_obligations.settlement_method` source |
+| `purchase_order_vendor` | `purchase_orders`/`purchase_order_items` (Section 29) |
+| `proforma_invoice`, `tax_invoice`, `service_visit_invoice` | `sales_invoices`/`sales_invoice_items` (Section 32) |
+| `debit_note`, `government_receipt` | `financial_obligations` evidence for `settlement_method = 'via_nrg_debit_note'` (Section 24) |
+| `payment_proof` | `payment_receipts` (Section 32) |
+| `tally_ledger_export` | `tally_ledger_entries` (Section 32) |
+| `geda_application`, `feasibility_letter`, `geda_registration_letter` | `project_milestones` (`geda_registration`/`discom_feasibility` tracks) + `financial_obligations` (`discom_feasibility_charge`, Section 23) |
+| `test_inspection_application`, `ceig_inspection_report`, `ceig_drawing_approval` | new `electrical_test_records` table below + `project_milestones` (`ceig_inspection` track) |
+| `single_line_diagram`, `equipment_layout`, `earthing_layout`, `panel_roof_layout_plan`, `structural_roof_slab_plan` | `documents` only (title-block fields via one shared extraction template, Section 23) — no dedicated downstream table |
+| `material_out`, `material_in`, `delivery_challan`, `gate_pass` | `material_transactions` (Section 19/24) |
+| KYC types | `documents` only, checked against the `required_documents` reference list |
+| `site_photo` | `project_milestones` (`site_installation` track, stage inferred) + marketing-suitability tag (Section 25/17) |
+
+### Three real schema gaps, closed in migration 0009
+
+Assembling this taxonomy surfaced problems that were about missing schema, not missing documentation:
+
+1. **`documents.project_id` was `not null` since Section 27's first draft** — a latent bug, not new scope. Warehouse-level purchase documents (`material_transactions` rows with `project_id null`, since Section 19) and direct-sale invoices (Section 35) both legitimately have no project, but there was nowhere to put their source document. Made nullable, mirroring the `sales_invoices.project_id` fix from Section 35.
+2. **`electrical_test_records`** — the dedicated table Section 22 flagged as a strong candidate: `file_no` (the shared ID linking the Test Inspection Application to its Inspection Report response), `consumer_number`, `application_document_id`/`report_document_id`, `inspection_date`, `issuing_authority` (free text — Section 23 found this varies by region, not fixed to the Chief Electrical Inspector), the four Megger readings, `earth_pit_resistance` as an array (typically 4 pits), contractor/supervisor license numbers, and a `status`/`remarks` pair whose `'satisfactory'` value is the trigger event for the CEIG milestone track — same role the GEDA Registration Letter plays for `geda_registration`.
+3. **DCR/NDCR flag, batch ref no., and replacement traceability on `material_transactions`** (Section 24) — `dcr_ndcr_status`, `batch_ref_no` (NRG's own fiscal-year + type-letter + sequence identifier, e.g. `18-19-P-01`), and a self-referencing `replaces_transaction_id` for the real warranty-replacement case found in the Inverter Ref List (a new serial superseding a failed one against the same project).
+
+---
+
 ## Next Session
 
 Continue database design by defining:
 
 1. ~~`BOM_Items` table (complete schema)~~ — done, see Section 19.
-2. Document Types and AI extraction rules — real examples gathered in Section 22 (Quote, Purchase Order, Proforma Invoice, Test Inspection/CEI Approval); still need the full Document Type enum + extraction-field mapping written up as schema.
+2. ~~Document Types and AI extraction rules~~ — done, see Section 36 (full `document_type` reference list + extraction-field mapping across all four document batches; `electrical_test_records` table; `documents.project_id` nullable fix; DCR/NDCR + batch ref no. + replacement traceability on `material_transactions`).
 3. Document processing workflow.
 4. User roles and permissions.
 5. Management dashboard metrics based only on objective, measurable data.
