@@ -1637,6 +1637,124 @@ Assembling this taxonomy surfaced problems that were about missing schema, not m
 
 ---
 
+## 37. Documents the System Generates, Not Just Reads — DC and Commissioning Report
+
+Every document type so far has been something NRG hands to the system to read. Some documents should run the other way: the system produces them, a human adjusts and prints, and — critically — nothing needs to be scanned back in to become structured data, because the record was structured the moment it was generated. Confirmed priority order: **Delivery Challan is the most critical of these** (today's real daily pain — without a system-generated DC, nobody has a reliable answer to "what do I send, and how much"), **BOM generation is next** (same reason, one step upstream — without it, nobody knows what the DC should even contain), **PO generation is not critical** (most vendor POs are already just phone calls — fine as-is), and **Commissioning Report matters, but works differently** from the other two, detailed below. Financial/margin reporting is intentionally not designed yet — explicitly deferred pending a separate conversation on what "margin" should actually include.
+
+### Delivery Challan generation
+
+Opening "Generate DC" for a project pre-fills every line from what's actually left to send — `bom_items.planned_quantity` minus what's already gone out (net of returns) — not a blank form. MP/Dispatch adjusts quantities for what's physically loaded this trip (partial dispatch is the normal case, not an edge case), adds vehicle/driver if relevant, generates. The output is simultaneously the printable Delivery Challan **and** the `material_transactions` record — there is no separate "scan it back in" step, because it was never handwritten in the first place.
+
+```sql
+-- Reusable controlled numbering for any system-generated document series
+-- (Delivery Challans now; Purchase Orders or others can reuse this later
+-- without new schema.) Fiscal-year-scoped, matching NRG's own real
+-- numbering convention (Section 24: NRG/24-25/xxx).
+create table document_number_sequences (
+  series_name   text not null,
+  fiscal_year   text not null,
+  last_number   integer not null default 0,
+  primary key (series_name, fiscal_year)
+);
+
+create function next_document_number(p_series text, p_fiscal_year text)
+returns integer as $$
+  insert into document_number_sequences (series_name, fiscal_year, last_number)
+  values (p_series, p_fiscal_year, 1)
+  on conflict (series_name, fiscal_year)
+  do update set last_number = document_number_sequences.last_number + 1
+  returning last_number;
+$$ language sql;
+
+create table delivery_challans (
+  delivery_challan_id    uuid primary key default gen_random_uuid(),
+  dc_number              text not null unique,   -- e.g. 'DC/26-27/00042', built from next_document_number()
+  project_id             uuid not null references projects(project_id),
+  dispatch_date          date not null default current_date,
+  vehicle_or_driver      text,
+  status                 text not null default 'issued' check (status in ('issued','cancelled')),
+  total_value            numeric(14,2),          -- for the e-way bill threshold check
+  eway_bill_number       text,                    -- movement above ₹50,000 needs one — flag at generation time, fill in once raised
+  generated_document_id  uuid references documents(document_id),  -- the generated PDF, logged as a Document like any other
+  created_by             uuid references employees(employee_id),
+  created_at             timestamptz not null default now()
+);
+
+create index on delivery_challans (project_id);
+
+alter table material_transactions
+  add column delivery_challan_id uuid references delivery_challans(delivery_challan_id);
+
+create index on material_transactions (delivery_challan_id);
+```
+
+`material_transactions.source_document_id` stays `not null` either way — for a system-generated DC it points at the same `generated_document_id`; for the rare paper-book fallback (still handwritten, still needs scanning), it points at the scanned document and `delivery_challan_id` stays null. That null/not-null split is the entire signal for "was this generated or handwritten" — no separate flag needed, same reasoning `boms.origin` used a column for because two BOM shapes genuinely diverge, while here they don't. If the fallback book stays in use for outages, give it a distinct `series_name` (`'delivery_challan_manual_fallback'`) so its numbers never collide with system-generated ones.
+
+### BOM generation — schema already done, Section 33
+
+No new schema needed — `boms.origin`/`generation_inputs` already cover this. What's still missing is only the Sheets API input/output contract, which stays deliberately deferred, and the input screen itself (driver values in, prefilled BOM out for engineer approval), which is a UI task, not a schema one.
+
+### Commissioning Report — generated, then hand-filled, then re-read (not purely generated)
+
+Different shape from DC: NRG's real commissioning report is a **printed template, partially prefilled** (project name, consumer number, capacity, panel/inverter make and serials — everything already known) that the service team **carries to site, fills in actual readings by hand, and re-uploads**. So this needs both ends — a generation step and an extraction step — not one or the other:
+
+```sql
+create table commissioning_reports (
+  commissioning_report_id  uuid primary key default gen_random_uuid(),
+  project_id                uuid not null references projects(project_id),
+  template_document_id       uuid references documents(document_id),  -- the system-generated prefilled printout
+  filled_document_id          uuid references documents(document_id), -- the re-uploaded scan with handwritten readings
+  commissioning_date           date,
+  final_ac_capacity_kw          numeric(8,2),
+  final_dc_capacity_kw           numeric(8,2),
+  technician_name                 text,
+  customer_signed                 boolean,
+  remarks                          text,
+  ai_confidence                    numeric(3,2),
+  extraction_status                 text not null default 'ai_extracted'
+                                     check (extraction_status in ('ai_extracted','confirmed','corrected')),
+  created_at                        timestamptz not null default now(),
+  updated_at                        timestamptz not null default now()
+);
+
+create index on commissioning_reports (project_id);
+```
+
+Kept separate from `electrical_test_records` (Section 36) even though the shape rhymes — they're genuinely different real documents: CEIG's is a government inspection artifact with its own File No. and issuing authority; this is NRG's own internal sign-off that installation is complete and working. A confirmed commissioning report (`extraction_status = 'confirmed'`) is the natural trigger for `projects.status` moving to `'commissioned'` (Section 27) — worth wiring that up at the application layer once this exists.
+
+---
+
+## 38. Lightweight Cost Tracking — Vendor and Transport Bills That Don't Self-Identify a Project
+
+Closes a real gap in what "margin" can mean (Section 37's note): today the schema can compute Revenue and material cost, but has nowhere to put a fabrication contractor's bill, a transport bill, or any other non-material vendor cost. These bills are structurally different from a material invoice — **they usually don't mention a project at all**, so AI content-matching (the rule everywhere else in this schema) has nothing to match against. MP has to assign them by hand. And sometimes there's genuinely no single project to assign to — one transport bill covering three residential systems dispatched together can't be cleanly split, and the confirmed real-world answer is: **it goes in general, not force-split three ways.**
+
+```sql
+create table project_costs (
+  project_cost_id     uuid primary key default gen_random_uuid(),
+  project_id           uuid references projects(project_id),   -- set once assigned; null while unassigned or deliberately general
+  cost_type             text not null,   -- free text, app-level reference list: 'vendor_bill' | 'transport' | 'fabrication' | 'installation_subcontract' | 'other'
+  vendor_id              uuid references partners(partner_id),
+  amount                  numeric(14,2) not null,
+  bill_date                 date,
+  source_document_id          uuid references documents(document_id),  -- the vendor/transport bill itself
+  assignment_status              text not null default 'unassigned'
+                                  check (assignment_status in ('unassigned','assigned','general')),
+  assigned_by                     uuid references employees(employee_id),
+  assigned_at                      timestamptz,
+  notes                             text,   -- e.g. "covers 3 residential dispatches on the same truck, left general"
+  created_at                         timestamptz not null default now()
+);
+
+create index on project_costs (project_id);
+create index on project_costs (assignment_status);
+```
+
+Same shape as every other AI-can't-fully-resolve-this pattern already in the schema (`payment_receipts.match_status`, `drive_folder_import_candidates`, `reorder_alerts`): a bill lands as `'unassigned'` and sits on MP's Pending board (Section 01's board pattern) until MP either sets `project_id` and flips it to `'assigned'`, or deliberately flips it to `'general'` with a note explaining why. `'general'` and `'unassigned'` are deliberately different states — one means "nobody's looked at this yet," the other means "someone looked, and correctly decided it doesn't belong to one project." Collapsing them into one null-`project_id` state would make it impossible to tell "still pending" from "resolved, and the resolution is that it's general."
+
+**This is intentionally just the capture side.** No margin/profitability view is built here — that's still deferred until margin is properly defined (Section 37). What this does is make sure the cost data exists and is properly attributed *before* that conversation happens, rather than trying to reconstruct it retroactively from a pile of unassigned vendor bills later.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -1652,3 +1770,8 @@ Continue database design by defining:
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
 10. ~~Inventory Intelligence schema~~ — done, see Sections 29-30 (`Purchase_Orders`/`Purchase_Order_Items`, `reorder_level`, stock/requirement/shortfall views, `Vendor_Quotes`/`Vendor_Quote_Items`, `reorder_alerts`, `material_last_purchase`/`material_quote_comparison`).
 11. ~~`Projects` / `Customers` / `Customer_Contacts` full schema~~ — done, see Section 27 (single table with a `project_type` discriminator, `Employees`/`Partners` defined alongside, Drive folder linking including the `drive_folder_import_candidates` review queue for the ~300 existing folders). Section 20's subsidy-application funnel ("Estimate Generated → Subsidy Received → Subsidy Claimed") is now explicitly out of scope — the subsidy pays out directly to the customer's bank account, never touching NRG, so `project_milestones` only needs to cover DISCOM feasibility, GEDA registration, CEIG inspection, and site work (all things NRG itself is responsible for).
+12. ~~Delivery Challan / Commissioning Report generation schema~~ — done, see Section 37 (`document_number_sequences`/`next_document_number()`, `delivery_challans`, `commissioning_reports`). Confirmed priority: DC first, BOM generation next (Section 33, already done), PO generation explicitly deprioritized. Still open: the generation UI itself and the actual PDF templating — schema only so far.
+13. ~~Lightweight cost capture for non-material bills~~ — done, see Section 38 (`project_costs`, `unassigned`/`assigned`/`general` pattern for vendor/transport bills that don't self-identify a project). Deliberately capture-only — no margin/profitability view yet, pending a dedicated session to define what "margin" should include (material cost only vs. also labor/subcontractor cost).
+14. Cross-project milestone bottleneck report — aggregate `project_milestone_durations` (Section 32) across every project to find which step has the largest average or most variable gap, not just one project's timeline. No new schema, just a view.
+15. Suggested reorder levels — compute from historical consumption rate × purchase lead time (derivable from `material_transactions` and `purchase_orders.order_date`), same `ai_extracted`/`confirmed` pattern as everything else, rather than pure manual entry.
+16. Owner-only financial visibility — confirmed requirement, not yet designed: `financial_obligations`/`sales_invoices`/`payment_receipts`/`project_costs`/BOM cost columns/project header Quoted-Invoiced-Received-Pending must be invisible to MP/KP/Dispatch/Service/Sales, enforced at the RLS level (not just hidden in the UI) once the full roles/permissions design (item 4) happens.
