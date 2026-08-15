@@ -1965,6 +1965,67 @@ Same reasoning as `materials.aliases` — a starting point, not the authoritativ
 
 ---
 
+## 43. The People Roster, the Real "Order Now" Formula, and Two-Stage BOM Approval
+
+**People — already covered, no schema needed.** `employees` (Section 27) already has `name`/`role`/`phone`/`email`/`active` — exactly what an editable Owner/MD, Maintenance, Engineer, Accounts, Purchase roster needs. When someone leaves, the fix is an `update` on their row (new name/phone/email for whoever replaces them) or `active = false`, never a delete — every `confirmed_by`/`sales_person_id`/etc. foreign key across this whole schema points at `employee_id`, and deleting would orphan history that needs to stay intact.
+
+**"Order Now" needed to actually live in a view, not UI arithmetic that could quietly drift from the schema.** Confirmed formula, stated plainly: **In Stock + Order Placed + Min Level − On Hand Orders.** `material_shortfall` (Section 29) already computes `shortfall = requirement − (stock + open orders)`, which is a real and separately useful number — but it never folded in `reorder_level` at all. Added as a new column rather than replacing `shortfall`, since they answer different questions ("how far under committed demand" vs. "even counting my safety buffer, do I still cover it"):
+
+```sql
+create or replace view material_shortfall as
+select
+  m.material_id, m.category, m.canonical_name, m.default_unit, m.reorder_level,
+  coalesce(s.current_stock, 0) as current_stock,
+  coalesce(o.open_order_quantity, 0) as open_order_quantity,
+  coalesce(r.outstanding_requirement, 0) as outstanding_requirement,
+  coalesce(r.outstanding_requirement, 0) - (coalesce(s.current_stock, 0) + coalesce(o.open_order_quantity, 0)) as shortfall,
+  (coalesce(s.current_stock, 0) + coalesce(o.open_order_quantity, 0) + coalesce(m.reorder_level, 0))
+    - coalesce(r.outstanding_requirement, 0) as order_now
+from materials m
+left join material_stock s on s.material_id = m.material_id
+left join material_open_orders o on o.material_id = m.material_id
+left join material_requirement r on r.material_id = m.material_id;
+```
+
+`order_now` negative means order it; the UI's "Order Now" column should read this value directly, not recompute it — a second implementation of the same formula is exactly how the two versions drift apart. Also confirmed: **the PO lifecycle already zeroes this out correctly with no extra schema.** `material_open_orders` (Section 29) already nets a PO's `ordered_quantity` against what's actually been received (`material_transactions` `purchased` rows tied to `purchase_order_item_id`) — so `order_now` climbs back toward positive automatically as goods arrive, from PO issue through to receipt, with nothing new to build.
+
+**BOM generation needs two sign-offs before it drives ordering, not one.** For the sheet-driven flow specifically (Section 33): engineer confirms first (already covered — `extraction_status`/`confirmed_by`/`confirmed_at`), then the owner has a separate, second tick — only once *both* are set should the BOM's `planned_quantity` count toward `material_requirement` and, downstream, `material_shortfall`/`order_now`.
+
+```sql
+alter table boms add column owner_approved_by uuid references employees(employee_id);
+alter table boms add column owner_approved_at timestamptz;
+
+create or replace view material_requirement as
+select
+  bi.material_id,
+  sum(bi.planned_quantity - coalesce(issued.qty, 0)) as outstanding_requirement
+from bom_items bi
+join boms b on b.bom_id = bi.bom_id
+join projects p on p.project_id = b.project_id
+left join (
+  select bom_item_id, sum(quantity) as qty
+  from material_transactions
+  where movement_type = 'issued_to_site'
+  group by bom_item_id
+) issued on issued.bom_item_id = bi.bom_item_id
+where p.status = 'active'
+  and bi.material_id is not null
+  and b.extraction_status = 'confirmed'
+  and (b.origin = 'uploaded_workbook' or b.owner_approved_at is not null)
+group by bi.material_id;
+```
+
+The `origin = 'uploaded_workbook'` carve-out is deliberate: an uploaded workbook is already a human-authored document (Principle 1) — requiring a second owner sign-off on top would be redundant, and would silently stop every historical BOM from counting toward ordering the moment this ships. The second tick is specifically for `boms.origin in ('system_calculated','recommendation_engine')` — the two machine-originated paths this session built, where nobody has actually looked at a human-prepared source document yet.
+
+**Scheduled digest emails — confirmed requirements, app-layer only, no schema.** Three recurring jobs, each a single digest email, not one email per line item:
+- **What Needs Ordering** (rows where `order_now < 0`) → `purchase@nrgtechnologists.com` + owner, daily at 8:00am.
+- **Stock Statement** (`stock_statement_summary`, most recent period) → purchase + owner, weekly, Saturday 3:00pm.
+- **Required Documents Gap** → `sales@nrgtechnologists.com` + `service@nrgtechnologists.com` + owner, daily at 8:00am.
+
+Same reasoning as `reorder_alerts` (Section 30) — the schema/views already answer every one of these queries live; this is purely a scheduled job (cron + templated HTML email) the build session needs to implement, not a new table.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
