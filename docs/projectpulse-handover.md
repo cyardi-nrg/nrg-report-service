@@ -2026,6 +2026,21 @@ Same reasoning as `reorder_alerts` (Section 30) — the schema/views already ans
 
 ---
 
+## 44. Cross-Checked Against the Real SPP Bill of Material Sheet — No Schema Gap, Two Mockup Fixes
+
+Went back to the live "Spp Bill of Material 2025" Google Sheet (the one Section 33's sheet-driven generation actually pulls from) to check a specific worry: does a BOM line item ever get generated as just "Solar Panel" or "Inverter" with no brand attached? Read the header block and per-line-item columns across ~30 real project tabs.
+
+**Confirmed structure, matches the schema already:**
+- Each project tab has a header block (`Wattage`, `No of panels`, `KW`, `Order Value`, `Estimate`, `Margin`, `Person in charge`, `Sales person`) — exactly `boms`/`generation_inputs`' `panel_wattage`/`panel_count`/`kw_capacity` fields (Section 19).
+- The line-item table's `Solar Panels` row carries the brand in its `Technical Specs` cell (real values seen: **Adani**, **Waree**, **Goldi** — at wattages from 540 to 725 depending on project vintage) — this is exactly `materials.make` (Section 40), not a new field.
+- The `Inverter 1`/`Inverter 2`/`Inverter 3` rows carry capacity + brand together in `Technical Specs` (e.g. "100 KW Growatt") — real brands seen: **Growatt** (dominant) and **Goodwe** (a few projects). Same `materials.make` column covers this; no separate inverter-brand field needed.
+
+**No schema change.** The worry turned out to be a mockup-completeness gap, not a design gap — the tables were already right, just weren't always showing the make. Fixed in the mockup: the Project page's Overview/BOM tabs now show "Panels 545W · Adani" and "Inverter 100kW · Growatt" instead of the bare wattage/capacity; the Generate BOM screen now shows which specific panel and inverter (make + wattage/capacity) a driver-input run is resolving against, not just the count.
+
+**Second, related fix — Generate DC's "+ Add" flow.** Confirmed real complaint: picking a category (e.g. "DCR Panels") is not enough on its own — dispatch needs to record *which* product, since Adani 615W and Waree 615W are both DCR panels but different stock. The category picker is now a two-step drill-down: pick the category, then pick the specific product actually stocked in it (Adani 615W, Waree 615W, Adani 620W, Goldi 590W for DCR; Waree 585W for NDCR — real values from the sheet review above), then qty. No schema change — `materials.make` already made this answerable, the UI just wasn't asking the second question.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
