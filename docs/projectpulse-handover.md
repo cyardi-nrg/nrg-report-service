@@ -1801,6 +1801,86 @@ This replaces item 16 on the Next Session list and the corresponding note in `HA
 
 ---
 
+## 40. Reports Screen Review, and the BOM Recommendation Engine
+
+Reactions to the Reports concept, one at a time, plus the biggest open item on the whole Next Session list finally getting built.
+
+**"What Needs Ordering" confirmed as the single most valuable report** — today this is manual and hard to track. No schema change; `material_shortfall` (Section 29) already answers it, this just confirms its priority.
+
+**Quote comparison needs to tolerate rates that aren't apples-to-apples.** Real rates arrive by phone (no document at all) or get typed into a comparison sheet, and some quietly include transport or loading/unloading (GI pipes, specifically) while others don't — ranking purely by rate silently rewards whichever vendor excluded the most from their number.
+
+```sql
+alter table vendor_quote_items add column includes_transport boolean;
+alter table vendor_quote_items add column includes_loading_unloading boolean;
+alter table vendor_quote_items add column notes text;
+```
+
+Null on all three means "not specified" — a real, common case for a phone quote, not a data gap to chase down. `vendor_quotes.source_document_id` was already nullable (0004), so a phone-only quote already had somewhere to live; this just makes sure the comparison view shows these flags next to the rate instead of ranking blind.
+
+**Sales needs to know what's actually on the shelf before quoting — a real, named gap:** NRG has Adani 620W in stock, but sales defaults to quoting Waree 620W. `materials.canonical_name` could technically fold brand into the name as free text, but that turns "what brands do I have at this wattage" into string-parsing instead of a query.
+
+```sql
+alter table materials add column make text;
+alter table materials drop constraint materials_category_canonical_name_key;
+alter table materials add constraint materials_category_canonical_name_make_key
+  unique (category, canonical_name, make);
+```
+
+This is also a **permissions note to carry into the RLS design (item 4)**: Sales needs *read* access to current stock levels (by material/make) even though they do almost no document processing in ProjectPulse itself (Section 01) — a different kind of access than the Inbox-driven roles, worth designing for explicitly rather than assuming Sales only ever touches the occasional payment receipt.
+
+**Capacity Consistency Check needs a tolerance band, not exact-match.** Real example: NRG might quote 620W panels and receive a batch actually binned at 615W — normal manufacturing tolerance ("Wp binning"), not a data error. The check should flag disagreement **across government documents** (Quote → GEDA → Feasibility → Registration should genuinely match, zero tolerance) but not flag quoted-vs-as-purchased wattage drift within a normal binning range. No schema change — this is report logic: compare government-paperwork figures to each other at zero tolerance, compare quoted-to-purchased at a small tolerance band (a few percent), and only surface what's outside it.
+
+**Material lying at sites is confirmed usually small — except cables, which do come back.** Worth narrowing that report's framing toward returnable materials (mainly cable) rather than presenting it as a broad, usually-empty warning.
+
+**Stock report restructured around a clearer mental model** — five plain columns instead of an abstracted "shortfall" figure, already fully computable from existing views (Section 29), just relabeled to match how MP actually thinks about it:
+
+| Column | Meaning | Source |
+|---|---|---|
+| A — In warehouse | Current physical stock | `material_stock.current_stock` |
+| B — On order | Open PO quantity, not yet received | `material_open_orders` |
+| C — Required | Demand from every active project's BOM | `material_requirement` |
+| D — Minimum level | Reorder point | `materials.reorder_level` |
+| E — Available (A + B − C) | If negative, place an order | computed |
+
+**Project Margin must not just be locked, it must not exist for non-owners.** The Reports grid showed it as a greyed, lock-icon card, visible to everyone even if disabled — not what was asked. The card itself should be absent from the menu for anyone but the owner, not present-but-denied. Same underlying point as Section 39's financial boundary, extended to menus/navigation, not just data: **what a role can't see shouldn't announce that it exists.**
+
+### The BOM Recommendation Engine — the last big item on the Next Session list
+
+Distinct from Section 33's sheet-driven generation, which drives NRG's existing, already-trusted SPP formula sheet for standard systems. This one learns from what completed projects **actually** used — sent, returned, and consumed at site — catching real-world patterns (routing losses, consistent over-ordering on a specific material, wastage) that a fixed formula never will. Both can coexist; this doesn't replace Section 33, it's a second, data-driven path.
+
+```sql
+create or replace view bom_item_variance as
+-- (unchanged logic, one addition: b.material_id added to the select list —
+-- needed to benchmark per material, wasn't exposed before)
+...;
+
+create view material_consumption_benchmark as
+select
+  b.material_id, m.category, m.canonical_name, m.make,
+  count(distinct v.bom_id) as project_sample_size,
+  sum(v.used_quantity) as total_used_quantity,
+  sum(bm.kw_capacity) as total_kw_capacity,
+  sum(v.used_quantity) / nullif(sum(bm.kw_capacity), 0) as used_qty_per_kw,
+  sum(v.planned_quantity) / nullif(sum(bm.kw_capacity), 0) as planned_qty_per_kw
+from bom_item_variance v
+join bom_items b on b.bom_item_id = v.bom_item_id
+join boms bm on bm.bom_id = v.bom_id
+join projects p on p.project_id = bm.project_id
+join materials m on m.material_id = b.material_id
+where bm.kw_capacity > 0 and p.status = 'commissioned'
+group by b.material_id, m.category, m.canonical_name, m.make;
+
+alter table boms drop constraint boms_origin_check;
+alter table boms add constraint boms_origin_check
+  check (origin in ('uploaded_workbook','system_calculated','recommendation_engine'));
+```
+
+Scoped to `projects.status = 'commissioned'` deliberately — a project still mid-dispatch would show artificially low `used_quantity` and skew the benchmark low. `used_qty_per_kw` (not `planned_qty_per_kw`) is what a new project's recommendation is built from — actual usage over planned is the entire point. `project_sample_size` should drive the recommendation's own `ai_confidence`: a benchmark from 1-2 historical projects is a guess, from 10+ is a real pattern, and the UI should say so rather than presenting both with equal confidence.
+
+Recommending a BOM from this is mechanically identical to Section 33's flow: `recommended_quantity = used_qty_per_kw × new_project's kw_capacity`, written as ordinary `bom_items` rows (`extraction_status = 'ai_extracted'`, `boms.origin = 'recommendation_engine'`), reviewed and confirmed by an engineer exactly like every other AI-suggested record in this schema — never auto-applied without a human look.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -1812,7 +1892,7 @@ Continue database design by defining:
 5. Management dashboard metrics based only on objective, measurable data.
 6. ~~Financial Obligations schema~~ — done, see Section 32 (`financial_obligations`, `sales_invoices`/`sales_invoice_items`, `payment_receipts`, `tally_ledger_entries`, `financial_obligation_reconciliation`/`project_financial_summary` views).
 7. ~~Timeline/stage tracking schema~~ — done, see Section 32 (`project_milestones`, four tracks: `geda_registration`/`discom_feasibility`/`ceig_inspection`/`site_installation`; `project_milestone_durations` view).
-8. BOM Recommendation Engine — data model for normalized historical consumption lookups (e.g. per-kW quantity benchmarks). Distinct from Section 33's sheet-driven BOM generation for standard systems — the Recommendation Engine learns from historical actual usage; Section 33 drives NRG's existing, already-trusted formula sheet. Both can coexist.
+8. ~~BOM Recommendation Engine~~ — done, see Section 40 (`material_consumption_benchmark` view, learns `used_qty_per_kw` from `commissioned` projects' real dispatch/return history; `boms.origin` gets a third value, `'recommendation_engine'`, alongside Section 33's sheet-driven path — both coexist).
 9. Marketing module schema and scope — content generation inputs, photo selection logic, and social platform publishing integration.
 10. ~~Inventory Intelligence schema~~ — done, see Sections 29-30 (`Purchase_Orders`/`Purchase_Order_Items`, `reorder_level`, stock/requirement/shortfall views, `Vendor_Quotes`/`Vendor_Quote_Items`, `reorder_alerts`, `material_last_purchase`/`material_quote_comparison`).
 11. ~~`Projects` / `Customers` / `Customer_Contacts` full schema~~ — done, see Section 27 (single table with a `project_type` discriminator, `Employees`/`Partners` defined alongside, Drive folder linking including the `drive_folder_import_candidates` review queue for the ~300 existing folders). Section 20's subsidy-application funnel ("Estimate Generated → Subsidy Received → Subsidy Claimed") is now explicitly out of scope — the subsidy pays out directly to the customer's bank account, never touching NRG, so `project_milestones` only needs to cover DISCOM feasibility, GEDA registration, CEIG inspection, and site work (all things NRG itself is responsible for).
@@ -1824,3 +1904,7 @@ Continue database design by defining:
 17. ~~`customers.aliases`~~ — done, see Section 39.
 18. ~~`project_external_references.reference_type` free-text bug fix~~ — done, see Section 39 (was a hard-coded check constraint contradicting Section 24's own documented decision).
 19. ~~GEDA/DISCOM/CEIG milestone sub-step vocabulary~~ — done, see Section 39 (no schema change — `milestone_key` was already free text, just needed the fuller real vocabulary written down).
+20. ~~Vendor quote rate flexibility~~ — done, see Section 40 (`vendor_quote_items.includes_transport`/`includes_loading_unloading`/`notes` — real rates aren't apples-to-apples, and a phone-quoted rate with no document was already supported).
+21. ~~`materials.make`~~ — done, see Section 40 (brand-distinct stock, e.g. Adani vs. Waree at the same wattage — a named real gap where Sales couldn't see what was already on the shelf). Flagged as a permissions note too: Sales needs read access to stock levels even though they do little document processing in ProjectPulse itself.
+22. Capacity Consistency Check tolerance band — report logic, no schema: zero-tolerance across government documents (Quote/GEDA/Feasibility/Registration should agree exactly), small tolerance band for quoted-vs-as-purchased wattage (Wp binning is normal, not an error).
+23. Report-level (not just data-level) access control — the Reports menu itself must omit cards a role can't see (Project Margin, for the owner-only case), not show them locked/greyed. A UI concern to carry into the RLS design (item 4), not a schema one.
