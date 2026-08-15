@@ -2081,6 +2081,20 @@ All three are pure UI — a form that inserts a row into a table that's already 
 
 ---
 
+## 47. Bank Reconciliation — Tally vs. Bank Statement, Not Just Tally vs. Obligations
+
+A genuinely new capability, flagged as such rather than folded quietly into an existing table — first real scope check of this session, worth being explicit about. Real ask: the accounts person currently reconciles Tally against the bank statement by hand, and wants a button, not a new manual process moved into ProjectPulse.
+
+**This is a different reconciliation from the one that already exists.** `tally_ledger_entries` (Section 32) already reconciles Tally against `financial_obligations`/`payment_receipts` — a project-facing question ("did we receive what we're owed"). Bank reconciliation is accounts-facing and project-independent: does the book (Tally) agree with what the bank's own statement shows. Real gaps only this catches: bank charges/interest that never got entered in Tally, a cheque Tally shows as received that hasn't actually cleared the bank yet, a bank-side error.
+
+**`bank_statement_transactions` (0018) — same shape as every other extracted-and-matched table in this schema.** A bank statement (PDF/CSV/Excel) is uploaded like any other document, AI extracts transaction rows, and each one gets matched against a `tally_ledger_entries` row by amount + date proximity + reference number — `match_status` of `unmatched` / `suggested` / `confirmed` / `discrepancy`, same vocabulary and same never-auto-applied principle as `payment_receipts` and `tally_ledger_entries` themselves. No new pattern invented — this is the fourth table using it (`documents` extraction, `payment_receipts`, `tally_ledger_entries`, now this).
+
+**`bank_reconciliation_gaps` is the actual "check now" button — a view, not a process.** `union all` of two things: bank statement rows with no confirmed Tally match (`bank_only`), and Tally payment/receipt vouchers with no confirmed bank match (`tally_only`) — journal entries are excluded since there's nothing on a bank statement for a journal entry to clear against. Confirmed, matched rows on both sides never appear here at all; what's left is exactly the two-column comparison a person does by hand today, done automatically.
+
+**Access is a placeholder for now — company-wide financial data, not project-scoped, and not addressed by the existing Team/Owner boundary (Section 39).** That boundary was about obligation-ledger-vs-margin on a *project*; a bank statement is neither. Real access control (Accounts role specifically, vs. Owner, vs. everyone) is part of the roles/permissions/RLS design already on the Next Session list — flagging it here rather than guessing at a rule now.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
