@@ -2125,6 +2125,45 @@ Real complaint, and a correct one: the Stock dashboard put Quote Comparison, Ven
 
 ---
 
+## 49. Stock Screen Rework — Wider Quote Comparison, Focused Pills Instead of a Panel Wall
+
+Three related fixes to Purchase's Stock screen, none of them schema:
+
+**Quote Comparison was too narrow.** Filtering strictly to `order_now < 0` (Section 45) meant only genuinely urgent shortfalls showed up — but "below reorder level" (`current_stock < reorder_level`) is a real, earlier signal worth acting on too, just not urgently. Real distinction, not a formula change: `order_now < 0` is red/urgent (something is short right now), below-reorder-level-but-`order_now`-still-positive is amber/not-urgent (worth locking in a rate before it becomes urgent). Quote Comparison's chip list now includes both, visually distinguished — demonstrated with Earthing Rod (red, the ₹3,700 self-clear case from Section 45) alongside DC Cable (amber, restoring the ₹1,52,223 Polycab/Reactive Polymers/Shree Cables comparison that demonstrates the >₹25,000 owner-approval path). Both cases coexisting in one screen is deliberate — the mockup needs to show both branches of the approval rule, not just one.
+
+**Too much stacked on screen at once.** Real complaint: Basic Stock, Quote Comparison, and Vendor Master all visible simultaneously buried the one thing that actually needed attention. Fixed with a pill row — Basic Stock / Below Reorder / Order Now / Quote Compare — where selecting one collapses the others, Basic Stock included. Below Reorder and Order Now are just narrower, flat views of the same `material_shortfall` data Basic Stock already renders grouped by category — no new query, just a different slice surfaced as its own focused screen instead of making Purchase scroll a big grouped table to find it.
+
+**Vendor Master and Installation Teams are rare-use, so they're tucked one level back.** Real observation: updating a vendor's details happens occasionally, not daily — it doesn't deserve the same permanent screen real estate as Basic Stock. Both now sit behind a "Manage Vendors ▸" / "Manage Installation Teams ▸" link, collapsed by default. No schema impact; purely how much is visible without a click.
+
+## 50. WhatsApp Vendor Inquiries — a Real Sourcing Action, Not Just a Comparison Table
+
+Real workflow gap: Quote Comparison assumes quotes already exist. Getting them in the first place today means Purchase manually messaging vendors one at a time. Concrete ask: pick 3-5 vendors from a known list (e.g. 10 solar inverter suppliers), get one ready-made inquiry message, and send it via WhatsApp — directly from ProjectPulse.
+
+**Real constraint, stated plainly so it doesn't get oversold: `wa.me` click-to-chat opens one prefilled conversation per tap. There is no bulk-send.** Selecting 5 vendors means 5 taps, 5 separate WhatsApp chats, each prefilled with the same message — that's the actual ceiling of the free click-to-chat link. True one-tap-to-many requires the paid WhatsApp Business API (approval process, per-message cost), out of scope for now. The mockup's "Send Inquiry" screen reflects this honestly: checking vendors renders one "Send to [Vendor]" button per selection, not one button that fans out to all of them.
+
+**`vendor_inquiries` (0019) — a record of what was asked, not what was delivered.** Since `wa.me` gives no delivery/read callback, the table only claims what ProjectPulse actually knows: this vendor was sent this message, for this material, by this person, at this time. `channel` defaults to `'whatsapp'` but isn't hardcoded to it, in case phone/email inquiries want the same log later. Selecting 3 vendors and sending to each writes 3 rows, one per vendor+tap — never one batch row, since each is a genuinely separate conversation that could diverge (edited message, different vendor response). Real payoff for the build session: query this table before rendering the vendor picker so Purchase can see who's already been asked about a material recently, instead of re-asking the same 3 out of habit.
+
+**Deliberately mobile.** This is one of the clearest cases in the whole app for phone-first: sending a WhatsApp inquiry is something Purchase does standing in the warehouse or between site visits, not sitting at a desk running Quote Comparison. The mockup builds this specific screen as a phone frame for that reason, while the rest of Stock stays a desktop/browser frame — not a blanket redo of every screen to mobile, just this one where mobile is obviously the real usage pattern.
+
+## 51. Navigation Was Never Actually Wired — Fixed, Plus DC Is Multi-Role
+
+Real catch: earlier rounds described Generate DC as reachable by "tapping Log dispatch on the Pending board," but the mockup's Pending board button never actually did that — it just marked the card done. Same gap for BOM: Engineer had no way in from Pending at all, because Engineer wasn't even one of the Pending board's five role tracks (MP/KP/Dispatch/Service/Sales — Section 16). Fixed:
+
+- **Log dispatch, Generate BOM, and Service's commissioning "Upload" now actually navigate** — they jump to the Generate screen and switch it to the right role, instead of just clearing the Pending card and going nowhere.
+- **A "BOM not yet generated" Pending item was added under KP** so Engineer has a real entry point, matching the fix above.
+- **KP and Engineer are the same role, not two.** Whoever handles GEDA/CEIG/DISCOM paperwork (KP, Section 16) is the same person who runs BOM generation (Engineer, Sections 33/43) — one technical person at NRG's scale, not two separate functions. The Pending board pill now reads "KP · Engineer" instead of implying they're different people with different boards.
+- **Generate DC is multi-role, not Dispatch-exclusive.** Confirmed: Purchase, Dispatch, or a Service engineer on-site can all end up carrying material to a project. Generate DC now shows for all three role views on the Generate screen (BOM stays Engineer-only, Commissioning Report stays Service-only, PO stays Purchase-only — those genuinely are single-role).
+
+No schema impact anywhere in this section — entirely navigation wiring and a role-model correction (KP=Engineer) that should have been consistent from the start.
+
+## 52. Reports Access Is Now Real Roles, Not a Team/Owner Binary
+
+The Team/Owner toggle (Section 39) was the first cut at "some report data isn't for everyone" — right instinct, wrong granularity once real roles are in play. Confirmed rule: **What Needs Ordering** and **Stock Statement History** are Purchase's; **Required Documents Gap** is Service's and Sales' (the compliance/KYC gap genuinely affects both); **Bank Reconciliation** is Accounts' and Purchase's, Owner always; **Project Margin & Profitability** stays Owner-only (unchanged). **Milestone Timeline & Bottlenecks**, **Capacity Consistency Check**, and **Generated Documents** stay visible to everyone — nobody's excluded from those, though Capacity Consistency Check matters most to Service (they're the ones who'd otherwise discover a kW mismatch on-site).
+
+Replaced Reports' `view-team`/`view-owner` toggle and `owner-only-card` class with the same `data-visible-to` role-tagging pattern already used on Stock and Generate (Section 48) — Purchase / Service / Sales / Accounts / Owner, Owner seeing everything. Purely a UI/IA correction, no schema change; the same placeholder caveat from Section 47 still applies until real roles/permissions + RLS exist to enforce this at the data layer, not just hide it in the UI.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
