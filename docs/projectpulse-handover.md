@@ -2095,6 +2095,36 @@ A genuinely new capability, flagged as such rather than folded quietly into an e
 
 ---
 
+## 48. Navigation Should Follow Who Uses What, Not Bundle Everything Into One Screen
+
+Real complaint, and a correct one: the Stock dashboard put Quote Comparison, Vendor Master, and Installation Teams behind one panel stack as if the same person needed all three, when Installation Teams (fabricator/electrician assignment) is Engineering's concern, not Purchase's. Same problem on Generate: DC, BOM, Commissioning Report, and PO sat side by side as one screen, so a Service technician generating a Commissioning Report had to visually step past three buttons meant for Dispatch, Engineering, and Purchase to find the one they actually use. Concrete example given: a Commissioning Report button "in the middle of all purchase buttons doesn't make sense."
+
+**The fix is role-based visibility, not a data model change.** Every screen/action in ProjectPulse maps to one or two roles who actually use it — worth writing down explicitly once, so navigation gets designed against it instead of by feel per screen:
+
+| Screen / action | Who actually uses it |
+|---|---|
+| Generate DC | Dispatch |
+| Generate BOM (driver inputs, structure type, Pull from SPP Sheet) | Engineer |
+| Commissioning Report (prefilled, hand-filled on-site) | Service |
+| Generate PO | Purchase |
+| Basic Stock (category-grouped view) | Purchase **and** Engineer both — the one thing both need, so it's the one panel that stays visible regardless of role |
+| Order Status detail, Quote Comparison, Vendor Master, Raise PO | Purchase |
+| Installation Teams & Contractors | Engineer (assigns fabricator/electrician to a project) — explicitly **not** Purchase |
+| New Material form | Purchase (or Engineer, same table either way) |
+| Bank Reconciliation | Accounts, Owner (Section 47) |
+| Generated Documents log | Everyone, filtered to what's theirs; Owner sees all |
+| Milestone Timeline, Capacity Consistency, Required Documents Gap | Sales, the compliance/engineering role tracking GEDA/CEIG/DISCOM (called KP on the Pending board, Section 16) |
+| Money tab (obligation ledger) | Everyone — Section 39's boundary, unchanged |
+| Project Margin & Profitability | Owner only — Section 39's boundary, unchanged |
+| People tab (company roster) | Owner edits, everyone views |
+| Pending board | Everyone, already role-filtered by track (Section 16) |
+
+**Implemented in the mockup as a "Viewing as" role toggle**, the same interaction pattern already proven for Team/Owner (Sections 39, 42) — extended here to real functional roles instead of a single visibility bit. On Stock: Purchase/Engineer, defaulting to Purchase, gating Quote Comparison + Vendor Master (Purchase-only) and Installation Teams (Engineer-only) while Basic Stock stays visible either way. On Generate: Dispatch/Engineer/Service/Purchase, defaulting to Dispatch, gating which of the four generate flows and paper-document samples show at all — switching to Service leaves only the Commissioning Report on screen, which is the direct fix for the complaint above.
+
+**No schema impact — this is UI/IA only.** The underlying data (`materials`, `partners`, `boms`, `delivery_challans`, etc.) doesn't care who's looking at it; this section is about which screen surfaces which action to which person, which is exactly the kind of decision real roles/permissions + RLS (still on the Next Session list) will eventually enforce at the access-control level. This gets the *navigation* right first; RLS gets the *enforcement* right later — related but not the same problem, and this doesn't block or duplicate that work.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
