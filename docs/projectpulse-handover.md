@@ -1932,6 +1932,39 @@ join materials m on m.material_id = ssi.material_id;
 
 ---
 
+## 42. Approval Threshold, Landed-Cost Estimates, and Vendor Specialties
+
+Three more refinements to the quote comparison workflow (Section 41), plus a Reports cleanup.
+
+**Approval routes to the owner automatically above ₹25,000, MP clears the rest.** The threshold itself isn't a schema value — no general settings table exists yet to hold it, and it's the kind of number that gets tuned over time, so it stays an application-layer constant for now. What the request needs is a stable number to route and notify on:
+
+```sql
+alter table quote_comparison_requests add column total_amount numeric(14,2);
+```
+
+Snapshotted at submission rather than recomputed live, so it can't drift if quotes change after the owner's already been notified about a specific figure. Two notification moments, both application-layer jobs exactly like `reorder_alerts` (Section 30) — the DB only tracks the state that triggers them: `draft → submitted` with `total_amount > 25,000` notifies the owner something needs approval; `submitted → approved` notifies MP the comparison is approved and a PO can now be raised. The "approved" checkbox in the UI is just a view onto `status = 'approved'` — no separate field needed.
+
+**Vendors aren't on equal footing until landed cost is** — `includes_transport`/`includes_loading_unloading` (Section 40) say whether a rate already covers these, but when it doesn't, MP needs somewhere to put an estimate or the comparison still isn't apples-to-apples:
+
+```sql
+alter table vendor_quote_items add column estimated_transport_charge numeric(14,2);
+alter table vendor_quote_items add column estimated_loading_unloading_charge numeric(14,2);
+```
+
+Effective landed total per vendor = `rate × quantity + estimated_transport_charge + estimated_loading_unloading_charge` (nulls treated as zero) — that's the number the comparison should actually rank by, not the printed rate.
+
+**Vendor specialties — a manual tag, not a substitute for real history.** Real need: finding "who sells cables and lugs" *before* any quote/purchase history exists to compute it from a brand-new vendor.
+
+```sql
+alter table partners add column supplies_categories text[];
+```
+
+Same reasoning as `materials.aliases` — a starting point, not the authoritative answer; a vendor with real order history should be found through that history (joining `vendor_quote_items`/`material_transactions` by `material_id`/`category`), this tag is only there to cover the cold-start case.
+
+**Reports cleanup, confirmed by review:** Quote Comparison doesn't need its own card in Reports — it already has a full workspace on the Stock tab, showing it twice was redundant. Material Lying at Sites is confirmed not actually useful and comes out entirely, not just de-emphasized (a reversal of Section 40's "usually small, worth watching" framing — on reflection it isn't worth a report at all). Stock Statement History gets a total row, since a statement without a grand total isn't actually bank-ready.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
