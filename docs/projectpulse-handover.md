@@ -1540,8 +1540,13 @@ The second one mirrors the LATERAL-join logic `material_transaction_cost` (Secti
 
 ```sql
 alter table materials add column stock_group text;
-  -- coarse rollup for statements/reporting: 'panels' | 'inverters' | 'cables' | 'hardware' | 'electrical_accessories' | 'safety' | 'other'
 ```
+
+**Real canonical values, confirmed later in the same session** (`stock_group` stayed free text on purpose — no migration needed to update this list, it's an app-level reference list like everywhere else):
+
+`dcr_panels` | `ndcr_panels` | `inverters` | `structure` (GI pipe and aluminum structure both fall under this one group — not split further at the stock_group level) | `acdb_dcdb` | `cables` | `cabling_accessories` | `hardware` | `misc` | `retail_non_project` (Havells heat pumps, solar dryers, solar water heaters — Section 35's direct-sale items, never installed in a solar project).
+
+DCR and NDCR panels are deliberately two different groups, not one "panels" group with a flag — only DCR panels qualify for subsidy eligibility, and a bank stock statement benefits from seeing that split without having to filter. Cables and Cabling Accessories (MC4s, glands, lugs, ties) are also split — different valuation behavior, worth separating on the statement. This replaces the earlier placeholder value list (`'panels' | 'inverters' | 'cables' | 'hardware' | 'electrical_accessories' | 'safety' | 'other'`), which was always marked as illustrative, not confirmed.
 
 **Month-over-month comparison** falls out once statements are real rows rather than a live query:
 
