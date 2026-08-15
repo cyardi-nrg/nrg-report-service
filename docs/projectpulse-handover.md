@@ -1886,6 +1886,52 @@ Recommending a BOM from this is mechanically identical to Section 33's flow: `re
 
 ---
 
+## 41. Quote Comparison Needs an Approval Gate, and a Vendor Contact Person
+
+Reviewing the mockup's Quote Comparison screen surfaced that it wasn't actually doing the job: real quote comparison means gathering 2-4 vendor quotes for the same reorder need, seeing the total cost difference, sending that comparison to the owner for a decision, and raising the PO right there once approved — not just a table of individual rates.
+
+**Vendors don't need a new table — `partners` already carries name/category/contact_number/email/gstin/address.** The one real gap: no field for the specific person to actually call.
+
+```sql
+alter table partners add column contact_person text;
+```
+
+**The approval gate was the actual missing piece**, not the comparison itself — `material_quote_comparison` (Section 30) already compares every stored quote for one material against the last price paid. What was missing: an explicit batch ("these vendor quotes are being compared for this decision") and a gate before a quote can become a PO — today `vendor_quotes.is_selected`/`purchase_order_id` (Section 30) would let MP flip a quote straight to a PO with no owner sign-off in between.
+
+```sql
+create table quote_comparison_requests (
+  quote_comparison_request_id  uuid primary key default gen_random_uuid(),
+  created_by                    uuid references employees(employee_id),
+  status                         text not null default 'draft'
+                                  check (status in ('draft','submitted','approved','rejected')),
+  requested_at                    timestamptz,
+  decided_by                      uuid references employees(employee_id),
+  decided_at                      timestamptz,
+  decision_notes                  text,
+  created_at                       timestamptz not null default now()
+);
+
+alter table vendor_quotes
+  add column comparison_request_id uuid references quote_comparison_requests(quote_comparison_request_id);
+```
+
+MP builds a request in `'draft'` — scan or type in quotes from 2-4 vendors, covering one or several materials in the same batch — flips it to `'submitted'` when ready, and the owner sets `'approved'` or `'rejected'` with `decision_notes`. Only once `'approved'` should the app let `is_selected` be set and a `purchase_orders` row get created from the winning quotes — an application-layer gate, this table just gives it something to check against. Sending the comparison sheet for approval (email/WhatsApp/push) is an app-layer job, same as `reorder_alerts` (Section 30) — the DB only tracks state, it doesn't send anything.
+
+**A small view fix, caught in the same review:** `materials.make` (Section 40) landed after `stock_statement_summary` (Section 34) was already written, so a stock statement couldn't actually distinguish Adani 545W from Waree 545W within the same `stock_group` — exactly the level of detail a real statement needs (Adani 545W, Adani 615W, Waree 585W, Waree 615W, each its own line, not folded into one "DCR Panels" total).
+
+```sql
+create or replace view stock_statement_summary as
+select
+  ss.statement_period, ss.status,
+  m.stock_group, m.category, m.material_id, m.canonical_name, m.make,
+  ssi.declared_quantity, ssi.rate, ssi.declared_quantity * ssi.rate as amount
+from stock_statement_items ssi
+join stock_statements ss on ss.stock_statement_id = ssi.stock_statement_id
+join materials m on m.material_id = ssi.material_id;
+```
+
+---
+
 ## Next Session
 
 Continue database design by defining:
