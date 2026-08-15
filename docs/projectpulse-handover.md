@@ -2062,6 +2062,25 @@ Per-run duplication instead of one shared live tab is the load-bearing decision 
 
 ---
 
+## 46. A Generated Documents Log, and Confirming Material/Supplier/Team Forms Need No New Schema
+
+Two real, related requests: "whatever content we create should be accessible and visible in a list" (POs, BOMs, DCs, Commissioning Reports), and separately, data-entry forms for new materials, new suppliers, and new installation teams.
+
+**Generated Documents Log.** Four tables already hold everything generated: `delivery_challans`, `purchase_orders`, `commissioning_reports`, `boms`. The gap wasn't data, it was that nothing brought them into one list. Two real sub-gaps found while building it:
+- `purchase_orders` and `commissioning_reports` never got a document number, even though `delivery_challans.dc_number` already uses `next_document_number()` (Section 37) and that function was explicitly built reusable ("for Purchase Orders or any other system-generated series later"). Added `purchase_orders.po_number` and `commissioning_reports.cr_number`, same pattern.
+- `purchase_orders.created_by` didn't exist at all — `delivery_challans.created_by` does, so POs were the one generated-document type with no answer to "who raised this." Added it.
+
+`generated_documents_log` (0017) is a `union all` view across the four tables, not a shared parent table — a BOM has cost columns, a DC has an e-way-bill flag, a PO isn't even project-scoped (it's vendor-scoped; a PO can cover warehouse stock spanning several projects' worth of material, so its `related_to` is the vendor name, not a project). Forcing one real table would mean a wall of nullable columns for no benefit — the view just needs `document_type` + `document_id` to deep-link back to the real record, plus enough common columns (number, related_to, date, status, generated_by) to actually list and filter. BOMs don't have a fiscal-year number series (a project's BOM gets revised in place via `version`, not reissued under a new number) — `document_number` for a BOM row is `'v' || version` instead. A BOM's `status` folds the two-stage approval gate (Section 43) into one of three values (`pending_review` / `pending_owner_approval` / `approved`) rather than exposing three raw columns the list view would have to interpret itself.
+
+**Forms for new material / new supplier / new installation team — no schema change, all three.** Checked each against what already exists:
+- **New Material** → `materials` (canonical_name, category, default_unit, make, reorder_level — all already there, Sections 2 and 40).
+- **New Supplier** → `partners` with `category = 'vendor'` (Section 40 added `contact_person`/`supplies_categories`, everything else already existed since Section 2).
+- **New Installation Team** → also `partners`, just a different `category` value (`fabricator` / `electrician` / `civil_contractor` / etc. — already free text, Section 2's own design). Not a new entity — "installation team" is exactly what `project_milestones.vendor_id` already points at when it records who did the fabrication or electrical work on a project (Section 39).
+
+All three are pure UI — a form that inserts a row into a table that's already fully shaped for it.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
