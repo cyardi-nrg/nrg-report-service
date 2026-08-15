@@ -1755,6 +1755,52 @@ Same shape as every other AI-can't-fully-resolve-this pattern already in the sch
 
 ---
 
+## 39. Mockup Review Fixes — Aliases, Compliance Sub-Steps, a Real Bug, and the Actual Financial Boundary
+
+Six items from reviewing the UI concept against real operating reality, plus one real bug the review surfaced.
+
+### Customer/project aliases — a real gap
+
+Confirmed real case: an electricity bill (and other KYC documents) shows the legal owner's name (e.g. "Satish Garg"), while the team only ever refers to the project by its business name ("Agarwal Roadlines"). `customers.name` (Section 27) was documented as "as it appears on documents" — fine for AI matching against a single document, but it means the name most of the team actually searches by might never appear as `name` at all. Same `aliases text[]` pattern `materials` (Section 27) already uses for exactly this reason:
+
+```sql
+alter table customers add column aliases text[];
+```
+
+`name` stays the primary/display name (however NRG actually refers to the project); `aliases` holds every other name variant AI has seen on documents for this customer (legal owner name, name spelling variants, etc.) — search and document-matching check both.
+
+### A real bug: `project_external_references.reference_type` was never actually free text
+
+Section 24 explicitly decided this needed to "stay a flexible, extensible list rather than a fixed enum" — but the shipped migration (0002) gave it a hard `check` constraint anyway (`'nrg_internal' | 'discom_consumer_number' | 'geda_residential' | 'geda_commercial' | 'ceig'`), silently contradicting its own documented reasoning. This blocks exactly the kind of new reference type this review surfaces (see DISCOM SR No. below). Fixed to match every other categorical field in this schema:
+
+```sql
+alter table project_external_references drop constraint project_external_references_reference_type_check;
+```
+
+### Compliance sub-steps — richer milestone vocabulary, no schema change needed
+
+`project_milestones.milestone_key` (Section 32) was already designed as free text specifically so the real step-by-step vocabulary could grow without a migration — it just hadn't been written out in full. Confirmed, per track:
+
+- **`geda_registration`**: `application_submitted` → `fees_paid` → `registered`. Fees paid is now its own milestone step (not just a line living silently inside `financial_obligations`), so it shows up on the Milestones tab like everything else.
+- **`discom_feasibility`**: DISCOM issues an **SR No.** (Service Request number) on application — a new `project_external_references` entry, `reference_type = 'discom_sr_no'` (only possible now that the bug above is fixed) — then `estimate_paid` → `feasibility_generated`.
+- **`ceig_inspection`**: five steps, not three — `applied` → `sld_approved` → `test_inspection_applied` → `satisfactory_letter_received` → `certificate_received`. The satisfactory letter and the final certificate are confirmed as two separate documents/events, not one.
+
+### Fabricator and electrical team per project — already covered, needs to actually get used
+
+`project_milestones.vendor_id` (Section 32) — "which fabrication/electrical vendor executed this stage" — already exists for exactly this. No new schema: populate it on the relevant `site_installation` steps (`structure_fitting`/`panel_fitting` → the fabricator partner; `inverter`/`acdb_dcdb`/`earthing` → the electrician partner), and the Project Overview should surface it as a plain "Team" line rather than making someone dig through individual milestone rows to find it.
+
+### The actual financial visibility boundary — narrower than first stated
+
+Corrects the blanket "financials are owner-only" rule from two sessions ago. The real boundary, confirmed:
+
+- **Visible to everyone** (Sales, Sales-backend, Service, Purchase, Owner): the obligation ledger — `financial_obligations`/`sales_invoices`/`payment_receipts` reconciliation, i.e. Quoted/Invoiced/Received/Pending. This is what NRG is charging and what the customer has paid — operationally necessary (e.g. MP checking payment status before releasing the next dispatch, per Section 01's Pending board example), not sensitive.
+- **Owner-only**: anything that reveals cost or margin — `bom_item_variance`'s `actual_cost`/`cost_variance` columns specifically, `project_costs` in aggregate, and any future margin/profitability view (Section 37/38). Quantities on the BOM tab (planned/used/variance) stay visible to everyone; only the ₹ columns next to them are gated.
+- A bill landing in `project_costs` is still visible to **MP** while they're actually assigning it — the restriction is on the aggregated "what did this project cost" view, not on someone doing their actual job.
+
+This replaces item 16 on the Next Session list and the corresponding note in `HANDOVER-FOR-BUILD-SESSION.md`.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
@@ -1774,4 +1820,7 @@ Continue database design by defining:
 13. ~~Lightweight cost capture for non-material bills~~ — done, see Section 38 (`project_costs`, `unassigned`/`assigned`/`general` pattern for vendor/transport bills that don't self-identify a project). Deliberately capture-only — no margin/profitability view yet, pending a dedicated session to define what "margin" should include (material cost only vs. also labor/subcontractor cost).
 14. Cross-project milestone bottleneck report — aggregate `project_milestone_durations` (Section 32) across every project to find which step has the largest average or most variable gap, not just one project's timeline. No new schema, just a view.
 15. Suggested reorder levels — compute from historical consumption rate × purchase lead time (derivable from `material_transactions` and `purchase_orders.order_date`), same `ai_extracted`/`confirmed` pattern as everything else, rather than pure manual entry.
-16. Owner-only financial visibility — confirmed requirement, not yet designed: `financial_obligations`/`sales_invoices`/`payment_receipts`/`project_costs`/BOM cost columns/project header Quoted-Invoiced-Received-Pending must be invisible to MP/KP/Dispatch/Service/Sales, enforced at the RLS level (not just hidden in the UI) once the full roles/permissions design (item 4) happens.
+16. ~~Owner-only financial visibility~~ — corrected and narrowed, see Section 39. Only cost/margin (`bom_item_variance.actual_cost`/`cost_variance`, `project_costs` in aggregate, any future margin view) is owner-only; the obligation ledger (Quoted/Invoiced/Received/Pending) is visible to everyone. Still needs RLS enforcement, not just UI hiding, once the full roles/permissions design (item 4) happens.
+17. ~~`customers.aliases`~~ — done, see Section 39.
+18. ~~`project_external_references.reference_type` free-text bug fix~~ — done, see Section 39 (was a hard-coded check constraint contradicting Section 24's own documented decision).
+19. ~~GEDA/DISCOM/CEIG milestone sub-step vocabulary~~ — done, see Section 39 (no schema change — `milestone_key` was already free text, just needed the fuller real vocabulary written down).
