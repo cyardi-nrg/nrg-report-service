@@ -2041,6 +2041,27 @@ Went back to the live "Spp Bill of Material 2025" Google Sheet (the one Section 
 
 ---
 
+## 45. Order Now Display, Quote Comparison Scope, Structure Type, and the Sheet Round-Trip Contract
+
+Four corrections from a mockup review, none of them schema changes except one clarified input.
+
+**"Order Now" reading like a shortfall when it's a surplus.** The formula (Section 43) was already right — only Earthing Rod is negative in the demo data — but a positive number sitting in a column titled "Order Now" reads as "order this many," which is backwards. Fixed as a display rule, not a formula change: the app should show the actual `order_now` value **only** when it's negative; every non-negative row reads "Adequate," no number at all. This is UI guidance for the build session, not a new column — `material_shortfall.order_now` stays exactly as defined in Section 43.
+
+**Quote Comparison should list only what's actually short.** Confirmed real complaint: showing every material MP has ever compared (even ones that are fine) buries the one that matters. The comparison workspace's chip list should be filtered to materials where `order_now < 0` — nothing else belongs there. This was already partially true in concept (Section 41's `quote_comparison_requests` isn't tied to "short" materials specifically) but the UI needs the filter applied explicitly: only rows failing `material_shortfall.order_now < 0` populate the chip list.
+
+**Structure type is a real, named driver input, missing from Section 33's list.** Confirmed against the same SPP sheet reviewed in Section 44: category 2 ("GI pipe Panel Structure") and category 3 ("Strut Channel Structure") are mutually exclusive — a project uses one or the other, driven by whether the mounting is on RCC (needs a raised GI-pipe frame: `T Frame in feet`, `No of frames`, `No of legs per frame`) or a sloping roof (Aluminium Strut Channel, mounted flush — no frame height or legs/frame at all, just `No of panels`/`No of rows`). This is a real branch in what gets asked, not just what gets calculated. **No new column** — it's one more key in `boms.generation_inputs` (Section 19's JSONB, already flexible for "the driver values sent to the sheet... etc."), named `structure_type` (`'rcc'` or `'sloping_roof'`). The two different sets of resulting materials (GI Pipe 60×40/40×40 vs. Aluminium C Channel/Spring Nut/etc.) are just different `bom_items` rows the sheet returns — nothing about `bom_items` itself changes.
+
+**The sheet round-trip contract — no longer deferred.** Section 33 left "the exact input/output cell or named-range contract with the sheet" deliberately open. Settled now: **duplicate-tab-per-generation-run**, not writes against the one shared Template tab. Concretely:
+1. ProjectPulse calls the Sheets API to duplicate the SPP workbook's `Template` tab into a fresh sheet (named something like `gen-<bom_id>` for traceability).
+2. It writes the driver inputs (`panel_wattage`, `panel_count`, `structure_type`, `rows`, `frame_length_ft`, `structure_height_ft`, `legs_per_frame`, `string_count`) into that duplicate's input cells — the same cells a person fills in by hand today (`Wattage`, `No of panels`, the driver rows under each material category).
+3. The sheet's own formulas recalculate (native Sheets behavior, nothing to reimplement) — that's the whole point of routing through the sheet instead of reimplementing NRG's formula logic in application code.
+4. ProjectPulse reads the computed `Qty Required` column back out of the same duplicate and writes it as `bom_items` rows (`extraction_status = 'ai_extracted'`, `boms.origin = 'system_calculated'`), same as any other AI-suggested record — reviewed and confirmed by an engineer, never applied directly.
+5. The duplicate tab can be deleted or archived once its output is captured — it's scratch space for one generation run, not a permanent record. (The permanent record is `bom_items` itself, plus `generation_inputs` for traceability back to what was sent.)
+
+Per-run duplication instead of one shared live tab is the load-bearing decision here: two engineers generating BOMs for two different projects at the same moment must not be able to clobber each other's input cells or read a half-written result. No schema change — this is entirely an integration/build detail, but it's the concrete answer Section 33 deferred, so it's worth having settled before the build session gets there.
+
+---
+
 ## Next Session
 
 Continue database design by defining:
