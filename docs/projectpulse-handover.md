@@ -2237,6 +2237,14 @@ Two related real problems from the same conversation: getting the *existing* sto
 
 *Repair, one new column:* prevention doesn't undo drift that already happened before this rule existed, or a case where two different people independently create the same material before anyone notices. **`materials.merged_into_material_id`** (self-referencing, nullable) — set when MP confirms two rows are actually the same product. The merge itself is an application-level operation, not a view: append the duplicate's `canonical_name`/`aliases` onto the survivor's `aliases`, re-point every `material_id` foreign key (`material_transactions`, `bom_items`, `vendor_quote_items`, `vendor_inquiries`, `stock_adjustments`) from the duplicate to the survivor, then set `merged_into_material_id` on the now-empty duplicate row. Deliberately an audit trail, not a live redirect — every existing view (`material_stock`, `bom_category_cost`, `material_last_purchase`, all of them) keeps working unchanged once the foreign keys are re-pointed; `merged_into_material_id` only exists so a material picker can filter merged rows out (`where merged_into_material_id is null`) and so a transaction history stays explainable later.
 
+## 61. Count Stock — the Monthly Adjustment Should Walk the List, Not Ask for a Typed Name
+
+Direct follow-up to the drift problem in Section 60, applied to the one screen where it was actually still possible: the mockup's original Log Adjustment form (Section 54) was a blank "Material" text field — type a name, hope it matches. That's the exact failure mode Section 60 just diagnosed, on the one screen doing a monthly count is guaranteed to touch every material in the warehouse.
+
+**Fixed as a mode on the existing Basic Stock table, not a separate form.** Basic Stock (Section 49) already lists every material grouped by category with the real book quantity next to it — that list already *is* the correct source of truth for what a physical count needs to walk through. "Count Stock" now toggles an **Actual Physical Stock** column onto that same table (auto-expanding every collapsed category first, so a count can't skip one without noticing), placeholder pre-filled with the book quantity for comparison. The person doing the count fills in only what they actually counted — walking shelf to shelf, ticking off what's in front of them — and leaves the rest blank; "Post Adjustments" only writes rows that got a value, same `stock_adjustments`/`stock_adjustment` movement type as before (Section 54), no schema change.
+
+This closes the loop Section 60 opened: picking a material off a list it's already displayed on can't introduce a spelling variant the way typing its name can. The monthly count that's most likely to touch a material NRG hasn't recorded a purchase for recently (old stock, rarely moved) was also the moment most likely to tempt someone into typing a near-miss name instead of finding the right row — now there's no typing to get wrong.
+
 ---
 
 ## Next Session
@@ -2268,3 +2276,4 @@ Continue database design by defining:
 23. Report-level (not just data-level) access control — the Reports menu itself must omit cards a role can't see (Project Margin, for the owner-only case), not show them locked/greyed. A UI concern to carry into the RLS design (item 4), not a schema one.
 24. ~~Rs/Watt cost breakdown by BOM category, panel cost isolated from the rest~~ — done, see Section 59 (`bom_category_cost`, `bom_panel_vs_rest_cost`).
 25. ~~Bulk stock-statement import, and repairing a duplicate material~~ — done, see Section 60 (bulk import generalizes the existing Legacy Item flow, Section 54; `materials.merged_into_material_id` for repair; fuzzy-match-before-create is a workflow decision, no schema).
+26. ~~Log Adjustment should pick a material off a list, not accept a typed name~~ — done, see Section 61 (Count Stock mode on the existing Basic Stock table, no schema change).
