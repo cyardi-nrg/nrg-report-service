@@ -115,6 +115,16 @@ See `docs/nrg-solarconnect-handover.md` Section 77: NRG SolarConnect becomes a "
 
 ---
 
-## Appendix: full-system deep read
+## Appendix: full-system deep read — complete
 
-A separate, more thorough pass is underway (as of this writing) that reads every `.gs`/`.html` file in all five Apps Script projects and every file in the four backend repos (`nrg-cover`, `nrg-pdf-server`, `elec_bill`, `nrg-report-services`) completely, not sampled — covering the actual business logic, every entry point/trigger, every external integration, the full auth/permission model, and known fragility (hardcoded IDs, in-memory state that resets on redeploy, stub automation that isn't real yet). Results will be folded into this document once complete; this appendix is a placeholder marking that the plan above was written before that full read finished, so treat Sections 1 and 3 as accurate-so-far, not final.
+Full write-up: `docs/system-understanding-2026-08-16.md`. Every `.gs`/`.html` file in all five Apps Script projects and every file in the four backend repos read completely (two very large HTML files read ~70% verbatim + confirmed by exhaustive grep for the repetitive remainder — disclosed there, not hidden).
+
+**What changes about Sections 1 and 3 above, now that the full read is in:**
+
+- **The real footprint is bigger than five projects.** `nrg-cover` alone hardcodes nine distinct GAS deployment URLs — four more than the five reviewed as primary targets (Leads, Tasks, Client Engagement, Reference Finder, Havells Quotes, Referral Network, Prospect Intelligence all have their own dedicated backends beyond the five named in Section 1).
+- **PDF generation and PDF persistence are separable.** None of the three Python services ever touches Google Drive — they return base64 bytes and Apps Script does the actual save. This means the PDF-generation layer could migrate independently of whichever Apps Script project currently uploads its output.
+- **Quote Generator ↔ Sales Follow-up's coupling is worse than "shared spreadsheet."** Sales Follow-up's CEO-discount path reads Quote Generator's columns by **hardcoded position**, not by header name — the single most dangerous latent bug found across the whole read. This needs fixing as part of any move of this pair, not carried forward as-is.
+- **Security must not be carried forward as-is.** Quote Generator has no authentication at all — full PII read, arbitrary-discount quote submission, and attacker-triggerable company email sends, all with zero login. `elec_bill`'s OCR endpoint is a free, unauthenticated proxy to a paid Anthropic API call. Most "Admin only" checks across Service Desk exist only as UI comments, not server-side enforcement. None of this is migration-caused — it's true today — but a migration that just re-implements the current access model would be reproducing known gaps on purpose rather than fixing them.
+- **Some things that look automated aren't** — Prospect List's entire sequence engine is dormant (real activity happens through a separate, simpler log), the AMC renewal trigger only writes to a log and notifies nobody, and the RERA/MCA "scrapers" are pure stubs despite having real trigger schedules. A migration built to match the *code* rather than the *actual usage* would over-build these three.
+
+Full detail, per-project entry points, external integrations, and the complete landmines list are in `docs/system-understanding-2026-08-16.md`.
