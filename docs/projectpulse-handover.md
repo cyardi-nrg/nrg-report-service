@@ -2255,6 +2255,22 @@ Real ask, and a gap that had already been fixed once in one place but not the ot
 
 One real implementation detail worth recording for the build session: the People tab's row also has an **Edit** button, and Edit's toggle behavior needs to find that exact button by walking the DOM (`row.querySelector('.people-edit-btn')`, then inserting the edit form immediately before it) — it must stay a direct sibling of the name/contact block, not get nested inside a shared button-group `<div>` alongside Call/WhatsApp/Email, or the DOM lookup breaks. The three new links use their own class for styling so they don't collide with that lookup. A minor point, but the kind of thing worth calling out explicitly since it's exactly the sort of bug that's invisible until someone actually clicks Edit.
 
+## 63. Owner-Only Cost-Per-Watt Benchmark Across Projects, by Size Band (0024)
+
+A different report from Section 59/60's per-project panel, not a contradiction of "don't make it a separate report" — that instruction was about *one project's own number* belonging on its own BOM, not on a company-wide screen. This is genuinely cross-project: "give me every project, grouped into size slabs — 15-25kW, 25-50kW, 50-100kW, 100-200kW, 200-500kW, 500kW+ — side by side, Rs/Watt per category for each, and a standardized cost per slab to price future projects with." A comparison across projects can only exist as a Reports-level view. **Visible to the owner only, nobody else** — same boundary as Project Margin (Section 39), not a new access rule.
+
+**Which BOM counts, when a project has more than one version?** `boms.version` (Section 19) already anticipates revisions. The latest **confirmed** one (`extraction_status = 'confirmed'`) — an unreviewed, still-`ai_extracted` BOM shouldn't feed a number NRG is going to price real quotes from. `project_confirmed_bom` picks it per project.
+
+**Size band is computed, not stored** — a pure `case` expression on `kw_capacity` (Section 19), same "compute, don't store" principle as everything else in this schema. `project_size_band` buckets every project into the exact six named slabs plus an "Under 15 kW" catch-all for smaller residential jobs, so nothing silently disappears from the report.
+
+**GI Structure vs. Aluminum Structure needed no new split** — "GI Pipe Panel Structure" and "Strut Channel Structure" (Aluminium) are already two separate, mutually-exclusive `bom_items.category` values (Section 44/45, driven by `structure_type`). `bom_category_cost` (Section 59) already returns them as two distinct rows; this report just reads both the same as any other category.
+
+**Installation cost was the real, new gap.** Section 59's panel was material-only (`bom_items`); a standard rate card that's supposed to say "what should we charge/budget per watt" needs labour in it too, or it understates every future quote. `project_costs` (Section 38) already has exactly this — `cost_type` already includes `'fabrication'`/`'installation_subcontract'` — just never rolled up into a Rs/Watt figure. `project_installation_cost` sums `assignment_status = 'assigned'` costs per project (unassigned/still-general bills haven't actually been attributed yet, so they can't count) and divides by that project's `kw_capacity`. **Still not the deferred Margin view** (Section 37/38) — no revenue anywhere in any of this, purely the cost side, same boundary Section 59 already drew.
+
+**`project_cost_per_watt_benchmark`** is the direct report source — one row per `(project_id, size_band, category, rs_per_watt)`, `bom_category_cost`'s per-category rows unioned with the new installation-cost row. The report pivots this app-side: one tab per size band, projects as columns, category as rows (Solar Panels / Inverter / GI Pipe Panel Structure / Strut Channel Structure / ACDB / DCDB / DC Cable / AC Cable / Earthing &c. / Installation). No SQL pivot needed — the view already has every number, one row at a time.
+
+**`size_band_standard_cost`** is the actual deliverable — `avg`/`min`/`max`/`project_count` of `rs_per_watt` per `(size_band, category)`. `avg` is the number to quote future projects from; `min`/`max`/`project_count` travel with it on purpose, so a slab resting on one or two real projects reads as a thin data point, not a settled standard, the moment NRG looks at it.
+
 ---
 
 ## Next Session
@@ -2288,3 +2304,4 @@ Continue database design by defining:
 25. ~~Bulk stock-statement import, and repairing a duplicate material~~ — done, see Section 60 (bulk import generalizes the existing Legacy Item flow, Section 54; `materials.merged_into_material_id` for repair; fuzzy-match-before-create is a workflow decision, no schema).
 26. ~~Log Adjustment should pick a material off a list, not accept a typed name~~ — done, see Section 61 (Count Stock mode on the existing Basic Stock table, no schema change).
 27. ~~Call/WhatsApp/Email real links on People tab and Client Contacts~~ — done, see Section 62 (no schema change, `employees`/`customer_contacts` already had phone/email).
+28. ~~Owner-only cost-per-watt benchmark across projects, by size band~~ — done, see Section 63 (`project_size_band`, `project_installation_cost`, `project_cost_per_watt_benchmark`, `size_band_standard_cost`, migration 0024). Not the deferred Margin view — cost side only, no revenue.
