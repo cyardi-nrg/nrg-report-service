@@ -54,9 +54,25 @@ A link resolving proves the *file* survived. It says nothing about whether the *
 - **Link-resolution audit** (Section 5) — does every stored document link still open, and is it still shared correctly.
 - **Field-level reconciliation** — for every migrated row, does the new record's client name, amount, date, and proposal content match the source row exactly. This is a diff, row by row, against the original Sheet — not a sample, not a spot-check for anything client-facing (money, contracts, historical proposals). Built the same way as every other AI-extraction step in SolarConnect's own design: machine does the comparison, a human confirms discrepancies, nothing gets silently accepted.
 
-## 5. Baseline audit — in progress
+## 5. Baseline audit — complete
 
-Before any migration work starts, a full audit of every historical document link across all five tools (existence, correct file, correct sharing) is running now to establish a clean "this is what existed before we touched anything" baseline. *(Results to be added here once complete — this section is a placeholder, not a finding.)*
+Full report: `docs/document-link-baseline-audit-2026-08-16.md`. 100% read-only — nothing moved, renamed, re-shared, or deleted. 446 distinct document links found across the two live spreadsheets, cross-checked against two Drive folders (1,057 + 46 files, fully enumerated).
+
+**Most urgent finding — not a migration risk, a *live* one:** 5 quote links are already broken today, all recent (June–August 2026), all on active or won deals — including **Dr. Sanket Saraiya, marked "won,"** whose proposal link has been dead since at least this audit. This has nothing to do with migration; it's happening right now under the current system. Recommend the sales team check these 5 before anything else:
+
+| Client | Quote date/ref | Deal status |
+|---|---|---|
+| Chaitanya Yardi | 6/17/2026, NRG/26-27/RES/019 | active |
+| Dr. Sanket Saraiya | 6/30/2026, NRG/26-27/NDC/006 | **won** |
+| Jaydutt Shah | 7/2/2026, NRG/26-27/NDC/008 | active |
+| Sandip Mistry | 7/13/2026, NRG/26-27/NDC/012 | active |
+| Krishna Hospital & ICU | 8/4/2026, NRG/26-27/NDC/049 | active |
+
+**Second finding — systemic, not random:** every 2020–2021 "Historical" (bulk-imported legacy) quote sampled — 13 of 13 — has **no public sharing** at all, unlike every 2022+ quote sampled (which all have `anyone: reader`, the correct client-facing setting). There's a sharp before/after boundary, not a scattered pattern, so this is treated as very likely affecting all 93 Historical-tab links, though only 13 were directly confirmed. Practical meaning: if a client received one of these ~2020-2021 links back then, clicking it today already shows a Google "you need permission" screen — again, a pre-existing gap, not something migration would cause, but exactly the failure mode the migration plan exists to prevent going forward.
+
+**Everything else checked came back clean:** all 1,057 files in the Quote Generator's output folder resolve and 7 sampled across its 2022–2026 span all have correct public sharing; all 46 Solar Bill Analyser reports (its entire lifetime output — the tool is 8 days old) check out; Prospect List's CRM was read in full and stores no Drive document links at all (only Maps links) — nothing to audit there.
+
+**Coverage is honest, not padded:** Source 1 (Quote Gen/Sales Follow-up) got 100% existence checking. Source 2 (AMC/Service Desk — confirmed to be the same spreadsheet, "NRG Service Desk," used by both) only got ~21% (40 of 191 links) directly checked — no failures found in that slice, but 79% remains unverified, and a failure rate similar to Source 1's ~4% could exist undetected there. The full report names every gap explicitly rather than implying more coverage than was actually done.
 
 ## 6. Phased approach
 
@@ -78,6 +94,8 @@ See `docs/nrg-solarconnect-handover.md` Section 77: NRG SolarConnect becomes a "
 
 ## Open questions for next session
 
-1. Which module goes first — Solar Bill Analyser or Prospect List (both are safe first movers; pick based on which the team would notice/benefit from soonest).
-2. Real RLS-backed auth vs. carrying forward the shared-secret HMAC token scheme, at least for the transition period.
-3. Whether Service Desk's two external customer-record spreadsheet reads (national portal, GEDA sync) need their own migration path or can keep reading from Sheets indefinitely even after Service Desk itself moves.
+1. **Immediate, not migration-related:** confirm the 5 broken quote links (Section 5) with the sales team — especially Dr. Sanket Saraiya's "won" deal — and decide whether to re-fix sharing on the ~93 Historical-tab (2020–2021) quotes now, independent of any migration timeline.
+2. Finish the AMC/Service Desk link audit to full coverage (currently ~21%) before that module's own migration phase starts — it's the highest-risk module, so its baseline should be the most complete, not the least.
+3. Which module goes first — Solar Bill Analyser or Prospect List (both are safe first movers; pick based on which the team would notice/benefit from soonest).
+4. Real RLS-backed auth vs. carrying forward the shared-secret HMAC token scheme, at least for the transition period.
+5. Whether Service Desk's two external customer-record spreadsheet reads (national portal, GEDA sync) need their own migration path or can keep reading from Sheets indefinitely even after Service Desk itself moves.
