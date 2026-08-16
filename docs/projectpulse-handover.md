@@ -2225,6 +2225,8 @@ Real ask, closely related to Section 45's quantity-vs-rate boundary: "GI Structu
 
 Both use `planned_rate` — the same Tally-fed `material_weighted_avg_rate_as_of()` value Section 45 just confirmed as the only source of rate for a system-generated BOM, never the sheet's own price column. That's what makes this number trustworthy where the sheet's own header-block total isn't (Section 44 found three real formula bugs in that sheet's own subtotals/grand total).
 
+**Correction after the first mockup pass: this lives on the BOM tab, per project — not a company-wide Reports card.** First cut put it on Reports next to Project Margin; real ask was narrower and more useful than that — "each project I can track it from there itself," on the bill of material screen itself, not a separate report to go find. Moved to the Project page's BOM tab, directly under the itemized planned/used/cost table, gated by the same Team/Owner toggle already on that page (Section 39's `.cost-col` pattern) rather than a new one. Still the same two views underneath (`bom_category_cost`/`bom_panel_vs_rest_cost`) — this was a placement correction, not a data-model change.
+
 ## 60. Bulk Stock-Statement Import, and Repairing a Material Entered Under the Wrong Name (0023)
 
 Two related real problems from the same conversation: getting the *existing* stock statement into the system in one action instead of typing each item by hand, and stopping (or fixing) the nomenclature drift that a bulk import like that is most likely to cause — "Growatt 50kW" already on file, someone later enters "Solar Lian 50kW" for the same physical product.
@@ -2244,6 +2246,14 @@ Direct follow-up to the drift problem in Section 60, applied to the one screen w
 **Fixed as a mode on the existing Basic Stock table, not a separate form.** Basic Stock (Section 49) already lists every material grouped by category with the real book quantity next to it — that list already *is* the correct source of truth for what a physical count needs to walk through. "Count Stock" now toggles an **Actual Physical Stock** column onto that same table (auto-expanding every collapsed category first, so a count can't skip one without noticing), placeholder pre-filled with the book quantity for comparison. The person doing the count fills in only what they actually counted — walking shelf to shelf, ticking off what's in front of them — and leaves the rest blank; "Post Adjustments" only writes rows that got a value, same `stock_adjustments`/`stock_adjustment` movement type as before (Section 54), no schema change.
 
 This closes the loop Section 60 opened: picking a material off a list it's already displayed on can't introduce a spelling variant the way typing its name can. The monthly count that's most likely to touch a material NRG hasn't recorded a purchase for recently (old stock, rarely moved) was also the moment most likely to tempt someone into typing a near-miss name instead of finding the right row — now there's no typing to get wrong.
+
+## 62. Call/WhatsApp/Email as Real Links, Everywhere a Phone Number or Email Already Shows
+
+Real ask, and a gap that had already been fixed once in one place but not the other: "people shouldn't have to note down a number and dial it separately" — Client Contacts (Section 58) already did this right for `tel:`/`wa.me` links, but Email was never added there, and the People tab (Section 43, NRG's own project staff — Owner/MD, Maintenance, Engineer, Accounts, Purchase) never got any of the three; it was plain text next to an Edit button.
+
+**No schema change — both tables already had everything needed.** `customer_contacts` and `employees` both already carry `phone`/`email` (Sections 27, 2). This was purely the display layer not using what was already there. Fixed by adding all three real links — `tel:`, `https://wa.me/<number>`, `mailto:<address>` — next to every row on both the People tab and Client Contacts, same link pattern already established for vendor inquiries (Section 50) and Client Contacts' existing Call/WhatsApp (Section 58).
+
+One real implementation detail worth recording for the build session: the People tab's row also has an **Edit** button, and Edit's toggle behavior needs to find that exact button by walking the DOM (`row.querySelector('.people-edit-btn')`, then inserting the edit form immediately before it) — it must stay a direct sibling of the name/contact block, not get nested inside a shared button-group `<div>` alongside Call/WhatsApp/Email, or the DOM lookup breaks. The three new links use their own class for styling so they don't collide with that lookup. A minor point, but the kind of thing worth calling out explicitly since it's exactly the sort of bug that's invisible until someone actually clicks Edit.
 
 ---
 
@@ -2277,3 +2287,4 @@ Continue database design by defining:
 24. ~~Rs/Watt cost breakdown by BOM category, panel cost isolated from the rest~~ — done, see Section 59 (`bom_category_cost`, `bom_panel_vs_rest_cost`).
 25. ~~Bulk stock-statement import, and repairing a duplicate material~~ — done, see Section 60 (bulk import generalizes the existing Legacy Item flow, Section 54; `materials.merged_into_material_id` for repair; fuzzy-match-before-create is a workflow decision, no schema).
 26. ~~Log Adjustment should pick a material off a list, not accept a typed name~~ — done, see Section 61 (Count Stock mode on the existing Basic Stock table, no schema change).
+27. ~~Call/WhatsApp/Email real links on People tab and Client Contacts~~ — done, see Section 62 (no schema change, `employees`/`customer_contacts` already had phone/email).
