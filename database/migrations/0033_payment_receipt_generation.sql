@@ -1,5 +1,5 @@
--- ProjectPulse — Generate a Signed Payment Receipt in One Click
--- Follows 0002-0032. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Generate a Signed Payment Receipt in One Click
+-- Follows 0002-0032. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 74.
 
 -- ============================================================

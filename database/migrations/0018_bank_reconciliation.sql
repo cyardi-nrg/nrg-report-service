@@ -1,5 +1,5 @@
--- ProjectPulse — Bank Reconciliation (Tally vs. Bank Statement)
--- Follows 0002-0017. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Bank Reconciliation (Tally vs. Bank Statement)
+-- Follows 0002-0017. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 47.
 
 -- ============================================================

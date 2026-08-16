@@ -1,4 +1,4 @@
--- ProjectPulse — Direct (Non-Project) Sales and Stock Movements
+-- NRG SolarConnect — Direct (Non-Project) Sales and Stock Movements
 -- Follows 0002-0007. NRG also stocks and sells product lines that never
 -- go through the project/BOM/milestone apparatus — Havells heat pumps,
 -- solar dryers, solar water heaters, sold at retail off existing stock

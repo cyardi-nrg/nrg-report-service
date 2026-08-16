@@ -1,6 +1,6 @@
--- ProjectPulse — Transportation/Fabricator/Electrical Contractor Cost,
+-- NRG SolarConnect — Transportation/Fabricator/Electrical Contractor Cost,
 -- and Margin/Profitability (Finally Defined, With Completeness Flagging)
--- Follows 0002-0024. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0024. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 64.
 
 -- ============================================================

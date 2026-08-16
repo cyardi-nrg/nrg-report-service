@@ -1,6 +1,6 @@
--- ProjectPulse — Quote Rate Flexibility, Material Brand Tracking, and the
+-- NRG SolarConnect — Quote Rate Flexibility, Material Brand Tracking, and the
 -- BOM Recommendation Engine
--- Follows 0002-0012. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0012. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 40.
 
 -- ============================================================

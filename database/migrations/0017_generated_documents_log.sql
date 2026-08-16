@@ -1,5 +1,5 @@
--- ProjectPulse — Generated Documents Log
--- Follows 0002-0016. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Generated Documents Log
+-- Follows 0002-0016. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 46.
 
 -- ============================================================
@@ -23,7 +23,7 @@ alter table commissioning_reports add column cr_number text unique;
 -- document type but not the others.
 
 -- ============================================================
--- One place to see everything ProjectPulse has generated
+-- One place to see everything NRG SolarConnect has generated
 -- ============================================================
 
 -- Four different tables, four different shapes — a real list needs one

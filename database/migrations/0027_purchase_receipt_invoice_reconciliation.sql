@@ -1,6 +1,6 @@
--- ProjectPulse — A PO's Delivery Challan and Invoice Reconcile Into
+-- NRG SolarConnect — A PO's Delivery Challan and Invoice Reconcile Into
 -- One Purchase, Never Three
--- Follows 0002-0026. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0026. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 67.
 
 -- ============================================================
@@ -140,6 +140,6 @@ where mt.movement_type = 'purchased' and mt.invoice_match_status != 'confirmed';
 -- A real accounts-payable gap this schema never had a way to surface:
 -- material physically received, sitting in stock, with no invoice
 -- reconciled against it yet — the exact receipts a vendor might be
--- late billing for, or ProjectPulse might be late matching. Purchase/
+-- late billing for, or NRG SolarConnect might be late matching. Purchase/
 -- Accounts-visible, same reporting pattern as everything else on
 -- Reports (Section 52).

@@ -1,7 +1,7 @@
--- ProjectPulse — Rate Needs to Be Editable Too, Not Just Quantity, and
+-- NRG SolarConnect — Rate Needs to Be Editable Too, Not Just Quantity, and
 -- Transportation/Fabricator/Electrical Contractor Need an Overridable
 -- Estimate
--- Follows 0002-0033. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0033. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 75.
 
 -- ============================================================

@@ -1,5 +1,5 @@
--- ProjectPulse — Monthly Stock Adjustments (Physical Count vs. Book Stock)
--- Follows 0002-0019. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Monthly Stock Adjustments (Physical Count vs. Book Stock)
+-- Follows 0002-0019. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 53.
 
 -- ============================================================

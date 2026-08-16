@@ -1,5 +1,5 @@
--- ProjectPulse — Reassigning a Misfiled Document to the Right Project
--- Follows 0002-0029. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Reassigning a Misfiled Document to the Right Project
+-- Follows 0002-0029. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 70.
 
 -- ============================================================

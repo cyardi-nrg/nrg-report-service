@@ -1,5 +1,5 @@
--- ProjectPulse — BOM Generation Origin Tracking and Monthly Stock Statements
--- Follows 0002-0006. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — BOM Generation Origin Tracking and Monthly Stock Statements
+-- Follows 0002-0006. Consolidated from docs/nrg-solarconnect-handover.md
 -- Sections 33-34. Sheet-driven BOM generation for standard systems (rates
 -- from Tally, quantity formulas stay in NRG's private SPP sheet — the
 -- exact input/output cell contract is deferred, mapped in a later

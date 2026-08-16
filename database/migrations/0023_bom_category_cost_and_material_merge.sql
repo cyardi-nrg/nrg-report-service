@@ -1,6 +1,6 @@
--- ProjectPulse — BOM Cost Per Watt by Category (Panel vs. Everything Else),
+-- NRG SolarConnect — BOM Cost Per Watt by Category (Panel vs. Everything Else),
 -- and a Repair Path for Duplicate Material Names
--- Follows 0002-0022. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0022. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 59-60.
 
 -- ============================================================

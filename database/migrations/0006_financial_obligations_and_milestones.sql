@@ -1,5 +1,5 @@
--- ProjectPulse — Financial Obligations and Project Milestones
--- Follows 0002-0005. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Financial Obligations and Project Milestones
+-- Follows 0002-0005. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 32. These are the last two core tables that had only ever
 -- been described in prose (Sections 6, 15, 16, 21) — prerequisites for
 -- dashboards, margin/cash-flow reporting, and Timeline Intelligence.

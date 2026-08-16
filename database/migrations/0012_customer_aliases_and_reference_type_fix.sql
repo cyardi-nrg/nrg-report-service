@@ -1,5 +1,5 @@
--- ProjectPulse — Customer Aliases and a Reference-Type Bug Fix
--- Follows 0002-0011. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Customer Aliases and a Reference-Type Bug Fix
+-- Follows 0002-0011. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 39.
 
 -- ============================================================

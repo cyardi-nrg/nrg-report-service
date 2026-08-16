@@ -1,5 +1,5 @@
--- ProjectPulse — Document Type Taxonomy Fallout
--- Follows 0002-0008. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Document Type Taxonomy Fallout
+-- Follows 0002-0008. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 36. Assembling the full document_type reference list out of
 -- Sections 22-25's real examples surfaced three genuine schema gaps —
 -- this migration is those three, not the taxonomy itself (document_type

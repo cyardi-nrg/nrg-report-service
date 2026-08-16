@@ -1,6 +1,6 @@
--- ProjectPulse — Capacity-Banded Products (ACDB/DCDB, Inverters) Need
+-- NRG SolarConnect — Capacity-Banded Products (ACDB/DCDB, Inverters) Need
 -- Range Matching, Not Exact-Value Matching
--- Follows 0002-0030. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0030. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 71.
 
 -- ============================================================

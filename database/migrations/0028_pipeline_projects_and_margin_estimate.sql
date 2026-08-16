@@ -1,6 +1,6 @@
--- ProjectPulse — In-Talks (Pipeline) Projects: Should NRG Take This
+-- NRG SolarConnect — In-Talks (Pipeline) Projects: Should NRG Take This
 -- Order, at This Quoted Price?
--- Follows 0002-0027. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0027. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 68.
 
 -- ============================================================

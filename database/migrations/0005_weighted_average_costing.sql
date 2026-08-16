@@ -1,5 +1,5 @@
--- ProjectPulse — Weighted-Average Costing for Pooled Warehouse Stock
--- Follows 0002-0004. Consolidated from docs/projectpulse-handover.md Section 31.
+-- NRG SolarConnect — Weighted-Average Costing for Pooled Warehouse Stock
+-- Follows 0002-0004. Consolidated from docs/nrg-solarconnect-handover.md Section 31.
 --
 -- Fixes a real gap: bom_item_variance.actual_cost (0002) only counted
 -- material purchased directly for one project's BOM, so it silently

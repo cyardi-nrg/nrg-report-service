@@ -1,5 +1,5 @@
--- ProjectPulse — Vendor Inquiries (WhatsApp)
--- Follows 0002-0018. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Vendor Inquiries (WhatsApp)
+-- Follows 0002-0018. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 49.
 
 -- ============================================================
@@ -9,7 +9,7 @@
 -- wa.me click-to-chat opens one prefilled WhatsApp conversation per tap —
 -- there's no bulk-send and no delivery/read receipt without the paid
 -- WhatsApp Business API, which is out of scope here. So this table
--- records only what ProjectPulse actually knows: an inquiry was
+-- records only what NRG SolarConnect actually knows: an inquiry was
 -- initiated, to this vendor, for this material, with this message, by
 -- this person, at this time. Not "delivered," not "read" — just "asked."
 

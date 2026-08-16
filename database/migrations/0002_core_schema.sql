@@ -1,6 +1,6 @@
--- ProjectPulse core schema
--- Consolidated from docs/projectpulse-handover.md (Sections 5, 19, 21, 23, 27)
--- as of the "ProjectPulse architecture handover" design session.
+-- NRG SolarConnect core schema
+-- Consolidated from docs/nrg-solarconnect-handover.md (Sections 5, 19, 21, 23, 27)
+-- as of the "NRG SolarConnect architecture handover" design session.
 --
 -- Run this after 0001_init.sql (auth/profiles). Tables are ordered by
 -- foreign-key dependency so this applies cleanly top to bottom.

@@ -1,5 +1,5 @@
--- ProjectPulse — DC:AC Ratio (Panel Capacity vs. Inverter Capacity)
--- Follows 0002-0020. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — DC:AC Ratio (Panel Capacity vs. Inverter Capacity)
+-- Follows 0002-0020. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 56.
 
 -- ============================================================

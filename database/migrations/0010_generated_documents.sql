@@ -1,6 +1,6 @@
--- ProjectPulse — Documents the System Generates: Delivery Challans and
+-- NRG SolarConnect — Documents the System Generates: Delivery Challans and
 -- Commissioning Reports
--- Follows 0002-0009. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0009. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 37. Confirmed priority: Delivery Challan is the most critical
 -- of these (today's real daily pain — without it nobody has a reliable
 -- answer to "what do I send, and how much"); Commissioning Report matters

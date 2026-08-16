@@ -1,7 +1,7 @@
--- ProjectPulse — DC:AC Ratio Gets a Lower Bound Too, Required
+-- NRG SolarConnect — DC:AC Ratio Gets a Lower Bound Too, Required
 -- Documents Gap Can Be Marked Not Required Per Project, and Cost
 -- Above Panel Cost on the Size-Band Benchmark
--- Follows 0002-0025. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0025. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 66.
 
 -- ============================================================

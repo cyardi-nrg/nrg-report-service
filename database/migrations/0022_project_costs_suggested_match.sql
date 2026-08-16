@@ -1,5 +1,5 @@
--- ProjectPulse — project_costs Can Auto-Suggest a Project Match
--- Follows 0002-0021. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — project_costs Can Auto-Suggest a Project Match
+-- Follows 0002-0021. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 57.
 
 -- ============================================================

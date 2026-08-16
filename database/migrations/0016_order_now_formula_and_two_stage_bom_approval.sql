@@ -1,5 +1,5 @@
--- ProjectPulse — Correct "Order Now" Formula, Two-Stage BOM Approval
--- Follows 0002-0015. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Correct "Order Now" Formula, Two-Stage BOM Approval
+-- Follows 0002-0015. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 43. employees (0002) already covers the editable People roster
 -- (name/role/phone/email/active) — no schema change needed there.
 

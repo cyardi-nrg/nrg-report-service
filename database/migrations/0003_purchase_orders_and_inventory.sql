@@ -1,6 +1,6 @@
--- ProjectPulse — Purchase Orders and Inventory Shortfall
+-- NRG SolarConnect — Purchase Orders and Inventory Shortfall
 -- Follows 0002_core_schema.sql. Consolidated from
--- docs/projectpulse-handover.md Section 29.
+-- docs/nrg-solarconnect-handover.md Section 29.
 --
 -- Adds Open Order tracking (distinct from a completed 'purchased'
 -- material_transactions row) and the derived stock/requirement/shortfall

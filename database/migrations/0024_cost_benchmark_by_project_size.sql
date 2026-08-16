@@ -1,6 +1,6 @@
--- ProjectPulse — Owner-Only Cost-Per-Watt Benchmark, Across Projects,
+-- NRG SolarConnect — Owner-Only Cost-Per-Watt Benchmark, Across Projects,
 -- Bucketed by System Size
--- Follows 0002-0023. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0023. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 63.
 
 -- ============================================================

@@ -1,5 +1,5 @@
--- ProjectPulse — Lightweight Cost Tracking for Non-Material Bills
--- Follows 0002-0010. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Lightweight Cost Tracking for Non-Material Bills
+-- Follows 0002-0010. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 38. Vendor and transport bills usually don't mention a
 -- project at all, so AI content-matching (the rule used everywhere
 -- else for document-to-project linking) has nothing to match against —

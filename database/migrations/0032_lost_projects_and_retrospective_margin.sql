@@ -1,6 +1,6 @@
--- ProjectPulse — Marking a Pipeline Project Lost, and Whether NRG
+-- NRG SolarConnect — Marking a Pipeline Project Lost, and Whether NRG
 -- Should Have Matched the Price It Was Lost At
--- Follows 0002-0031. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0031. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 72.
 
 -- ============================================================

@@ -1,5 +1,5 @@
--- ProjectPulse — Approval Threshold, Landed-Cost Estimates, Vendor Specialties
--- Follows 0002-0014. Consolidated from docs/projectpulse-handover.md
+-- NRG SolarConnect — Approval Threshold, Landed-Cost Estimates, Vendor Specialties
+-- Follows 0002-0014. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 42.
 
 -- ============================================================

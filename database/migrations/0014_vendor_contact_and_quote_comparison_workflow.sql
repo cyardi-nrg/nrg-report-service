@@ -1,6 +1,6 @@
--- ProjectPulse — Vendor Contact Person, Quote Comparison Approval Workflow,
+-- NRG SolarConnect — Vendor Contact Person, Quote Comparison Approval Workflow,
 -- and a Stock Statement View Fix
--- Follows 0002-0013. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0013. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 41.
 
 -- ============================================================

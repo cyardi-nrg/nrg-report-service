@@ -1,6 +1,6 @@
--- ProjectPulse — Reorder Alerts, Vendor Quotes, Price Comparison
+-- NRG SolarConnect — Reorder Alerts, Vendor Quotes, Price Comparison
 -- Follows 0002_core_schema.sql and 0003_purchase_orders_and_inventory.sql.
--- Consolidated from docs/projectpulse-handover.md Section 30.
+-- Consolidated from docs/nrg-solarconnect-handover.md Section 30.
 
 -- ============================================================
 -- Vendor_Quotes / Vendor_Quote_Items

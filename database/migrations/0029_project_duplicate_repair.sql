@@ -1,6 +1,6 @@
--- ProjectPulse — Repairing a Project Created Twice (or Three Times)
+-- NRG SolarConnect — Repairing a Project Created Twice (or Three Times)
 -- by Different People
--- Follows 0002-0028. Consolidated from docs/projectpulse-handover.md
+-- Follows 0002-0028. Consolidated from docs/nrg-solarconnect-handover.md
 -- Section 69.
 
 -- ============================================================
