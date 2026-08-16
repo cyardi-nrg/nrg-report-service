@@ -2060,6 +2060,8 @@ Four corrections from a mockup review, none of them schema changes except one cl
 
 Per-run duplication instead of one shared live tab is the load-bearing decision here: two engineers generating BOMs for two different projects at the same moment must not be able to clobber each other's input cells or read a half-written result. No schema change — this is entirely an integration/build detail, but it's the concrete answer Section 33 deferred, so it's worth having settled before the build session gets there.
 
+**Quantity only, never rate — worth restating plainly, since step 4 above could be misread.** The sheet's own rate/price column is never read back. It goes stale the moment someone forgets to update it, and NRG doesn't treat it as the actual project cost anyway. `bom_items.planned_rate` for a sheet-generated BOM is looked up separately, from `material_weighted_avg_rate_as_of(material_id, as_of_date)` (Section 31, migration 0007) — NRG's real, Tally-fed purchase history — not from anything the duplicate tab computes. This was already the decision (Section 33 says as much), restated here because it's the exact place a build session could plausibly wire up the wrong column.
+
 ---
 
 ## 46. A Generated Documents Log, and Confirming Material/Supplier/Team Forms Need No New Schema
@@ -2210,6 +2212,31 @@ Follow-up to Section 38: confirmed real bill format from the fabricator/electric
 
 Real ask: Owner/Client, Maintenance, Office, and Accounts contacts for the client side of a project, each with a Call and WhatsApp button, visible on the project itself — distinct from the company-wide People tab (Section 43, NRG's own staff). **No schema change** — `customer_contacts` (Section 27) already has exactly this shape: `name`/`role`/`phone`/`email` per customer, with `role` already free text and already exemplified with `'owner'`/`'accounts'`/`'maintenance'` values. "Office" is just one more free-text role value, the same way any new role gets added anywhere else in this schema. Added to the mockup as a Client Contacts panel at the top of the Overview tab, Call/WhatsApp as real `tel:`/`wa.me` links (the same link pattern already built for vendor inquiries, Section 50) — not numbers to copy elsewhere.
 
+## 59. Rs/Watt by Category, Panel Cost Split from Everything Else (0023)
+
+Real ask, closely related to Section 45's quantity-vs-rate boundary: "GI Structure shouldn't be one clubbed line, I want the 8-10 real components under it. And I want to know Rs/Watt for GI Structure, ACDB/DCDB, DC Cable, AC Cable, etc. — separately from panel cost, so I can see that changing the panel brand only moves the panel's Rs/Watt, not the rest."
+
+**The itemization half needed no change — it was already the design.** `bom_items` stores one row per real line item exactly as the sheet round-trip produces it (Section 45), and Section 44's sheet review already confirmed GI Pipe Panel Structure breaks into its real sub-items (GI Pipe 60×40, GI Pipe 40×40, Rebarring Chemical, nut-bolts, etc.) as separate `materials`/`bom_items` rows under one `category`. Nothing in this schema ever collapsed those into a single clubbed line — `category` is a grouping label for reporting, not a substitute for the itemized rows underneath, which stay fully visible on the BOM itself.
+
+**The Rs/Watt half was genuinely missing — two new views (0023):**
+
+- `bom_category_cost` — groups `bom_items` by `(bom_id, category)`, sums `planned_quantity × planned_rate`, divides by `boms.kw_capacity × 1000` for Rs/Watt per category. Answers "how many Rs/Watt is GI Structure / ACDB / DCDB / DC Cable / AC Cable" directly, one row per category per BOM.
+- `bom_panel_vs_rest_cost` — the specific comparison described: `panel_cost`/`panel_rs_per_watt` (category = `'Solar Panels'` only) against `rest_cost`/`rest_rs_per_watt` (every other category summed). This is what makes "Waree at Rs 15/W + Rs 7/W rest = Rs 22/W total; swap to a Rs 13/W panel, rest stays Rs 7/W, total drops to Rs 20/W" a two-column read instead of manual arithmetic across every category row.
+
+Both use `planned_rate` — the same Tally-fed `material_weighted_avg_rate_as_of()` value Section 45 just confirmed as the only source of rate for a system-generated BOM, never the sheet's own price column. That's what makes this number trustworthy where the sheet's own header-block total isn't (Section 44 found three real formula bugs in that sheet's own subtotals/grand total).
+
+## 60. Bulk Stock-Statement Import, and Repairing a Material Entered Under the Wrong Name (0023)
+
+Two related real problems from the same conversation: getting the *existing* stock statement into the system in one action instead of typing each item by hand, and stopping (or fixing) the nomenclature drift that a bulk import like that is most likely to cause — "Growatt 50kW" already on file, someone later enters "Solar Lian 50kW" for the same physical product.
+
+**Bulk import is the existing Legacy Item flow (Section 54), generalized.** A single legacy item already needed no new table — a `materials` row plus one `'purchased'` `material_transactions` row against a system-generated "Legacy Stock Entry" document (Section 54). Uploading the whole stock statement sheet is the same operation run N times from one AI extraction pass instead of N manual forms: each line becomes a proposed `materials`+`material_transactions` pair, `extraction_status = 'ai_extracted'`, reviewed on one screen before anything commits — the same AI-suggests/human-confirms pattern used for every other bulk document in this schema. No new table for this half either.
+
+**Nomenclature drift has two different fixes — prevention and repair — and they needed to stay separate.**
+
+*Prevention, no schema change:* before either the bulk import above or an ordinary New Material form creates a row, fuzzy-match the typed name against existing `canonical_name` + `aliases` (Section 27) first and surface "did you mean Growatt 50kW?" — same AI-suggests/human-confirms pattern, just moved one step earlier, to creation time instead of only invoice-matching time. If confirmed as the same material, the new name is appended to `aliases`, not written as a new row. This is a workflow/UI decision against the existing `aliases text[]` field, not a migration.
+
+*Repair, one new column:* prevention doesn't undo drift that already happened before this rule existed, or a case where two different people independently create the same material before anyone notices. **`materials.merged_into_material_id`** (self-referencing, nullable) — set when MP confirms two rows are actually the same product. The merge itself is an application-level operation, not a view: append the duplicate's `canonical_name`/`aliases` onto the survivor's `aliases`, re-point every `material_id` foreign key (`material_transactions`, `bom_items`, `vendor_quote_items`, `vendor_inquiries`, `stock_adjustments`) from the duplicate to the survivor, then set `merged_into_material_id` on the now-empty duplicate row. Deliberately an audit trail, not a live redirect — every existing view (`material_stock`, `bom_category_cost`, `material_last_purchase`, all of them) keeps working unchanged once the foreign keys are re-pointed; `merged_into_material_id` only exists so a material picker can filter merged rows out (`where merged_into_material_id is null`) and so a transaction history stays explainable later.
+
 ---
 
 ## Next Session
@@ -2239,3 +2266,5 @@ Continue database design by defining:
 21. ~~`materials.make`~~ — done, see Section 40 (brand-distinct stock, e.g. Adani vs. Waree at the same wattage — a named real gap where Sales couldn't see what was already on the shelf). Flagged as a permissions note too: Sales needs read access to stock levels even though they do little document processing in ProjectPulse itself.
 22. Capacity Consistency Check tolerance band — report logic, no schema: zero-tolerance across government documents (Quote/GEDA/Feasibility/Registration should agree exactly), small tolerance band for quoted-vs-as-purchased wattage (Wp binning is normal, not an error).
 23. Report-level (not just data-level) access control — the Reports menu itself must omit cards a role can't see (Project Margin, for the owner-only case), not show them locked/greyed. A UI concern to carry into the RLS design (item 4), not a schema one.
+24. ~~Rs/Watt cost breakdown by BOM category, panel cost isolated from the rest~~ — done, see Section 59 (`bom_category_cost`, `bom_panel_vs_rest_cost`).
+25. ~~Bulk stock-statement import, and repairing a duplicate material~~ — done, see Section 60 (bulk import generalizes the existing Legacy Item flow, Section 54; `materials.merged_into_material_id` for repair; fuzzy-match-before-create is a workflow decision, no schema).
