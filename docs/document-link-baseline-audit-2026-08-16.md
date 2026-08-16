@@ -3,6 +3,16 @@
 **Date of audit:** 2026-08-16
 **Purpose:** Establish a trustworthy baseline of every historical quote/report/photo document link findable in the five tools' Google Sheets and Drive folders, and confirm which ones currently resolve — *before* any Postgres migration work begins. Anything that breaks after migration but passed here is a real regression. Anything already broken here is a pre-existing issue, not something migration will cause.
 
+> **⚠️ CORRECTION (same day, later pass):** the counts below were built from a *sampled text export* of each spreadsheet (`read_file_content`), which — confirmed by direct comparison — only reliably captured some tabs and some Drive-URL formats. A full binary-workbook export (every tab, every cell, including cells where a link is attached as a hyperlink rather than as literal cell text) found the real population is **far larger**:
+>
+> | Spreadsheet | This report's count | **Actual count (full-workbook scan)** |
+> |---|---|---|
+> | Quote Gen / Sales Follow-up | 255 | **1,397** — Quotes 370 (not 40), Historical 1,000 (not 93), Clients 121 (**this tab was never checked at all**), Payback Reports 21 (correct) |
+> | AMC / Service Desk | 191 | **456** — AMC_QUOTES 6, SERVICE_QUOTES 53, TICKETS 188, VISIT_LOG 212 |
+> | **Combined** | **446** | **1,853** |
+>
+> The existence/permission findings below (the 5 broken links, the Historical-tab sharing gap) are **not wrong** — those specific files were genuinely checked and the results stand — but they cover roughly a quarter of what actually exists. A full existence+permissions re-check against the corrected 1,853-link population is the next step, tracked in `docs/sales-service-migration-plan.md`. Treat every count below as a *lower bound*, not a complete picture.
+
 **Method:** 100% read-only. Used `read_file_content` / `search_files` to enumerate every Drive-shaped link in the two spreadsheets, `search_files` to fully list both target folders, `get_file_metadata` to confirm each sampled file's existence, and `get_file_permissions` to confirm client-facing sharing (`role: reader`, `type: anyone`) on a spread sample. Nothing was moved, renamed, re-shared, or deleted.
 
 ---

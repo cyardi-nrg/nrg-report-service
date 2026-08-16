@@ -54,9 +54,21 @@ A link resolving proves the *file* survived. It says nothing about whether the *
 - **Link-resolution audit** (Section 5) — does every stored document link still open, and is it still shared correctly.
 - **Field-level reconciliation** — for every migrated row, does the new record's client name, amount, date, and proposal content match the source row exactly. This is a diff, row by row, against the original Sheet — not a sample, not a spot-check for anything client-facing (money, contracts, historical proposals). Built the same way as every other AI-extraction step in SolarConnect's own design: machine does the comparison, a human confirms discrepancies, nothing gets silently accepted.
 
-## 5. Baseline audit — complete
+## 5. Baseline audit — first pass corrected; full re-check pending
 
-Full report: `docs/document-link-baseline-audit-2026-08-16.md`. 100% read-only — nothing moved, renamed, re-shared, or deleted. 446 distinct document links found across the two live spreadsheets, cross-checked against two Drive folders (1,057 + 46 files, fully enumerated).
+Full report: `docs/document-link-baseline-audit-2026-08-16.md` (now carries a correction notice at the top — read that first). 100% read-only throughout — nothing moved, renamed, re-shared, or deleted.
+
+**The first pass undercounted by 4.2x.** It used a sampled text export of each spreadsheet, which missed tabs it never knew existed and link formats (Drive folder URLs, and links attached as a cell hyperlink rather than as literal visible text) it wasn't looking for. A full binary-workbook scan — every tab, every cell, both literal text and hyperlink targets — found the real population:
+
+| Spreadsheet | First pass | **Actual** |
+|---|---|---|
+| Quote Gen / Sales Follow-up | 255 | **1,397** (Quotes 370, Historical 1,000, Clients 121 — this tab was never checked at all in the first pass, Payback Reports 21) |
+| AMC / Service Desk | 191 | **456** (AMC_QUOTES 6, SERVICE_QUOTES 53, TICKETS 188, VISIT_LOG 212) |
+| **Combined** | **446** | **1,853** |
+
+This directly answers the standing "did you check every tab" question — no, not the first time. It's fixed now for *finding* every link; existence and permission re-checking against the full 1,853 is the next concrete step, not yet done.
+
+**What the first pass got right, as far as it went:** the specific files it did check (the 5 broken links, the 13-sampled Historical-tab sharing gap) are still genuinely broken/at-risk — those findings don't get retracted, they just turn out to cover roughly a quarter of the real population, not all of it.
 
 **Most urgent finding — not a migration risk, a *live* one:** 5 quote links are already broken today, all recent (June–August 2026), all on active or won deals — including **Dr. Sanket Saraiya, marked "won,"** whose proposal link has been dead since at least this audit. This has nothing to do with migration; it's happening right now under the current system. Recommend the sales team check these 5 before anything else:
 
@@ -95,7 +107,14 @@ See `docs/nrg-solarconnect-handover.md` Section 77: NRG SolarConnect becomes a "
 ## Open questions for next session
 
 1. **Immediate, not migration-related:** confirm the 5 broken quote links (Section 5) with the sales team — especially Dr. Sanket Saraiya's "won" deal — and decide whether to re-fix sharing on the ~93 Historical-tab (2020–2021) quotes now, independent of any migration timeline.
-2. Finish the AMC/Service Desk link audit to full coverage (currently ~21%) before that module's own migration phase starts — it's the highest-risk module, so its baseline should be the most complete, not the least.
-3. Which module goes first — Solar Bill Analyser or Prospect List (both are safe first movers; pick based on which the team would notice/benefit from soonest).
-4. Real RLS-backed auth vs. carrying forward the shared-secret HMAC token scheme, at least for the transition period.
-5. Whether Service Desk's two external customer-record spreadsheet reads (national portal, GEDA sync) need their own migration path or can keep reading from Sheets indefinitely even after Service Desk itself moves.
+2. Run existence + permissions checking against the corrected 1,853-link population (Section 5) — the first pass only ever checked ~446. This is the actual completion of the baseline, not optional polish.
+3. Finish the AMC/Service Desk link audit to full coverage before that module's own migration phase starts — it's the highest-risk module, so its baseline should be the most complete, not the least.
+4. Which module goes first — Solar Bill Analyser or Prospect List (both are safe first movers; pick based on which the team would notice/benefit from soonest).
+5. Real RLS-backed auth vs. carrying forward the shared-secret HMAC token scheme, at least for the transition period.
+6. Whether Service Desk's two external customer-record spreadsheet reads (national portal, GEDA sync) need their own migration path or can keep reading from Sheets indefinitely even after Service Desk itself moves.
+
+---
+
+## Appendix: full-system deep read
+
+A separate, more thorough pass is underway (as of this writing) that reads every `.gs`/`.html` file in all five Apps Script projects and every file in the four backend repos (`nrg-cover`, `nrg-pdf-server`, `elec_bill`, `nrg-report-services`) completely, not sampled — covering the actual business logic, every entry point/trigger, every external integration, the full auth/permission model, and known fragility (hardcoded IDs, in-memory state that resets on redeploy, stub automation that isn't real yet). Results will be folded into this document once complete; this appendix is a placeholder marking that the plan above was written before that full read finished, so treat Sections 1 and 3 as accurate-so-far, not final.
