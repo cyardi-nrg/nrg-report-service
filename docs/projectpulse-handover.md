@@ -2355,6 +2355,16 @@ Real, concrete failure mode, distinct from (and upstream of) Section 67's purcha
 
 **`materials.rated_capacity_min_kw`/`rated_capacity_max_kw`** — both null for materials without this concept (cables by sq mm, panels by Wp), populated only for genuinely band-rated categories. `canonical_name` should record the real product's own band ("ACDB 25-40kW"), matching how the vendor actually names it — not NRG's requirement — same principle Section 27 already established for panels/inverters. No new view needed: matching a required capacity against this is a plain range query (`required between rated_capacity_min_kw and rated_capacity_max_kw`), same app/AI-layer reasoning as `aliases` fuzzy-matching itself, applied at two points — BOM/PO creation (suggest the existing banded material whose range covers the requirement, instead of inviting a phantom exact-value row) and AI-extraction's fallback match when there's no PO to anchor to. `materials.merged_into_material_id` (Section 60) remains the repair path if a phantom row already got created before this existed.
 
+## 72. Marking a Pipeline Project Lost, and Whether NRG Should Have Matched the Price (0032)
+
+**Lost is how a pipeline project leaves the active In Talks list — a status, not a deletion.** Same reasoning `'cancelled'`/`'on_hold'` already establish (Section 2): `projects.status` gains `'lost'`, and everything already gated on `status = 'active'` (`material_requirement`, Section 16, and everywhere else) excludes it automatically, same as `'in_talks'` does — nothing else needed to change for a lost project to stop showing up where it shouldn't.
+
+**What it was lost at — optional, sales enters it if they know it.** Real ask: the amount the deal actually went for elsewhere (a competitor's price, or whatever figure would have won it), captured because it's genuinely useful, not because it's always knowable. `projects.lost_amount`/`lost_recorded_by`/`lost_at` — deliberately separate from `boms.order_value` (Section 19), which is NRG's own quote. Both need to exist side by side for the real point of this: comparing them.
+
+**The actual payoff: would matching the losing price have been profitable?** `lost_project_analysis` reuses `pipeline_project_margin_estimate` (Section 68) wholesale — that view was never scoped to `status = 'in_talks'` specifically, it just needs a confirmed BOM to price, so a project that's since moved to `'lost'` still prices out the same way. Compares `lost_amount` against the same size-band-benchmark cost estimate to compute `margin_if_matched_lost_price` and a plain `would_have_been_profitable_at_lost_price` boolean — the direct answer to "should we have taken it." Only surfaces for projects where `lost_amount` is actually known — a lost deal sales couldn't put a number on doesn't get a fabricated one standing in for it.
+
+**Same access boundary as everywhere else pricing shows up.** Sales records `lost_amount` — they're the ones with the market intel — but doesn't see `lost_project_analysis` any more than they see a live pipeline project's own cost breakdown (Section 68's correction). Entering a number and being shown the conclusion NRG draws from it are two different permissions, same Owner/Sales Head boundary throughout.
+
 ---
 
 ## Next Session
@@ -2397,3 +2407,4 @@ Continue database design by defining:
 34. ~~+ New Project entry point, and duplicate-project prevention/repair~~ — done, see Section 69 (migration 0029). Same pattern as the materials dedup fix (Section 60) — fuzzy-search before create, `projects.merged_into_project_id` for repair.
 35. ~~Document reassignment (moving a misfiled document to the right project)~~ — done, see Section 70 (migration 0030). Owner/Purchase only — another concrete requirement for the still-open roles/permissions item.
 36. ~~Capacity-banded material matching (ACDB/DCDB ordered by a specific value, sold by a vendor as a range)~~ — done, see Section 71 (migration 0031). `rated_capacity_min_kw`/`max_kw`, range-query matching, no new view.
+37. ~~Marking a pipeline project Lost, with a retrospective "should we have matched the price" analysis~~ — done, see Section 72 (migration 0032). Reuses Section 68's pipeline margin estimate wholesale; same Owner/Sales Head pricing boundary as everywhere else.
