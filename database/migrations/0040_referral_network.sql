@@ -8,15 +8,33 @@
 -- PMCs, structural/civil, plumbing consultants, bath/ceramic shops,
 -- builders) with three views (contact list, 30-day visit planner,
 -- WhatsApp broadcast) and a business-card-scan-to-form AI fill feature.
--- Its backend is a standalone Apps Script Web App (its own SCRIPT_URL,
--- distinct from every other tool read this session) that this task could
--- NOT locate/open directly in Drive — the frontend's full request/response
--- contract (every field it reads and writes, confirmed by reading every
--- fetch() call in the file) is what this schema is built from instead.
--- If the owner wants the backend's own source inventoried too (the way
--- Havells Quotes' was, by pasting it directly), that remains open — but
--- nothing here was guessed: every column below traces to a concrete field
--- the live UI sends or displays.
+-- Its backend (Apps Script Web App v4, its own SCRIPT_URL, distinct from
+-- every other tool read this session) could not be located/opened via
+-- Drive search — this migration was first written from the frontend's
+-- full request/response contract alone. The owner then pasted the
+-- complete backend source directly (same unblock as Havells Quotes,
+-- Section 84), confirming every column below and one real discovery:
+-- the live sheet has NO separate visit-log or WhatsApp-log storage at
+-- all. logVisit()/logWA() both just string-concatenate a bracketed line
+-- ("[Visit dd-MMM-yy - CY] note text", "[WA dd-MMM-yy - CY] template
+-- name") onto the END of the single free-text Notes cell (column 13),
+-- forever growing one blob per contact that mixes real hand-typed notes
+-- with an auto-appended activity trail. `referral_visit_log`/
+-- `referral_wa_log` below are a deliberate upgrade, not a faithful
+-- reproduction — same "turn a text blob into real rows" fix already
+-- applied to Sales Follow-up's touch counts (Section 79) and Prospect
+-- List's two disconnected logs (Section 81). Importing history means
+-- parsing each contact's live Notes cell for that bracket convention:
+-- every `[Visit ...]`/`[WA ...]` line becomes one row in the matching
+-- log table (date/by from the bracket, the rest as note/template_name);
+-- whatever text is left over — the part a person actually typed — is
+-- what should import into the new `notes` column, not the raw blob.
+--
+-- Also confirms a sixth live no-auth endpoint, same "Execute as Me /
+-- Anyone" pattern as Quote Generator, Prospect List, and Client
+-- Engagement — full partner PII (name, phone, email, address) readable
+-- and, worse, WRITABLE by anyone with the URL, no token, no login. Adds
+-- to the running list real RLS needs to close.
 --
 -- Real integration point already in hand from the Prospect CRM deep read
 -- (0038): `syncSiteContactsToReferral_()` in Prospect List's
