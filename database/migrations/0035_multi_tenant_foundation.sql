@@ -112,13 +112,18 @@ create index on customers (organization_id);
 create index on materials (organization_id);
 create index on projects  (organization_id);
 
--- materials.unique(category, canonical_name) (0002) has to become
+-- materials.unique(category, canonical_name, make) has to become
 -- per-organization — "DC Cable 4 sq mm" is a perfectly valid category
 -- name for any solar EPC, not something unique to NRG; a second tenant
--- must be able to have their own row with that exact same name.
-alter table materials drop constraint materials_category_canonical_name_key;
-alter table materials add constraint materials_org_category_canonical_name_key
-  unique (organization_id, category, canonical_name);
+-- must be able to have their own row with that exact same name. Note
+-- this is the 0013 constraint (which already added make — "Waree 620W"
+-- vs. "Adani 620W" must stay distinct rows, Section 50), not the
+-- original 0002 one; dropping the wrong (already-renamed) constraint
+-- name, or the wrong (make-less) replacement, would silently re-merge
+-- two different-brand materials into one row.
+alter table materials drop constraint materials_category_canonical_name_make_key;
+alter table materials add constraint materials_org_category_canonical_name_make_key
+  unique (organization_id, category, canonical_name, make);
 
 -- ============================================================
 -- What this does NOT do (deliberately, per the owner's own framing —

@@ -104,16 +104,20 @@ select
   pcpwb.kw_capacity,
   sum(pcpwb.rs_per_watt) as total_rs_per_watt,
   sum(pcpwb.rs_per_watt) filter (where pcpwb.category != 'Solar Panels') as non_panel_rs_per_watt,
-  pmc.margin_data_complete
+  (pmc.material_lines_missing_cost = 0 and pmc.has_transportation_cost
+    and pmc.has_fabricator_cost and pmc.has_electrical_contractor_cost) as margin_data_complete
 from project_cost_per_watt_benchmark pcpwb
 join project_margin_completeness pmc on pmc.project_id = pcpwb.project_id
-group by pcpwb.project_id, pcpwb.size_band, pcpwb.kw_capacity, pmc.margin_data_complete;
+group by pcpwb.project_id, pcpwb.size_band, pcpwb.kw_capacity, pmc.material_lines_missing_cost,
+  pmc.has_transportation_cost, pmc.has_fabricator_cost, pmc.has_electrical_contractor_cost;
 
--- margin_data_complete (0025) is reused here as-is — its definition
--- never actually referenced revenue, only whether every cost input
--- (material lines, transport, fabricator, electrical contractor) is
--- present, so it's exactly the right completeness signal for a
--- cost-only aggregate too, not something margin-specific.
+-- margin_data_complete (0025) is recomputed here from
+-- project_margin_completeness's own raw flags, the same formula
+-- project_margin (0025) itself uses — that column only exists on
+-- project_margin, not project_margin_completeness, and project_margin
+-- itself pulls in order_value/invoiced revenue this purely cost-side
+-- view has no business depending on ("no revenue involved anywhere in
+-- 0024/0026, purely a cost-side benchmark").
 
 create view size_band_total_standard_cost as
 select

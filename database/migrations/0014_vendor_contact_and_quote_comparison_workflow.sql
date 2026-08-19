@@ -64,11 +64,16 @@ create index on vendor_quotes (comparison_request_id);
 -- detail a real statement needs. Additive column at the end of the
 -- select list.
 
+-- Postgres's CREATE OR REPLACE VIEW only allows appending columns at the
+-- end of the select list, never inserting one mid-list (it errors:
+-- "cannot change name of view column ... to ...") — make goes last,
+-- keeping every pre-existing column in its original position.
 create or replace view stock_statement_summary as
 select
   ss.statement_period, ss.status,
-  m.stock_group, m.category, m.material_id, m.canonical_name, m.make,
-  ssi.declared_quantity, ssi.rate, ssi.declared_quantity * ssi.rate as amount
+  m.stock_group, m.category, m.material_id, m.canonical_name,
+  ssi.declared_quantity, ssi.rate, ssi.declared_quantity * ssi.rate as amount,
+  m.make
 from stock_statement_items ssi
 join stock_statements ss on ss.stock_statement_id = ssi.stock_statement_id
 join materials m on m.material_id = ssi.material_id;
