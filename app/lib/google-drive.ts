@@ -3,10 +3,16 @@ import { Readable } from 'node:stream';
 
 // Server-only — never import from a Client Component. Auths as the
 // service account (see app/SETUP.md for how that's created); that
-// service account must be shared as an Editor on whichever Drive folder
-// it needs to write into (NRG's real project folders, per
-// projects.google_drive_folder_id — see HANDOVER Section "Google Drive
-// folder linking").
+// service account must be a member of a Shared Drive it writes into
+// (NRG's real project folders, per projects.google_drive_folder_id —
+// see HANDOVER Section "Google Drive folder linking"). NOT a regular
+// "My Drive" folder shared as Editor — confirmed live 2026-08-20:
+// service accounts have no personal storage quota, so a file.create()
+// into someone's personal Drive fails outright ("Service Accounts do
+// not have storage quota"), even with Editor access. Every call below
+// passes supportsAllDrives: true, required by the Drive API v3 for any
+// item living inside a Shared Drive — omit it and Shared Drive items
+// are silently excluded rather than erroring, which is worse.
 function getDriveClient() {
   const privateKey = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
 
@@ -43,6 +49,7 @@ export async function uploadFileToDrive(params: {
       body: Readable.from(params.buffer),
     },
     fields: 'id, webViewLink',
+    supportsAllDrives: true,
   });
 
   if (!res.data.id) {
@@ -56,7 +63,7 @@ export async function uploadFileToDrive(params: {
 export async function downloadFileFromDrive(fileId: string): Promise<Buffer> {
   const drive = getDriveClient();
   const res = await drive.files.get(
-    { fileId, alt: 'media' },
+    { fileId, alt: 'media', supportsAllDrives: true },
     { responseType: 'arraybuffer' },
   );
   return Buffer.from(res.data as ArrayBuffer);
@@ -80,6 +87,7 @@ export async function createProjectFolder(params: {
       parents: [params.parentFolderId],
     },
     fields: 'id',
+    supportsAllDrives: true,
   });
 
   if (!res.data.id) {
