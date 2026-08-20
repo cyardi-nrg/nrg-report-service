@@ -13,12 +13,16 @@
 --
 -- Wattage band → rate tier: >=600W = high, 575-599W = mid, <575W = low.
 -- One representative wattage per band per brand is seeded as a material;
--- each gets both a DCR and an NDCR row in quote_panel_rates (a material
--- carries both — quote_panel_rates.unique(material_id, rate_type) is
--- exactly this: one panel material, one rate per type).
+-- each gets both a DCR and an NDCR row in quote_panel_rates.
+--
+-- Uses NOT EXISTS guards rather than ON CONFLICT — materials' real unique
+-- constraint (0035) is (organization_id, category, canonical_name, make),
+-- not the (category, canonical_name) migration 0036's own comment implied,
+-- and ON CONFLICT requires an exact column-list match to a real constraint.
+-- NOT EXISTS re-runs safely without needing to know that shape precisely.
 
 insert into materials (category, canonical_name, default_unit, organization_id)
-select 'Solar Panel', name, 'Nos', '00000000-0000-0000-0000-000000000001'
+select 'Solar Panel', t.name, 'Nos', '00000000-0000-0000-0000-000000000001'
 from (values
   ('Solar Panel 605W · Adani'),
   ('Solar Panel 585W · Adani'),
@@ -36,14 +40,22 @@ from (values
   ('Solar Panel 585W · Green Brilliance'),
   ('Solar Panel 560W · Green Brilliance')
 ) as t(name)
-on conflict (category, canonical_name) do nothing;
+where not exists (
+  select 1 from materials m
+  where m.category = 'Solar Panel' and m.canonical_name = t.name
+    and m.organization_id = '00000000-0000-0000-0000-000000000001'
+);
 
 insert into materials (category, canonical_name, default_unit, organization_id)
-select 'Inverter', name, 'Nos', '00000000-0000-0000-0000-000000000001'
+select 'Inverter', t.name, 'Nos', '00000000-0000-0000-0000-000000000001'
 from (values
   ('Solaryaan'), ('Ksolare'), ('Growatt'), ('Goodwe'), ('Sofar'), ('Solax')
 ) as t(name)
-on conflict (category, canonical_name) do nothing;
+where not exists (
+  select 1 from materials m
+  where m.category = 'Inverter' and m.canonical_name = t.name
+    and m.organization_id = '00000000-0000-0000-0000-000000000001'
+);
 
 -- The source table's numbers are the live system's ₹/kW rate (its own
 -- variable name: panelRateKw). This schema's rate_per_watt column is
@@ -90,4 +102,7 @@ join (values
   ('Solar Panel 560W · Green Brilliance',     'NDCR', 13.80)
 ) as r(canonical_name, rate_type, rate_per_watt) on r.canonical_name = m.canonical_name
 where m.category = 'Solar Panel'
-on conflict (material_id, rate_type) do update set rate_per_watt = excluded.rate_per_watt;
+  and not exists (
+    select 1 from quote_panel_rates qpr
+    where qpr.material_id = m.material_id and qpr.rate_type = r.rate_type
+  );
