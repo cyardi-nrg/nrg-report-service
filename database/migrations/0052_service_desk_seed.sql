@@ -7,8 +7,8 @@
 -- source; other staff mentioned by first name only (Kinjal, Mahesh, ...)
 -- are left for the real staff-data import, not guessed at.
 
-insert into employees (name, role, phone, active)
-select v.name, v.role, v.phone, true
+insert into employees (organization_id, name, role, phone, active)
+select '00000000-0000-0000-0000-000000000001', v.name, v.role, v.phone, true
 from (values
   ('Dev', 'Service Engineer', '7574000799'),
   ('Ravindra', 'Service Engineer', '7574000399'),
