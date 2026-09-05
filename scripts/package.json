@@ -1,0 +1,9 @@
+{
+  "name": "nrg-solarconnect-ops-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Standalone ops scripts (backup/restore) run from GitHub Actions — not part of the Next.js app.",
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}
