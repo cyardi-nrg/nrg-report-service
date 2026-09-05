@@ -1,0 +1,26 @@
+-- NRG SolarConnect — material_transactions.material_id nullable
+-- Follows 0002-0071.
+--
+-- Real regression from 0071, caught immediately by the owner: "Even
+-- after 1 dispatch...it is not showing any items in dispatched...."
+-- 0071 let a Delivery Challan/Return line through with no inventory
+-- match (material_id null on delivery_challan_items), but createDispatch/
+-- createReturn responded by skipping the material_transactions insert
+-- entirely for that line — and bom_item_variance.dispatched_quantity/
+-- returned_quantity are computed FROM material_transactions, grouped by
+-- bom_item_id. With nothing in the entire project yet matched to real
+-- inventory, EVERY line's dispatch silently went unrecorded, even
+-- though a real Delivery Challan was printed and issued.
+--
+-- Fix: material_transactions.material_id becomes nullable too, and
+-- createDispatch/createReturn always write the movement row (bom_item_id
+-- + quantity + movement_type), whether or not a real material is linked
+-- yet. A null-material_id row has no real inventory item to move stock
+-- against — material_stock (grouped by material_id) simply carries an
+-- extra, harmless "null" group nothing ever joins to — but it still
+-- counts for BOM dispatch/variance tracking, which is keyed by
+-- bom_item_id, not material_id. Once a line is later linked to real
+-- inventory (Dispatch's own "Link to inventory" panel), everything
+-- issued/returned against it from that point on carries a real
+-- material_id and contributes to real stock levels too.
+alter table material_transactions alter column material_id drop not null;
