@@ -1,4 +1,4 @@
-# Version: v1 (2026-10-27)
+# Version: v2 (2026-10-27) — adds 04 Walkway Layout, 05 Cable Tray Layout; block gaps re-read from photo
 # CEIG drawing set for Jain Granite & Marble — 100 kWp rooftop (Adani 625 Wp TOPCon x 160,
 # GoodWe GW80K-MT). Follows NRG's own CEIG submission format (Energy Pack SLD / Equipment
 # Layout / Earthing Layout samples): A3 landscape, title block on the right.
@@ -13,7 +13,7 @@ import html
 import os
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-VERSION = 'v1'
+VERSION = 'v2'
 FONT = 'Liberation Sans, Arial, Helvetica, sans-serif'
 
 # ---------------------------------------------------------------- project data
@@ -458,11 +458,11 @@ def sheet_sld():
 MOD_W, MOD_L, MGAP = 1.134, 2.382, 0.02
 BW = 5 * MOD_W + 4 * MGAP
 BL = 8 * MOD_L + 7 * MGAP
-BLOCK_X = [0.7, 7.0, 16.9, 23.6]       # from the layout photo
+BLOCK_X = [0.65, 7.0, 16.85, 23.2]     # from the layout photo (both inter-block gaps ≈ 0.6 m)
 BLOCK_Y = 1.5
-ROOF_W, ROOF_L, RIDGE_X = 30.6, 36.0, 14.7
-INV = (34.0, 4.2)                      # inverter group centre (east wall, ground)
-PITS = [('EP-1 (DC)', 35.6, 8.0), ('EP-2 (AC)', 36.6, 10.5), ('EP-3 (LA)', 35.6, 14.5)]
+ROOF_W, ROOF_L, RIDGE_X = 29.8, 36.0, 14.8
+INV = (33.8, 4.2)                      # inverter group centre (east wall, ground)
+PITS = [('EP-1 (DC)', 34.8, 8.0), ('EP-2 (AC)', 35.8, 10.5), ('EP-3 (LA)', 34.8, 14.5)]
 LA = (RIDGE_X, 1.0)
 NAMES = [['S1', 'S2'], ['S3', 'S4'], ['S5', 'S6'], ['S7', 'S8']]
 SCOL = {'S1': '#e6194b', 'S2': '#f58231', 'S3': '#3cb44b', 'S4': '#008080', 'S5': '#4363d8', 'S6': '#911eb4', 'S7': '#f032e6', 'S8': '#9a6324'}
@@ -536,8 +536,8 @@ def sheet_equipment():
     for pair in (0, 1):
         gx = P_(BLOCK_X[pair * 2] + BW + (BLOCK_X[pair * 2 + 1] - BLOCK_X[pair * 2] - BW) / 2, 0)[0]
         _, gy = P_(0, BLOCK_Y + BL)
-        o.append(PL([(gx, gy - 4), (gx, P_(0, 0.8)[1])], '#ea580c', 2.4, '7,4'))
-    ry = P_(0, 0.8)[1]
+        o.append(PL([(gx, gy - 4), (gx, P_(0, 0.3)[1])], "#ea580c", 2.4, '7,4'))
+    ry = P_(0, 0.3)[1]
     ix, iy = P_(*INV)
     o.append(PL([(P_(BLOCK_X[0] + BW + 0.3, 0)[0], ry), (P_(ROOF_W, 0)[0], ry), (P_(ROOF_W + 0.6, 0)[0], ry), (P_(ROOF_W + 0.6, 0)[0], iy)], '#ea580c', 2.4, '7,4'))
     o.append(T(P_(23.6, 0)[0], ry - 5, 'DC CABLE ROUTE – 8 STRINGS, 4 SQ MM (16 CORES)', 7.5, 'middle', 'bold', '#ea580c'))
@@ -672,7 +672,7 @@ def sheet_earthing():
     o.append(PL([(ix, iy + 10), (ix, p2[1]), p2], '#0a6a20', 2.2))
     # LA down conductor -> EP-3 (own route, >= 1 m from DC/AC)
     p3 = P_(PITS[2][1], PITS[2][2])
-    o.append(PL([(lx, ly), (lx, P_(0, -0.6)[1]), (P_(40.5, 0)[0], P_(0, -0.6)[1]), (P_(40.5, 0)[0], p3[1]), p3], '#a3e635', 2.6))
+    o.append(PL([(lx, ly), (lx, P_(0, -0.8)[1]), (P_(39.7, 0)[0], P_(0, -0.8)[1]), (P_(39.7, 0)[0], p3[1]), p3], '#a3e635', 2.6))
     o.append(sym_la(lx, ly, 0.9))
     o.append(T(lx + 12, ly - 12, 'LA', 9, weight='bold', fill='#d62828'))
     o.append(equipment_group(ix, iy, 0.55))
@@ -731,8 +731,237 @@ def sheet_earthing():
     page(''.join(o), 'Jain-Granite_03_Earthing-Layout_' + VERSION)
 
 
+# ================================================================= walkway / tray geometry (metres)
+WALK_W, HEAD_W = 0.30, 0.45
+ARRAY_END = BLOCK_Y + BL
+HEAD_Y0 = 0.50                       # header walkway along the north edge: y 0.50 – 0.95
+TRAY_W = 0.10
+TRAY_HY = 0.25                       # header tray along the very north edge: y 0.25 – 0.35
+TRAY_GAP_X = [BLOCK_X[0] + BW + 0.05, BLOCK_X[2] + BW + 0.05]   # trays hug the west side of gaps 1-2 and 3-4
+TRAY_GAP_END = 19.6                  # just past the row-8 terminals
+WALL_DROP = 10.0                     # roof height 8-10 m
+
+
+def walkway_runs():
+    e = [x + BW for x in BLOCK_X]
+    xs = [('W1', 0.175, 'WEST EAVE, WEST OF BLOCK 1'), ('W2', e[0] + 0.22, 'GAP BLOCK 1 / 2 (BESIDE T1)'),
+          ('W3', e[1] + 0.10, 'EAST OF BLOCK 2 (RIDGE SIDE)'), ('W4', BLOCK_X[2] - 0.40, 'WEST OF BLOCK 3 (RIDGE SIDE)'),
+          ('W5', e[2] + 0.22, 'GAP BLOCK 3 / 4 (BESIDE T2)'), ('W6', e[3] + 0.10, 'EAST EAVE, EAST OF BLOCK 4')]
+    return [(n, x, x + WALK_W, HEAD_Y0 + HEAD_W, ARRAY_END, d) for n, x, d in xs]
+
+
+def walk_lengths():
+    runs = walkway_runs()
+    ns = [(n, y2 - y1, d) for n, x1, x2, y1, y2, d in runs]
+    head = runs[-1][2] - runs[0][1]
+    return ns, head
+
+
+def tray_segments():
+    t1x, t2x = TRAY_GAP_X
+    hy = TRAY_HY + TRAY_W / 2
+    segs = [('T1', 'GAP BLOCK 1/2: ROW 8 → NORTH EDGE', [(t1x, TRAY_GAP_END), (t1x, hy)], '8 x 4 SQ MM + 16 SQ MM E', 'S1–S4'),
+            ('T2', 'GAP BLOCK 3/4: ROW 8 → NORTH EDGE', [(t2x, TRAY_GAP_END), (t2x, hy)], '8 x 4 SQ MM + 16 SQ MM E', 'S5–S8'),
+            ('T3a', 'NORTH EDGE: T1 → T2 (OVER RIDGE)', [(t1x, hy), (t2x, hy)], '8 x 4 SQ MM + 16 SQ MM E', 'S1–S4'),
+            ('T3b', 'NORTH EDGE: T2 → EAST EAVE', [(t2x, hy), (ROOF_W, hy)], '16 x 4 SQ MM + 16 SQ MM E', 'ALL 8 STRINGS'),
+            ('T4', f'EAST WALL: DOWN {WALL_DROP:.0f} m + ALONG TO INVERTER', None, '16 x 4 SQ MM + 16 SQ MM E', 'ALL 8 STRINGS')]
+    out = []
+    for sid, desc, pts, cab, st in segs:
+        ln = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(pts, pts[1:])) if pts else WALL_DROP + (INV[1] - hy)
+        out.append((sid, desc, pts, cab, st, ln))
+    return out
+
+
+def Rm(P_, x1, y1, x2, y2, **kw):
+    a, b = P_(x1, y1)
+    c, d = P_(x2, y2)
+    return R(a, b, c - a, d - b, **kw)
+
+
+WALK_FILL = '#d6d3d1'
+WALK_STROKE = '#57534e'
+TRAY_COL = '#ea580c'
+
+
+def draw_walkways(P_, labels=True, fill=WALK_FILL, stroke=WALK_STROKE):
+    o = []
+    runs = walkway_runs()
+    o.append(Rm(P_, runs[0][1], HEAD_Y0, runs[-1][2], HEAD_Y0 + HEAD_W, stroke=stroke, sw=0.8, fill=fill))
+    for n, x1, x2, y1, y2, d in runs:
+        o.append(Rm(P_, x1, y1, x2, y2, stroke=stroke, sw=0.8, fill=fill))
+        if labels:
+            cx_, cy_ = P_((x1 + x2) / 2, ARRAY_END + 0.9)
+            o.append(T(cx_, cy_, n, 9, 'middle', 'bold', stroke))
+    return ''.join(o)
+
+
+def draw_trays(P_):
+    o = []
+    for tx in TRAY_GAP_X:
+        o.append(Rm(P_, tx - TRAY_W / 2, TRAY_HY, tx + TRAY_W / 2, TRAY_GAP_END, stroke='#7c2d12', sw=0.8, fill=TRAY_COL))
+    o.append(Rm(P_, TRAY_GAP_X[0] - TRAY_W / 2, TRAY_HY, ROOF_W, TRAY_HY + TRAY_W, stroke='#7c2d12', sw=0.8, fill=TRAY_COL))
+    return ''.join(o)
+
+
+# ================================================================= 04  WALKWAY LAYOUT
+def sheet_walkway():
+    o = [compass(80, 90)]
+    ox, oy, k = 150, 110, 20.0
+    pl, P_ = plan(ox, oy, k)
+    o.append(pl)
+    o.append(draw_walkways(P_))
+    x0, y0 = P_(0, 0)
+    o.append(dim_h(x0, x0 + ROOF_W * k, y0 - 20, f'≈ {ROOF_W:.1f} m (ROOF WIDTH, TO BE MEASURED) *'))
+    hx, hy = P_(ROOF_W / 2 + 5.5, HEAD_Y0 + HEAD_W / 2)
+    o.append(R(hx - 96, hy - 6, 192, 12, fill='#fff', stroke='none') + T(hx, hy + 3, 'WH – HEADER WALKWAY 450 MM (NORTH EDGE)', 7.5, 'middle', 'bold', WALK_STROKE))
+    ax, ay = P_(ROOF_W, HEAD_Y0 + HEAD_W / 2)
+    o.append(R(ax + 2, ay - 12, 22, 24, stroke='#000', sw=1, fill='#fff') + ''.join(L(ax + 4, ay - 9 + i * 6, ax + 22, ay - 9 + i * 6, sw=0.8) for i in range(4)))
+    o.append(TL(ax + 30, ay - 2, ['ROOF ACCESS LADDER', '(NE CORNER, NEAR INVERTER –', ' CONFIRM ON SITE) *'], 7.5, weight='bold'))
+    # cleaning reach on block 1 from W1 and W2
+    runs = walkway_runs()
+    ry = BLOCK_Y + 1.2 * (MOD_L + MGAP)
+    a1, _ = P_(runs[0][2], ry)
+    mid, yy = P_(BLOCK_X[0] + BW / 2, ry)
+    a2, _ = P_(runs[1][1], ry)
+    for xa in (a1, a2):
+        dx = 5 if xa > mid else -5
+        o.append(L(xa, yy, mid, yy, '#16a34a', 1.6) + f'<polygon points="{mid},{yy} {mid+dx},{yy-4} {mid+dx},{yy+4}" fill="#16a34a"/>')
+    o.append(R(mid - 48, yy + 5, 96, 12, fill='#fff', stroke='none') + T(mid, yy + 14, 'REACH ≈ 2.9 m EACH SIDE', 7, 'middle', 'bold', '#16a34a'))
+    o.append(TL(60, 1080, ['NOTE: EVERY MODULE IS WITHIN ≈ 2.9 m (2½ MODULES) OF A WALKWAY – CLEAN WITH A 3.5 m TELESCOPIC BRUSH FROM THE WALKWAY. N–S WALKWAYS RUN',
+                           'PARALLEL TO THE RIDGE (ALONG THE ROOF CONTOUR), SO THEY ARE LEVEL TO WALK ON. ROOF SIZE / GAPS SCALED FROM THE LAYOUT IMAGE (*) — VERIFY ON SITE.'], 7.8))
+    ns, head = walk_lengths()
+    rows = [('ID', 'LOCATION', 'WIDTH', 'LENGTH')]
+    for n, ln, d in ns:
+        rows.append((n, d, '300 MM', f'{ln:.1f} m'))
+    rows.append(('WH', 'HEADER, NORTH EDGE, W1 → W6', '450 MM', f'{head:.1f} m'))
+    tot300 = sum(ln for _, ln, _ in ns)
+    rows.append(('', 'TOTAL 300 MM WALKWAY', '', f'{tot300:.1f} m'))
+    rows.append(('', 'TOTAL 450 MM WALKWAY', '', f'{head:.1f} m'))
+    rows.append(('', 'ORDER (+5 %): 300 MM / 450 MM', '', f'{tot300*1.05:.0f} / {head*1.05:.0f} m'))
+    tb, y = table(940, 120, [26, 148, 42, 80], rows, rh=15, size=6.8, head='WALKWAY SCHEDULE')
+    o.append(tb)
+    sx, sy = 950, y + 40
+    o.append(T(sx + 140, sy - 12, 'SECTION A-A (ACROSS BLOCK 1)', 9, 'middle', 'bold'))
+    o.append(L(sx, sy + 70, sx + 280, sy + 70, sw=1.2))
+    o.append(R(sx + 4, sy + 62, 22, 6, fill=WALK_FILL, stroke=WALK_STROKE) + R(sx + 254, sy + 62, 22, 6, fill=WALK_FILL, stroke=WALK_STROKE))
+    for i in range(5):
+        o.append(R(sx + 34 + i * 43.5, sy + 54, 41, 6, stroke='#1f3bb8', fill='#dbeafe'))
+    for px_, d in ((sx + 15, 1), (sx + 265, -1)):
+        o.append(C(px_, sy + 18, 5) + L(px_, sy + 23, px_, sy + 44) + L(px_, sy + 44, px_ - 5, sy + 62) + L(px_, sy + 44, px_ + 5, sy + 62))
+        o.append(L(px_, sy + 30, px_ + d * 125, sy + 50, '#16a34a', 1.4))
+    o.append(T(sx + 140, sy + 40, '2.9 m      2.9 m', 7, 'middle', fill='#16a34a'))
+    o.append(T(sx + 140, sy + 86, 'W1 | 5 MODULES ≈ 5.75 m | W2', 7.5, 'middle'))
+    notes = ['WALKWAY NOTES', '1. FRP / HDG STEEL ANTI-SKID GRATING, UV STABILISED,', '    MIN. 150 KG/M² RATED.',
+             '2. FIX TO PURLINS WITH CLAMPS — NO SHEET PUNCTURE,', '    OR SEAL WITH EPDM WASHERS.',
+             '3. ≥ 50 MM CLEAR OF MODULE FRAMES; NO SHADING.',
+             '4. W1 & W6 ARE NEAR THE EAVE — PROVIDE LIFELINE /', '    HANDRAIL AT ROOF EDGE.',
+             '5. HEADER WALKWAY LIFTED ON 100 MM SUPPORTS WHERE', '    TRAYS T1 / T2 PASS UNDER IT (SEE SHEET 05).',
+             '6. IF GAP 1/2 OR 3/4 MEASURES < 0.5 m, MOUNT THE', '    TRAY BENEATH THE WALKWAY.']
+    o.append(T(sx, sy + 116, notes[0], 8.5, weight='bold'))
+    o.append(TL(sx, sy + 132, notes[1:], 7, lh=10.5))
+    leg = [
+        (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2), 'SOLAR MODULES'),
+        (lambda x, y: R(x - 20, y - 4, 40, 8, stroke=WALK_STROKE, fill=WALK_FILL, sw=0.8), 'WALKWAY 300 MM (N–S)'),
+        (lambda x, y: R(x - 20, y - 6, 40, 12, stroke=WALK_STROKE, fill=WALK_FILL, sw=0.8), 'HEADER WALKWAY 450 MM'),
+        (lambda x, y: L(x - 20, y, x + 20, y, '#16a34a', 1.6), 'CLEANING REACH'),
+        (lambda x, y: R(x - 8, y - 8, 16, 16, sw=1) + L(x - 6, y - 3, x + 6, y - 3, sw=0.7) + L(x - 6, y + 3, x + 6, y + 3, sw=0.7), 'ROOF ACCESS LADDER'),
+        (lambda x, y: L(x - 20, y, x + 20, y, '#555', 1.2, '10,4,2,4'), 'ROOF RIDGE'),
+    ]
+    tb, y = legend_block(70, 'LEGENDS', leg, rh=18)
+    o.append(tb)
+    tb, y = system_block(y + 12)
+    o.append(tb)
+    o.append(title_block('04', 'WALKWAY LAYOUT (MODULE CLEANING)', '1:200 (A3)'))
+    page(''.join(o), 'Jain-Granite_04_Walkway-Layout_' + VERSION)
+
+
+# ================================================================= 05  CABLE TRAY LAYOUT
+def sheet_tray():
+    o = [compass(80, 90)]
+    ox, oy, k = 150, 110, 20.0
+    pl, P_ = plan(ox, oy, k)
+    o.append(pl)
+    o.append(draw_walkways(P_, labels=False, fill='#f1f0ef', stroke='#a8a29e'))
+    o.append(draw_trays(P_))
+    segs = tray_segments()
+    lens = {sid: ln for sid, _, _, _, _, ln in segs}
+    t1x, t2x = TRAY_GAP_X
+    tags = {'T1': P_(t1x - 1.3, 12.5), 'T2': P_(t2x - 1.3, 12.5), 'T3a': P_((t1x + t2x) / 2 + 3.5, TRAY_HY - 1.0),
+            'T3b': P_((t2x + ROOF_W) / 2, TRAY_HY - 1.0)}
+    for sid, (tx, ty) in tags.items():
+        o.append(R(tx - 30, ty - 9, 60, 13, fill='#fff7ed', stroke=TRAY_COL, sw=0.8) + T(tx, ty + 1, f'{sid}  {lens[sid]:.1f} m', 7.5, 'middle', 'bold', '#7c2d12'))
+    ex, ey = P_(ROOF_W, TRAY_HY + TRAY_W / 2)
+    ix, iy = P_(*INV)
+    gs = 0.7
+    o.append(PL([(ex, ey), (ex + 10, ey), (ex + 10, iy), (ix - 66 * gs, iy)], TRAY_COL, 5))
+    o.append(equipment_group(ix, iy, gs))
+    o.append(T(ix, iy + 28, 'INV. 80 kW + DCDB + ACDB', 7, 'middle'))
+    o.append(T(ix, iy + 37, '(EAST WALL, GROUND LEVEL)', 7, 'middle'))
+    o.append(TL(ex + 16, iy + 58, [f'T4  {lens["T4"]:.1f} m', f'DOWN WALL ≈ {WALL_DROP:.0f} m', '+ ALONG WALL'], 7.5, weight='bold', fill='#7c2d12'))
+    acx = ix + 66 * gs + 12
+    o.append(PL([(ix + 66 * gs, iy), (acx, iy), (acx, P_(0, 19.5)[1])], '#2563eb', 3, '8,4'))
+    o.append(TL(acx + 6, P_(0, 13.0)[1], ['AC: 95 SQ MM', 'AL ARMOURED', 'TO LT PANEL', '≈ 20 m *', '150 x 50 MM', 'TRAY / TRENCH'], 7.5, weight='bold', fill='#2563eb'))
+    lx, ly = P_(*LA)
+    o.append(sym_la(lx, ly, 0.9))
+    for tx in (t1x, t2x):
+        cx_, cy_ = P_(tx, HEAD_Y0 + HEAD_W / 2)
+        o.append(C(cx_, cy_, 8, '#000', 1, 'none', '2,2'))
+    o.append(TL(60, 1080, ['NOTE: TRAYS T1 / T2 SIT IN THE ≈ 0.6 m GAPS BESIDE WALKWAYS W2 / W5 AND PASS UNDER THE HEADER WALKWAY (CIRCLED). STRING LEADS DROP INTO THE',
+                           'TRAY AT ROWS 1, 4, 5 AND 8 (SEE STRINGING PLAN v11). GAPS AND ROOF SIZE SCALED FROM THE LAYOUT IMAGE (*) — VERIFY ON SITE.',
+                           'LA DOWN CONDUCTOR CROSSES T3a ONCE, AT 90°, RAISED ≥ 0.5 m ON AN INSULATED STAND-OFF, THEN RUNS ≥ 1 m NORTH OF THE TRAY (SEE SHEET 03).'], 7.8))
+    rows = [('ID', 'ROUTE', 'LENGTH', 'CABLES IN TRAY')]
+    total = 0
+    for sid, desc, _, cab, st, ln in segs:
+        rows.append((sid, [desc[:desc.index(':') + 1], desc[desc.index(':') + 2:]], f'{ln:.1f} m', [cab, f'({st})']))
+        total += ln
+    rows.append(('', 'TOTAL DC TRAY 100 x 50 MM', f'{total:.1f} m', ''))
+    rows.append(('', 'ORDER (+10 %), 2.5 m LENGTHS', f'{total*1.1:.0f} m', f'{int(-(-total*1.1 // 2.5))} LENGTHS + COVERS'))
+    tb, y = table(940, 120, [26, 132, 40, 98], rows, rh=15, size=6.5, head='CABLE TRAY SCHEDULE (DC)')
+    o.append(tb)
+    sx, sy = 990, y + 50
+    o.append(T(sx + 100, sy - 22, 'TRAY SECTION (T3b / T4, FULL LOAD)', 9, 'middle', 'bold'))
+    s2 = 2.0
+    tw, th = 100 * s2, 50 * s2
+    o.append(PL([(sx, sy), (sx, sy + th), (sx + tw, sy + th), (sx + tw, sy)], '#000', 2.2))
+    o.append(R(sx - 4, sy - 8, tw + 8, 5, fill='#9ca3af', stroke='#000', sw=0.8) + T(sx + tw + 8, sy - 3, 'COVER', 7))
+    for i in range(16):
+        cx_ = sx + 2 + 3 * s2 + i * 6.0 * s2
+        o.append(C(cx_, sy + th - 3 * s2 - 1.5, 3 * s2, '#000', 0.6, '#ef4444' if i % 2 == 0 else '#111'))
+    o.append(C(sx + tw - 16, sy + th - 22, 4.5 * s2, '#000', 0.6, '#16a34a'))
+    o.append(L(sx, sy + th + 14, sx + tw, sy + th + 14, '#d62828', 0.8) + T(sx + tw / 2, sy + th + 26, '100 MM', 8, 'middle', fill='#d62828'))
+    o.append(L(sx - 14, sy, sx - 14, sy + th, '#d62828', 0.8) + T(sx - 18, sy + th / 2, '50 MM', 8, 'middle', fill='#d62828', rot=-90))
+    o.append(TL(sx - 30, sy + th + 44, ['16 x 4 SQ MM DC (Ø ≈ 6 MM; RED +VE, BLACK –VE)', '+ 1 x 16 SQ MM Cu EARTH (GREEN)',
+                                        'FILL ≈ 520 / 5,000 MM² ≈ 10 % (LIMIT 40 %)', 'SINGLE LAYER, ROOM FOR EXPANSION'], 7.2))
+    notes = ['CABLE TRAY NOTES', '1. 100 x 50 MM PERFORATED HDG TRAY, 1.6 MM, WITH', '    BOLTED COVER (UV & BIRD / MONKEY PROTECTION).',
+             '2. ONE SIZE THROUGHOUT — T1 / T2 / T3a CARRY 8 CORES,', '    BUT ONE SIZE KEEPS FITTINGS COMMON.',
+             '3. RAISE TRAY 75–100 MM ABOVE SHEET ON PURLIN', '    CLAMPS EVERY 1.5 m; WALL BRACKETS EVERY 1.2 m.',
+             '4. FITTINGS: 1 FLAT BEND, 1 TEE, 2 VERTICAL BENDS,', '    COUPLERS AT EVERY JOINT, 2 END CAPS.',
+             '5. BOND TRAY SECTIONS TOGETHER AND TO EP-1.',
+             '6. AC CABLE IN ITS OWN TRAY / TRENCH, ≥ 300 MM FROM DC.',
+             '7. LA DOWN CONDUCTOR NEVER IN OR ON THE TRAY.']
+    o.append(T(sx - 30, sy + th + 102, notes[0], 8.5, weight='bold'))
+    o.append(TL(sx - 30, sy + th + 118, notes[1:], 7, lh=10.5))
+    leg = [
+        (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2), 'SOLAR MODULES'),
+        (lambda x, y: R(x - 20, y - 3, 40, 6, stroke='#7c2d12', fill=TRAY_COL, sw=0.8), 'DC CABLE TRAY 100 x 50 MM'),
+        (lambda x, y: L(x - 20, y, x + 20, y, '#2563eb', 3, '8,4'), 'AC CABLE ROUTE (95 SQ MM AL)'),
+        (lambda x, y: R(x - 20, y - 4, 40, 8, stroke='#a8a29e', fill='#f1f0ef', sw=0.8), 'WALKWAY (SEE SHEET 04)'),
+        (lambda x, y: C(x, y, 7, '#000', 1, 'none', '2,2'), 'TRAY PASSES UNDER WALKWAY'),
+        (lambda x, y: sym_la(x, y + 2, 0.6), 'LIGHTNING ARRESTER'),
+        (lambda x, y: sym_inverter(x, y, 22, 12), 'STRING INVERTER'),
+    ]
+    tb, y = legend_block(70, 'LEGENDS', leg, rh=18)
+    o.append(tb)
+    tb, y = system_block(y + 12)
+    o.append(tb)
+    o.append(title_block('05', 'CABLE TRAY LAYOUT', '1:200 (A3)'))
+    page(''.join(o), 'Jain-Granite_05_Cable-Tray-Layout_' + VERSION)
+
+
 if __name__ == '__main__':
     sheet_sld()
     sheet_equipment()
     sheet_earthing()
+    sheet_walkway()
+    sheet_tray()
     print('html written to', OUT)
