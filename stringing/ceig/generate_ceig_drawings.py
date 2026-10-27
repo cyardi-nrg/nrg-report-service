@@ -1,4 +1,4 @@
-# Version: v3 (2026-10-27) — walkway cut to one per slope (gap walkways) + north connector, per owner's cost brief
+# Version: v4 (2026-10-27) — roof ladder at SW corner: connector moved just south of the arrays + access path from ladder
 # CEIG drawing set for Jain Granite & Marble — 100 kWp rooftop (Adani 625 Wp TOPCon x 160,
 # GoodWe GW80K-MT). Follows NRG's own CEIG submission format (Energy Pack SLD / Equipment
 # Layout / Earthing Layout samples): A3 landscape, title block on the right.
@@ -13,7 +13,7 @@ import html
 import os
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-VERSION = 'v3'
+VERSION = 'v4'
 FONT = 'Liberation Sans, Arial, Helvetica, sans-serif'
 
 # ---------------------------------------------------------------- project data
@@ -479,8 +479,8 @@ def plan(ox, oy, k, labels=True, string_colours=False):
     o.append(L(rx, y0, rx, y0 + ROOF_L * k, '#555', 1.2, '10,4,2,4'))
     if labels:
         o.append(T(rx, y0 + ROOF_L * k - 6, 'RIDGE', 8, 'middle', 'bold', '#555'))
-        o.append(T(P_(RIDGE_X / 2, 0)[0], y0 + ROOF_L * k - 22, '← WEST SLOPE', 9, 'middle', 'bold', '#555'))
-        o.append(T(P_((RIDGE_X + ROOF_W) / 2, 0)[0], y0 + ROOF_L * k - 22, 'EAST SLOPE →', 9, 'middle', 'bold', '#555'))
+        o.append(T(P_(RIDGE_X / 2 + 1.5, 0)[0], P_(0, ROOF_L - 5)[1], '← WEST SLOPE', 9, 'middle', 'bold', '#555'))
+        o.append(T(P_((RIDGE_X + ROOF_W) / 2, 0)[0], P_(0, ROOF_L - 5)[1], 'EAST SLOPE →', 9, 'middle', 'bold', '#555'))
     for b, bx in enumerate(BLOCK_X):
         for r in range(8):
             for c in range(5):
@@ -554,6 +554,9 @@ def sheet_equipment():
     o.append(T(ix + 4, P_(0, 18.5)[1], 'TO CLIENT LT PANEL (≈ 20 m) *', 8, 'middle', 'bold'))
     o.append(PL([(ix + 66, iy), (ix + 90, iy), (ix + 90, P_(0, 17.6)[1])], '#d62828', 1.6))
     o.append(f'<polygon points="{ix+90},{P_(0, 17.6)[1]+8} {ix+85},{P_(0, 17.6)[1]} {ix+95},{P_(0, 17.6)[1]}" fill="#d62828"/>')
+    lax, lay = P_(0.0, ROOF_L - 0.75)
+    o.append(R(lax - 26, lay - 12, 22, 24, stroke='#000', sw=1, fill='#fff') + ''.join(L(lax - 24, lay - 9 + i * 6, lax - 6, lay - 9 + i * 6, sw=0.8) for i in range(4)))
+    o.append(TL(lax - 30, lay + 26, ['ROOF ACCESS', 'LADDER (SW)'], 7.5, weight='bold'))
     o.append(TL(60, 1080, ['NOTE: ROOF SIZE, BLOCK POSITIONS AND EQUIPMENT LOCATIONS ARE SCALED FROM THE CLIENT LAYOUT IMAGE (*) — VERIFY ON SITE.',
                            'BLOCKS 1 & 2 ON WEST SLOPE, BLOCKS 3 & 4 ON EAST SLOPE. EACH BLOCK = 5 x 8 MODULES (PORTRAIT) = 2 STRINGS OF 20.'], 8))
     # right column
@@ -568,6 +571,7 @@ def sheet_equipment():
         (lambda x, y: L(x - 20, y, x + 20, y, '#ea580c', 2.4, '7,4'), 'DC CABLE ROUTE'),
         (lambda x, y: L(x - 20, y, x + 20, y, '#555', 1.2, '10,4,2,4'), 'ROOF RIDGE'),
         (lambda x, y: L(x - 20, y, x + 20, y, '#d62828', 1.2, '4,2'), 'STRING BOUNDARY'),
+        (lambda x, y: R(x - 8, y - 8, 16, 16, sw=1) + L(x - 6, y - 3, x + 6, y - 3, sw=0.7) + L(x - 6, y + 3, x + 6, y + 3, sw=0.7), 'ROOF ACCESS LADDER'),
     ]
     tb, y = legend_block(70, 'LEGENDS', leg, rh=18)
     o.append(tb)
@@ -732,10 +736,11 @@ def sheet_earthing():
 
 
 # ================================================================= walkway / tray geometry (metres)
-WALK_W, HEAD_W = 0.30, 0.30
-HEAD_X_END = 29.55                   # connector runs on to the roof access ladder at the NE corner
+WALK_W = 0.30
 ARRAY_END = BLOCK_Y + BL
-HEAD_Y0 = 0.50                       # header walkway along the north edge: y 0.50 – 0.95
+CON_Y0 = ARRAY_END + 0.15            # connector WC runs E-W just south of the arrays
+LADDER = (0.0, ROOF_L - 0.75)        # roof access ladder: SW corner (owner confirmed)
+SOUTH_Y0 = ROOF_L - 0.90             # access strip WA2 along the south edge: y 35.10 – 35.40
 TRAY_W = 0.10
 TRAY_HY = 0.25                       # header tray along the very north edge: y 0.25 – 0.35
 TRAY_GAP_X = [BLOCK_X[0] + BW + 0.05, BLOCK_X[2] + BW + 0.05]   # trays hug the west side of gaps 1-2 and 3-4
@@ -749,15 +754,16 @@ def walkway_runs():
     # so every module can be reached from at least one walkway
     xs = [('W1', e[0] + 0.22, 'WEST SLOPE: GAP BLOCK 1 / 2 (BESIDE T1)'),
           ('W2', e[2] + 0.22, 'EAST SLOPE: GAP BLOCK 3 / 4 (BESIDE T2)')]
-    return [(n, x, x + WALK_W, HEAD_Y0 + HEAD_W, ARRAY_END, d) for n, x, d in xs]
+    return [(n, x, x + WALK_W, BLOCK_Y, ARRAY_END, d) for n, x, d in xs]
 
 
 def walk_lengths():
     runs = walkway_runs()
     ns = [(n, y2 - y1, d) for n, x1, x2, y1, y2, d in runs]
-    head = runs[-1][2] - runs[0][1]            # W1 → W2
-    ext = HEAD_X_END - runs[-1][2]             # W2 → access ladder (NE corner)
-    return ns, head, ext
+    con = runs[-1][2] - runs[0][1]             # WC: W1 → W2, just south of the arrays
+    wa1 = SOUTH_Y0 - (CON_Y0 + WALK_W)         # WA1: W1 carried straight on south to the access strip
+    wa2 = runs[0][2] - 0.3                     # WA2: along the south edge, ladder → WA1
+    return ns, con, wa1, wa2
 
 
 def tray_segments():
@@ -789,11 +795,14 @@ TRAY_COL = '#ea580c'
 def draw_walkways(P_, labels=True, fill=WALK_FILL, stroke=WALK_STROKE):
     o = []
     runs = walkway_runs()
-    o.append(Rm(P_, runs[0][1], HEAD_Y0, HEAD_X_END, HEAD_Y0 + HEAD_W, stroke=stroke, sw=0.8, fill=fill))
+    w1x1, w1x2 = runs[0][1], runs[0][2]
+    o.append(Rm(P_, w1x1, CON_Y0, runs[-1][2], CON_Y0 + WALK_W, stroke=stroke, sw=0.8, fill=fill))      # WC
+    o.append(Rm(P_, w1x1, CON_Y0 + WALK_W, w1x2, SOUTH_Y0, stroke=stroke, sw=0.8, fill=fill))           # WA1
+    o.append(Rm(P_, 0.3, SOUTH_Y0, w1x2, SOUTH_Y0 + WALK_W, stroke=stroke, sw=0.8, fill=fill))          # WA2
     for n, x1, x2, y1, y2, d in runs:
         o.append(Rm(P_, x1, y1, x2, y2, stroke=stroke, sw=0.8, fill=fill))
         if labels:
-            cx_, cy_ = P_((x1 + x2) / 2, ARRAY_END + 0.9)
+            cx_, cy_ = P_((x1 + x2) / 2, BLOCK_Y - 0.4)
             o.append(T(cx_, cy_, n, 9, 'middle', 'bold', stroke))
     return ''.join(o)
 
@@ -815,11 +824,16 @@ def sheet_walkway():
     o.append(draw_walkways(P_))
     x0, y0 = P_(0, 0)
     o.append(dim_h(x0, x0 + ROOF_W * k, y0 - 20, f'≈ {ROOF_W:.1f} m (ROOF WIDTH, TO BE MEASURED) *'))
-    hx, hy = P_(ROOF_W / 2 + 5.5, HEAD_Y0 + HEAD_W / 2)
-    o.append(R(hx - 118, hy - 6, 236, 12, fill='#fff', stroke='none') + T(hx, hy + 3, 'WC – CONNECTING WALKWAY 300 MM (NORTH EDGE, STRAIGHT)', 7.5, 'middle', 'bold', WALK_STROKE))
-    ax, ay = P_(ROOF_W, HEAD_Y0 + HEAD_W / 2)
-    o.append(R(ax + 2, ay - 12, 22, 24, stroke='#000', sw=1, fill='#fff') + ''.join(L(ax + 4, ay - 9 + i * 6, ax + 22, ay - 9 + i * 6, sw=0.8) for i in range(4)))
-    o.append(TL(ax + 30, ay - 2, ['ROOF ACCESS LADDER', '(NE CORNER, NEAR INVERTER –', ' CONFIRM ON SITE) *'], 7.5, weight='bold'))
+    hx, hy = P_(RIDGE_X, CON_Y0 + WALK_W)
+    o.append(T(hx, hy + 14, 'WC – CONNECTING WALKWAY 300 MM (STRAIGHT, JUST SOUTH OF THE ARRAYS)', 7.5, 'middle', 'bold', WALK_STROKE))
+    w1 = walkway_runs()[0]
+    a1x, a1y = P_(w1[2], CON_Y0 + 4.0)
+    o.append(TL(a1x + 6, a1y, ['WA1 – ACCESS', '(W1 CONTINUED', ' SOUTH)'], 7.5, weight='bold', fill=WALK_STROKE))
+    a2x, a2y = P_(3.4, SOUTH_Y0)
+    o.append(T(a2x, a2y - 5, 'WA2 – ACCESS FROM LADDER', 7.5, 'middle', 'bold', WALK_STROKE))
+    ax, ay = P_(*LADDER)
+    o.append(R(ax - 26, ay - 12, 22, 24, stroke='#000', sw=1, fill='#fff') + ''.join(L(ax - 24, ay - 9 + i * 6, ax - 6, ay - 9 + i * 6, sw=0.8) for i in range(4)))
+    o.append(TL(ax - 30, ay + 26, ['ROOF ACCESS', 'LADDER (SW)'], 7.5, weight='bold'))
     # cleaning reach: each gap walkway serves the full width of the block on either side
     runs = walkway_runs()
     ry = BLOCK_Y + 1.2 * (MOD_L + MGAP)
@@ -833,16 +847,17 @@ def sheet_walkway():
             o.append(L(xa, yy, xf, yy, '#16a34a', 1.6) + f'<polygon points="{xf},{yy} {xf+dx},{yy-4} {xf+dx},{yy+4}" fill="#16a34a"/>')
             mx = (xa + xf) / 2
             o.append(R(mx - 34, yy + 5, 68, 12, fill='#fff', stroke='none') + T(mx, yy + 14, 'REACH ≈ 5.8 m', 7, 'middle', 'bold', '#16a34a'))
-    o.append(TL(60, 1080, ['NOTE: ONE WALKWAY PER SLOPE (IN THE GAP BETWEEN ITS TWO BLOCKS) + ONE STRAIGHT CONNECTOR ALONG THE NORTH EDGE. THE FARTHEST MODULE COLUMN IS ≈ 5.8 m',
+    o.append(TL(60, 1080, ['NOTE: ONE WALKWAY PER SLOPE (IN THE GAP BETWEEN ITS TWO BLOCKS) + ONE STRAIGHT CONNECTOR JUST SOUTH OF THE ARRAYS, REACHED FROM THE SW LADDER. FARTHEST MODULE ≈ 5.8 m',
                            'FROM THE WALKWAY — CLEAN WITH A 6–7 m WATER-FED TELESCOPIC POLE. W1 / W2 RUN PARALLEL TO THE RIDGE, SO THEY ARE LEVEL. ROOF SIZE / GAPS SCALED FROM THE',
                            'LAYOUT IMAGE (*) — VERIFY ON SITE.'], 7.8))
-    ns, head, ext = walk_lengths()
+    ns, con, wa1, wa2 = walk_lengths()
     rows = [('ID', 'LOCATION', 'WIDTH', 'LENGTH')]
     for n, ln, d in ns:
         rows.append((n, d, '300 MM', f'{ln:.1f} m'))
-    rows.append(('WC', 'CONNECTOR, NORTH EDGE, W1 → W2', '300 MM', f'{head:.1f} m'))
-    rows.append(('WC+', 'CONNECTOR, W2 → LADDER (NE) *', '300 MM', f'{ext:.1f} m'))
-    tot = sum(ln for _, ln, _ in ns) + head + ext
+    rows.append(('WC', 'CONNECTOR, SOUTH OF ARRAYS, W1 → W2', '300 MM', f'{con:.1f} m'))
+    rows.append(('WA1', 'ACCESS: W1 CONTINUED SOUTH *', '300 MM', f'{wa1:.1f} m'))
+    rows.append(('WA2', 'ACCESS: SOUTH EDGE, LADDER → WA1 *', '300 MM', f'{wa2:.1f} m'))
+    tot = sum(ln for _, ln, _ in ns) + con + wa1 + wa2
     rows.append(('', 'TOTAL 300 MM WALKWAY', '', f'{tot:.1f} m'))
     rows.append(('', 'ORDER (+5 %)', '', f'{tot*1.05:.0f} m'))
     tb, y = table(940, 120, [26, 148, 42, 80], rows, rh=15, size=6.8, head='WALKWAY SCHEDULE')
@@ -863,8 +878,8 @@ def sheet_walkway():
     notes = ['WALKWAY NOTES', '1. FRP / HDG STEEL ANTI-SKID GRATING, UV STABILISED,', '    MIN. 150 KG/M² RATED.',
              '2. FIX TO PURLINS WITH CLAMPS — NO SHEET PUNCTURE,', '    OR SEAL WITH EPDM WASHERS.',
              '3. ≥ 50 MM CLEAR OF MODULE FRAMES; NO SHADING.',
-             '4. CONNECTOR WC IS ≈ 0.5 m FROM THE NORTH EDGE —', '    PROVIDE LIFELINE / HANDRAIL ALONG IT.',
-             '5. WC LIFTED ON 100 MM SUPPORTS WHERE TRAY T2', '    PASSES UNDER IT (SEE SHEET 05).',
+             '4. WA2 RUNS ALONG THE SOUTH EAVE AND THE LADDER', '    LANDING — LIFELINE / HANDRAIL THERE ONLY.',
+             '5. NO TRAY CROSSINGS: TRAYS RUN NORTH, WALKWAY', '    CONNECTOR AND ACCESS RUN SOUTH (SHEET 05).',
              '6. IF GAP 1/2 OR 3/4 MEASURES < 0.5 m, MOUNT THE', '    TRAY BENEATH THE WALKWAY.',
              '7. OUTER MODULE COLUMNS (≈ 5.8 m AWAY): INSPECTION /', '    REPLACEMENT FROM A CRAWL BOARD ON PURLIN LINES.']
     o.append(T(sx, sy + 116, notes[0], 8.5, weight='bold'))
@@ -872,7 +887,7 @@ def sheet_walkway():
     leg = [
         (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2), 'SOLAR MODULES'),
         (lambda x, y: R(x - 20, y - 4, 40, 8, stroke=WALK_STROKE, fill=WALK_FILL, sw=0.8), 'WALKWAY 300 MM (W1, W2)'),
-        (lambda x, y: R(x - 20, y - 4, 40, 8, stroke=WALK_STROKE, fill=WALK_FILL, sw=0.8), 'CONNECTING WALKWAY 300 MM (WC)'),
+        (lambda x, y: R(x - 20, y - 4, 40, 8, stroke=WALK_STROKE, fill=WALK_FILL, sw=0.8), 'CONNECTOR / ACCESS 300 MM (WC, WA1, WA2)'),
         (lambda x, y: L(x - 20, y, x + 20, y, '#16a34a', 1.6), 'CLEANING REACH'),
         (lambda x, y: R(x - 8, y - 8, 16, 16, sw=1) + L(x - 6, y - 3, x + 6, y - 3, sw=0.7) + L(x - 6, y + 3, x + 6, y + 3, sw=0.7), 'ROOF ACCESS LADDER'),
         (lambda x, y: L(x - 20, y, x + 20, y, '#555', 1.2, '10,4,2,4'), 'ROOF RIDGE'),
@@ -914,11 +929,8 @@ def sheet_tray():
     lx, ly = P_(*LA)
     o.append(sym_la(lx, ly, 0.9))
     for tx in (t1x, t2x):
-        if not (walkway_runs()[0][1] <= tx <= HEAD_X_END):
-            continue   # tray does not pass under the connecting walkway here
-        cx_, cy_ = P_(tx, HEAD_Y0 + HEAD_W / 2)
-        o.append(C(cx_, cy_, 8, '#000', 1, 'none', '2,2'))
-    o.append(TL(60, 1080, ['NOTE: TRAYS T1 / T2 SIT IN THE ≈ 0.6 m GAPS BESIDE WALKWAYS W1 / W2; T2 PASSES UNDER THE CONNECTING WALKWAY (CIRCLED). STRING LEADS DROP INTO THE',
+        continue   # v4: connector moved south of the arrays — no tray / walkway crossings left
+    o.append(TL(60, 1080, ['NOTE: TRAYS T1 / T2 SIT IN THE ≈ 0.6 m GAPS BESIDE WALKWAYS W1 / W2. TRAYS RUN NORTH, WALKWAY CONNECTOR RUNS SOUTH — NO CROSSINGS. STRING LEADS DROP INTO THE',
                            'TRAY AT ROWS 1, 4, 5 AND 8 (SEE STRINGING PLAN v11). GAPS AND ROOF SIZE SCALED FROM THE LAYOUT IMAGE (*) — VERIFY ON SITE.',
                            'LA DOWN CONDUCTOR CROSSES T3a ONCE, AT 90°, RAISED ≥ 0.5 m ON AN INSULATED STAND-OFF, THEN RUNS ≥ 1 m NORTH OF THE TRAY (SEE SHEET 03).'], 7.8))
     rows = [('ID', 'ROUTE', 'LENGTH', 'CABLES IN TRAY')]
@@ -958,7 +970,6 @@ def sheet_tray():
         (lambda x, y: R(x - 20, y - 3, 40, 6, stroke='#7c2d12', fill=TRAY_COL, sw=0.8), 'DC CABLE TRAY 100 x 50 MM'),
         (lambda x, y: L(x - 20, y, x + 20, y, '#2563eb', 3, '8,4'), 'AC CABLE ROUTE (95 SQ MM AL)'),
         (lambda x, y: R(x - 20, y - 4, 40, 8, stroke='#a8a29e', fill='#f1f0ef', sw=0.8), 'WALKWAY (SEE SHEET 04)'),
-        (lambda x, y: C(x, y, 7, '#000', 1, 'none', '2,2'), 'TRAY PASSES UNDER WALKWAY'),
         (lambda x, y: sym_la(x, y + 2, 0.6), 'LIGHTNING ARRESTER'),
         (lambda x, y: sym_inverter(x, y, 22, 12), 'STRING INVERTER'),
     ]
