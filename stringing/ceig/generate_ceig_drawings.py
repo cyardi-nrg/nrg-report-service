@@ -1,4 +1,4 @@
-# Version: v4 (2026-10-27) — roof ladder at SW corner: connector moved just south of the arrays + access path from ladder
+# Version: v5 (2026-10-27) — adds 06 Stringing Layout + DC home-run schedule (feeds build_bom.py)
 # CEIG drawing set for Jain Granite & Marble — 100 kWp rooftop (Adani 625 Wp TOPCon x 160,
 # GoodWe GW80K-MT). Follows NRG's own CEIG submission format (Energy Pack SLD / Equipment
 # Layout / Earthing Layout samples): A3 landscape, title block on the right.
@@ -13,7 +13,7 @@ import html
 import os
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-VERSION = 'v4'
+VERSION = 'v5'
 FONT = 'Liberation Sans, Arial, Helvetica, sans-serif'
 
 # ---------------------------------------------------------------- project data
@@ -981,10 +981,127 @@ def sheet_tray():
     page(''.join(o), 'Jain-Granite_05_Cable-Tray-Layout_' + VERSION)
 
 
+# ================================================================= DC cable schedule (feeds sheet 06 and the BOM)
+TAIL_ARRAY = 1.0      # per conductor: crossing the gap / slack at the array end
+TAIL_INV = 1.5        # per conductor: dressing into the inverter
+WALL_ALONG = None     # computed: along the east wall from the tray drop to the inverter
+
+
+def terminal_rows(half):
+    """(+ row, − row) for a string: owner's mirrored snake — + at its first row, − at its fourth."""
+    return (0, 3) if half == 0 else (4, 7)
+
+
+def row_centre_y(r):
+    return BLOCK_Y + r * (MOD_L + MGAP) + MOD_L / 2
+
+
+def dc_cable_schedule():
+    """one entry per string: (string, mppt, input, slope, plus_m, minus_m)"""
+    hy = TRAY_HY + TRAY_W / 2
+    wall = WALL_DROP + (INV[1] - hy)
+    common = wall + TAIL_INV + TAIL_ARRAY
+    out = []
+    for (m, i, s, sl) in STRING_MAP:
+        b = [k for k, pair in enumerate(NAMES) if s in pair][0]
+        half = NAMES[b].index(s)
+        tx = TRAY_GAP_X[b // 2]
+        header = ROOF_W - tx
+        rp, rm = terminal_rows(half)
+        plus = (row_centre_y(rp) - hy) + header + common
+        minus = (row_centre_y(rm) - hy) + header + common
+        out.append((s, m, i, sl, plus, minus))
+    return sorted(out, key=lambda r: r[0])
+
+
+# ================================================================= 06  STRINGING LAYOUT
+def snake_cells(b, half):
+    """module cells (row, col) in wiring order for the owner's mirrored snake"""
+    seq = []
+    terminals_east = (b % 2 == 0)        # blocks 1 & 3 face their partner across the gap to the east
+    r0 = 0 if half == 0 else 4
+    for r in range(4):
+        cols = list(range(4, -1, -1)) if r % 2 == 0 else list(range(5))
+        if not terminals_east:
+            cols = [4 - c for c in cols]
+        seq += [(r0 + r, c) for c in cols]
+    return seq
+
+
+def sheet_stringing():
+    o = [compass(80, 90)]
+    ox, oy, k = 150, 110, 20.0
+    pl, P_ = plan(ox, oy, k, labels=False, string_colours=True)
+    o.append(pl)
+    o.append(draw_trays(P_))
+    sched = {r[0]: r for r in dc_cable_schedule()}
+    for b, bx in enumerate(BLOCK_X):
+        for half in range(2):
+            s = NAMES[b][half]
+            pts = []
+            for (r, c) in snake_cells(b, half):
+                cx_, cy_ = P_(bx + c * (MOD_W + MGAP) + MOD_W / 2, BLOCK_Y + r * (MOD_L + MGAP) + MOD_L / 2)
+                pts.append((cx_, cy_))
+            o.append(PL(pts, '#fff', 3) + PL(pts, SCOL[s], 1.2))
+            for (px, py), sym in ((pts[0], '+'), (pts[-1], '−')):
+                o.append(C(px, py, 7, '#000', 0.8, '#fff') + T(px, py + 3.5, sym, 10, 'middle', 'bold'))
+            lx_, ly_ = P_(bx + BW / 2, BLOCK_Y + (half * 4 + 1.5) * (MOD_L + MGAP) + MOD_L / 2)
+            m = sched[s][1]
+            o.append(R(lx_ - 34, ly_ - 10, 68, 16, fill='#fff', stroke=SCOL[s], sw=1.2, rx=3) +
+                     T(lx_, ly_ + 2, f'{s} · MPPT {m}', 8, 'middle', 'bold', '#111'))
+        cx_, cy_ = P_(bx + BW / 2, BLOCK_Y - 0.5)
+        o.append(T(cx_, cy_, f'BLOCK {b+1}', 8, 'middle', 'bold', '#1f3bb8'))
+    ex, ey = P_(ROOF_W, TRAY_HY + TRAY_W / 2)
+    ix, iy = P_(*INV)
+    gs = 0.7
+    o.append(PL([(ex, ey), (ex + 10, ey), (ex + 10, iy), (ix - 66 * gs, iy)], TRAY_COL, 5))
+    o.append(equipment_group(ix, iy, gs))
+    o.append(T(ix, iy + 28, 'INV. GW80K-MT', 7, 'middle', 'bold'))
+    o.append(T(ix, iy + 37, '(EAST WALL, GROUND)', 7, 'middle'))
+    o.append(TL(60, 1080, ['NOTE: OWNER\'S MIRRORED SNAKE — EACH STRING SNAKES ACROSS ITS 4 ROWS SO + AND − SIT ON THE EDGE FACING ITS PARTNER BLOCK; THE PARTNER IS ITS MIRROR, SO + IS BESIDE +',
+                           'AND − BESIDE − ACROSS THE GAP. NO Y-CONNECTORS: EVERY STRING HAS ITS OWN 4 SQ MM +/− HOME RUN IN TRAYS T1 / T2 → NORTH EDGE → EAST WALL → INVERTER. EAST AND WEST',
+                           'NEVER SHARE AN MPPT. LENGTHS SCALED FROM THE LAYOUT IMAGE (*) — VERIFY ON SITE.'], 7.8))
+    rows = [('STRING', 'MPPT / IN', 'SLOPE', '+VE (RED)', '–VE (BLACK)', 'PAIR')]
+    tp = tm = 0
+    for s, m, i, sl, p, mi in dc_cable_schedule():
+        rows.append((s, f'{m} / {i}', 'EAST' if sl == 'E' else 'WEST', f'{p:.1f} m', f'{mi:.1f} m', f'{p+mi:.1f} m'))
+        tp += p
+        tm += mi
+    rows.append(('TOTAL', '', '', f'{tp:.0f} m', f'{tm:.0f} m', f'{tp+tm:.0f} m'))
+    tb, y = table(925, 120, [44, 50, 40, 52, 56, 52], rows, rh=15, size=7, head='DC HOME-RUN SCHEDULE (4 SQ MM)')
+    o.append(tb)
+    o.append(TL(928, y + 14, [f'EACH RUN = TRAY ROUTE + {TAIL_ARRAY:.1f} m ARRAY-END TAIL + {TAIL_INV:.1f} m AT INVERTER.',
+                              'ORDER QUANTITY (+5 %) IN THE BOM.'], 7))
+    tb, y = table(925, y + 46, [100, 194], [
+        ('MODULES / STRING', '20 (ADANI 625 Wp N-TOPCon)'),
+        ('Voc @ 5 °C', '20 x 52.3 = 1,046 V  < 1,100 V  ✓'),
+        ('Vmp RANGE', '723 – 880 V  (MPPT 200 – 1,000 V)  ✓'),
+        ('CURRENT / MPPT', '2 STRINGS: 30.1 A ≤ 44 A ; Isc 31.9 ≤ 55 A ✓'),
+        ('V-DROP (4 SQ MM)', '0.52 – 1.03 %  ✓'),
+        ('STRING FUSE', 'NOT REQUIRED (2 STRINGS / MPPT)'),
+    ], rh=15, size=7, head='STRING DESIGN CHECK')
+    o.append(tb)
+    leg = [
+        (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2, fill=SCOL['S1'] + '33'), 'MODULE (TINT = STRING)'),
+        (lambda x, y: L(x - 20, y, x + 20, y, SCOL['S5'], 1.6), 'STRING WIRING ORDER'),
+        (lambda x, y: C(x - 10, y, 6, '#000', 0.8, '#fff') + T(x - 10, y + 3, '+', 8, 'middle', 'bold') + C(x + 10, y, 6, '#000', 0.8, '#fff') + T(x + 10, y + 3, '−', 8, 'middle', 'bold'), 'STRING + / − TERMINAL'),
+        (lambda x, y: R(x - 20, y - 3, 40, 6, stroke='#7c2d12', fill=TRAY_COL, sw=0.8), 'DC CABLE TRAY 100 x 50 MM'),
+        (lambda x, y: L(x - 20, y, x + 20, y, '#555', 1.2, '10,4,2,4'), 'ROOF RIDGE'),
+        (lambda x, y: sym_inverter(x, y, 22, 12), 'STRING INVERTER'),
+    ]
+    tb, y = legend_block(70, 'LEGENDS', leg, rh=18)
+    o.append(tb)
+    tb, y = system_block(y + 12)
+    o.append(tb)
+    o.append(title_block('06', 'STRINGING LAYOUT', '1:200 (A3)'))
+    page(''.join(o), 'Jain-Granite_06_Stringing-Layout_' + VERSION)
+
+
 if __name__ == '__main__':
     sheet_sld()
     sheet_equipment()
     sheet_earthing()
     sheet_walkway()
     sheet_tray()
+    sheet_stringing()
     print('html written to', OUT)
