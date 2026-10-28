@@ -1,4 +1,4 @@
-# Version: v1 (2026-10-27)
+# Version: v2 (2026-10-28) — wording: Jain modules are landscape (long side along the ridge)
 # Bill of material for Jain Granite & Marble — stringing, DC cabling, MC4, cable tray, walkway.
 # Quantities are computed from the same geometry as the drawings (generate_ceig_drawings.py v5),
 # so a change to the layout there flows straight into this BOM.
@@ -12,7 +12,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 import generate_ceig_drawings as g
 
-BOM_VERSION = 'v1'
+BOM_VERSION = 'v2'
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'Jain-Granite_BOM_Stringing-Tray-Walkway_{BOM_VERSION}.xlsx')
 
 RATES = {'4sqmm': 58}                   # owner's current rates, ₹/m (2.5 sq mm ₹44, 6 sq mm ₹84 for reference)
@@ -21,7 +21,7 @@ TRAY_WASTE = 1.10                       # +10 % on tray
 WALK_WASTE = 1.05                       # +5 % on walkway
 TRAY_LEN = 2.5                          # m per standard tray length
 ROW_TURNS_PER_STRING = 3                # 4-row snake → 3 turns between vertically stacked modules
-JUMPER_LEN = 2.5                        # m of 4 sq mm per row-turn jumper (module pitch 2.4 m in portrait)
+JUMPER_LEN = 2.5                        # m of 4 sq mm per row-turn jumper (next row is one module length, 2.4 m, away)
 ROOF_SUPPORT_SPACING = 1.5
 WALL_BRACKET_SPACING = 1.2
 WALK_CLAMP_SPACING = 1.2
@@ -73,7 +73,7 @@ def build():
     ws.title = 'BOM'
     ws['A1'] = 'JAIN GRANITE & MARBLE — 100.00 kWp ROOFTOP: BILL OF MATERIAL (STRINGING, DC CABLE, MC4, CABLE TRAY, WALKWAY)'
     ws['A1'].font = Font(bold=True, size=12)
-    ws['A2'] = (f'BOM {BOM_VERSION} · 27-10-2026 · based on drawings {g.VERSION} (06 Stringing, 05 Cable Tray, 04 Walkway) · '
+    ws['A2'] = (f'BOM {BOM_VERSION} · 27-10-2026 · based on drawings {g.VERSION} (06 Stringing, 05 Cable Tray, 04 Walkway); modules LANDSCAPE · '
                 '160 x Adani AB-G12R-132-625, GoodWe GW80K-MT, 8 strings x 20, no Y-connectors')
     ws['A3'] = 'Quantities marked * depend on lengths scaled from the layout photo — confirm with a site measurement before ordering.'
     ws['A3'].font = Font(italic=True, color='C00000')
@@ -105,7 +105,7 @@ def build():
          'Sum of 8 –VE home runs + 5 %. –VE runs are longer (row 4 / row 8 terminals). *')
     item('A3', 'DC solar cable 4 sq mm – row-turn jumpers', 'Same as A1 (either colour)', 'm',
          q['jumper_m'], up(q['jumper_m'] * CABLE_WASTE, 5), RATES['4sqmm'],
-         f'{q["jumpers"]} jumpers ({ROW_TURNS_PER_STRING} row turns x {q["n_str"]} strings) x {JUMPER_LEN} m. Module pitch 2.4 m in portrait; '
+         f'{q["jumpers"]} jumpers ({ROW_TURNS_PER_STRING} row turns x {q["n_str"]} strings) x {JUMPER_LEN} m. Modules are landscape (long side along the ridge), so the next row is one module length (2.4 m) away; '
          'module leads do not reach. Drop if modules are ordered with long (≥ 1.2 m) leads that reach across the turn.')
 
     section('B. MC4 CONNECTORS')

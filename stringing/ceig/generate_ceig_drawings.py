@@ -1,4 +1,4 @@
-# Version: v6 (2026-10-28) — 06 Stringing Layout: brand-label corner on every module (flip guide) + laying detail
+# Version: v7 (2026-10-28) — Jain modules are LANDSCAPE (long side along the ridge) — wording corrected
 # CEIG drawing set for Jain Granite & Marble — 100 kWp rooftop (Adani 625 Wp TOPCon x 160,
 # GoodWe GW80K-MT). Follows NRG's own CEIG submission format (Energy Pack SLD / Equipment
 # Layout / Earthing Layout samples): A3 landscape, title block on the right.
@@ -13,7 +13,7 @@ import html
 import os
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-VERSION = 'v6'
+VERSION = 'v7'
 FONT = 'Liberation Sans, Arial, Helvetica, sans-serif'
 
 # ---------------------------------------------------------------- project data
@@ -558,7 +558,7 @@ def sheet_equipment():
     o.append(R(lax - 26, lay - 12, 22, 24, stroke='#000', sw=1, fill='#fff') + ''.join(L(lax - 24, lay - 9 + i * 6, lax - 6, lay - 9 + i * 6, sw=0.8) for i in range(4)))
     o.append(TL(lax - 30, lay + 26, ['ROOF ACCESS', 'LADDER (SW)'], 7.5, weight='bold'))
     o.append(TL(60, 1080, ['NOTE: ROOF SIZE, BLOCK POSITIONS AND EQUIPMENT LOCATIONS ARE SCALED FROM THE CLIENT LAYOUT IMAGE (*) — VERIFY ON SITE.',
-                           'BLOCKS 1 & 2 ON WEST SLOPE, BLOCKS 3 & 4 ON EAST SLOPE. EACH BLOCK = 5 x 8 MODULES (PORTRAIT) = 2 STRINGS OF 20.'], 8))
+                           'BLOCKS 1 & 2 ON WEST SLOPE, BLOCKS 3 & 4 ON EAST SLOPE. EACH BLOCK = 5 x 8 MODULES, LANDSCAPE (LONG SIDE ALONG THE RIDGE) = 2 STRINGS OF 20.'], 8))
     # right column
     leg = [
         (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2), 'SOLAR MODULES'),
@@ -1019,7 +1019,7 @@ BRAND = 'ADANI'
 
 
 def label_corners(seq):
-    """For a string given as ordered (row, col) cells (portrait rows), return {cell: 'NE'|'SW'}.
+    """For a string given as ordered (row, col) cells (rows run up/down the E-W slope; landscape modules), return {cell: 'NE'|'SW'}.
     Rule: the brand-label corner sits on the module's + side. In a row run westward the + faces
     east -> label NE (as delivered); run eastward the + faces west -> label SW (module rotated 180°)."""
     out = {}
