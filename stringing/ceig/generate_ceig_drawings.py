@@ -1,4 +1,4 @@
-# Version: v5 (2026-10-27) — adds 06 Stringing Layout + DC home-run schedule (feeds build_bom.py)
+# Version: v6 (2026-10-28) — 06 Stringing Layout: brand-label corner on every module (flip guide) + laying detail
 # CEIG drawing set for Jain Granite & Marble — 100 kWp rooftop (Adani 625 Wp TOPCon x 160,
 # GoodWe GW80K-MT). Follows NRG's own CEIG submission format (Energy Pack SLD / Equipment
 # Layout / Earthing Layout samples): A3 landscape, title block on the right.
@@ -13,7 +13,7 @@ import html
 import os
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-VERSION = 'v5'
+VERSION = 'v6'
 FONT = 'Liberation Sans, Arial, Helvetica, sans-serif'
 
 # ---------------------------------------------------------------- project data
@@ -1014,6 +1014,36 @@ def dc_cable_schedule():
     return sorted(out, key=lambda r: r[0])
 
 
+# ================================================================= panel-orientation (brand label) markers
+BRAND = 'ADANI'
+
+
+def label_corners(seq):
+    """For a string given as ordered (row, col) cells (portrait rows), return {cell: 'NE'|'SW'}.
+    Rule: the brand-label corner sits on the module's + side. In a row run westward the + faces
+    east -> label NE (as delivered); run eastward the + faces west -> label SW (module rotated 180°)."""
+    out = {}
+    for i, (r, c) in enumerate(seq):
+        nxt = seq[i + 1] if i + 1 < len(seq) else None
+        prv = seq[i - 1] if i > 0 else None
+        if nxt is not None and nxt[0] == r:
+            plus_east = nxt[1] < c          # − faces the next module
+        elif prv is not None and prv[0] == r:
+            plus_east = prv[1] > c          # + faces the previous module
+        else:
+            plus_east = True
+        out[(r, c)] = 'NE' if plus_east else 'SW'
+    return out
+
+
+def corner_mark(x1, y1, x2, y2, corner, s=6, fill='#111'):
+    if corner == 'NE':
+        pts = f'{x2},{y1} {x2-s},{y1} {x2},{y1+s}'
+    else:
+        pts = f'{x1},{y2} {x1+s},{y2} {x1},{y2-s}'
+    return f'<polygon points="{pts}" fill="{fill}"/>'
+
+
 # ================================================================= 06  STRINGING LAYOUT
 def snake_cells(b, half):
     """module cells (row, col) in wiring order for the owner's mirrored snake"""
@@ -1043,6 +1073,10 @@ def sheet_stringing():
                 cx_, cy_ = P_(bx + c * (MOD_W + MGAP) + MOD_W / 2, BLOCK_Y + r * (MOD_L + MGAP) + MOD_L / 2)
                 pts.append((cx_, cy_))
             o.append(PL(pts, '#fff', 3) + PL(pts, SCOL[s], 1.2))
+            for (r, c), corner in label_corners(snake_cells(b, half)).items():
+                x1, y1 = P_(bx + c * (MOD_W + MGAP), BLOCK_Y + r * (MOD_L + MGAP))
+                x2, y2 = P_(bx + c * (MOD_W + MGAP) + MOD_W, BLOCK_Y + r * (MOD_L + MGAP) + MOD_L)
+                o.append(corner_mark(x1, y1, x2, y2, corner))
             for (px, py), sym in ((pts[0], '+'), (pts[-1], '−')):
                 o.append(C(px, py, 7, '#000', 0.8, '#fff') + T(px, py + 3.5, sym, 10, 'middle', 'bold'))
             lx_, ly_ = P_(bx + BW / 2, BLOCK_Y + (half * 4 + 1.5) * (MOD_L + MGAP) + MOD_L / 2)
@@ -1081,8 +1115,43 @@ def sheet_stringing():
         ('STRING FUSE', 'NOT REQUIRED (2 STRINGS / MPPT)'),
     ], rh=15, size=7, head='STRING DESIGN CHECK')
     o.append(tb)
+    # ---- detail: how to lay the modules of one string (S1) — label corner flips row by row
+    dk = 30.0
+    dx0, dy0 = 975, y + 46
+    o.append(T(dx0 - 40, dy0 - 14, f'DETAIL — LAYING S1 (BLOCK 1): {BRAND} LABEL CORNER', 8.5, weight='bold'))
+    seq = snake_cells(0, 0)
+    corners = label_corners(seq)
+    cmin = min(c for _, c in seq)
+    for (r, c), corner in corners.items():
+        x1 = dx0 + (c - cmin) * (MOD_W + MGAP) * dk
+        y1 = dy0 + r * (MOD_L + MGAP) * dk
+        w_, h_ = MOD_W * dk, MOD_L * dk
+        o.append(R(x1, y1, w_, h_, stroke='#1f3bb8', sw=1, fill=SCOL['S1'] + '22'))
+        o.append(corner_mark(x1, y1, x1 + w_, y1 + h_, corner, 9))
+        tx_ = x1 + w_ - 3 if corner == 'NE' else x1 + 3
+        ty_ = y1 + 16 if corner == 'NE' else y1 + h_ - 10
+        o.append(T(tx_, ty_, BRAND, 6, 'end' if corner == 'NE' else 'start', 'bold', '#111'))
+        plus_x = x1 + w_ - 4 if corner == 'NE' else x1 + 4
+        minus_x = x1 + 4 if corner == 'NE' else x1 + w_ - 4
+        o.append(T(plus_x, y1 + h_ / 2 + 3, '+', 9, 'end' if corner == 'NE' else 'start', 'bold', '#d62828'))
+        o.append(T(minus_x, y1 + h_ / 2 + 3, '−', 9, 'start' if corner == 'NE' else 'end', 'bold', '#111'))
+    rows_seen = []
+    for r, c in seq:
+        if r not in rows_seen:
+            rows_seen.append(r)
+    for r in rows_seen:
+        corner = corners[[cell for cell in seq if cell[0] == r][0]]
+        ty_ = dy0 + r * (MOD_L + MGAP) * dk + MOD_L * dk / 2 + 3
+        o.append(T(dx0 + 5 * (MOD_W + MGAP) * dk + 8, ty_, 'AS DELIVERED (LABEL NE)' if corner == 'NE' else 'ROTATED 180° (LABEL SW)', 7, weight='bold',
+                   fill='#111' if corner == 'NE' else '#b45309'))
+    nyy = dy0 + 4 * (MOD_L + MGAP) * dk + 16
+    o.append(TL(dx0 - 40, nyy, [f'◥ / ◣ = {BRAND} LABEL CORNER. IN EVERY ROW THE LABEL SITS ON THE MODULE\'S',
+                                '+ SIDE, SO THE LABEL CORNER ALTERNATES ROW BY ROW: AS DELIVERED (NE) /',
+                                'ROTATED 180° (SW). CHECK THE FIRST MODULE: IF ITS + LEAD IS NOT ON THE LABEL',
+                                'SIDE, SWAP NE ↔ SW ON EVERY ROW — THE ALTERNATION STAYS THE SAME.'], 6.8))
     leg = [
         (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2, fill=SCOL['S1'] + '33'), 'MODULE (TINT = STRING)'),
+        (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1) + corner_mark(x - 9, y - 6, x + 9, y + 6, 'NE', 6), f'{BRAND} LABEL CORNER (NE / SW = ROTATED 180°)'),
         (lambda x, y: L(x - 20, y, x + 20, y, SCOL['S5'], 1.6), 'STRING WIRING ORDER'),
         (lambda x, y: C(x - 10, y, 6, '#000', 0.8, '#fff') + T(x - 10, y + 3, '+', 8, 'middle', 'bold') + C(x + 10, y, 6, '#000', 0.8, '#fff') + T(x + 10, y + 3, '−', 8, 'middle', 'bold'), 'STRING + / − TERMINAL'),
         (lambda x, y: R(x - 20, y - 3, 40, 6, stroke='#7c2d12', fill=TRAY_COL, sw=0.8), 'DC CABLE TRAY 100 x 50 MM'),
