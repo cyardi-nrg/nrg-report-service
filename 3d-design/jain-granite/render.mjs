@@ -1,8 +1,12 @@
-// Version: v1 (2026-10-28) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
+// Version: v2 (2026-10-28) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
 // Jain Granite & Marble from the built viewer, using headless Chromium (Playwright) + ffmpeg.
 //   node build.mjs && node render.mjs                 -> stills + 1080p video
 //   node render.mjs --stills                          -> stills only
 //   node render.mjs --video --fps 30 --size 1920x1080 -> video only
+//   node render.mjs --rebrand output/<older>.mp4      -> lay this version's brand box + footnote over an
+//        older video (same camera path, only the overlay changed) instead of re-rendering ~1 hour.
+//        The brand box and footnote are opaque in v2+, so they fully hide the older ones.
+// v2: adds --rebrand (used to make the v2 video from v1: only the logo changed).
 import { spawn } from 'node:child_process';
 import { mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,7 +17,7 @@ const require = createRequire(import.meta.url);
 let playwright;
 try { playwright = require('playwright'); } catch { playwright = require('/opt/node22/lib/node_modules/playwright'); }
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, 'output');
 mkdirSync(join(out, 'stills'), { recursive: true });
@@ -25,6 +29,7 @@ const doVideo = args.includes('--video') || !args.includes('--stills');
 const fps = Number(opt('--fps', 30));
 const [W, H] = opt('--size', '1920x1080').split('x').map(Number);
 const only = opt('--only', null);          // e.g. --only 10,20,35  -> test frames at those seconds
+const rebrand = opt('--rebrand', null);    // older video to re-brand
 
 const url = pathToFileURL(join(out, `Jain-Granite_3D-Viewer_${VERSION}.html`)).href + '?capture=1';
 const browser = await playwright.chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -42,6 +47,26 @@ if (only) {
     console.log('test frame', t);
   }
   await browser.close();
+  process.exit(0);
+}
+
+if (rebrand) {
+  // transparent full-frame PNG holding only the brand box and the footnote, exactly as the page lays them out
+  const png = join(out, `_overlay_${W}x${H}_${VERSION}.png`);
+  await page.evaluate(() => {
+    for (const id of ['c', 'labels', 'caption', 'spec', 'compass']) document.getElementById(id).style.visibility = 'hidden';
+    document.documentElement.style.background = document.body.style.background = 'transparent';
+  });
+  await page.screenshot({ path: png, omitBackground: true });
+  await browser.close();
+  const file = join(out, `Jain-Granite_Walkaround_${H}p_${VERSION}.mp4`);
+  await new Promise((res, rej) => spawn('ffmpeg', ['-y', '-loglevel', 'error', '-i', rebrand, '-i', png,
+    '-filter_complex', `[0:v]scale=${W}:${H}[b];[b][1:v]overlay=0:0:format=auto`,
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', H >= 1080 ? '21' : '22', '-maxrate', H >= 1080 ? '3.2M' : '1.8M', '-bufsize', '6M',
+    '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+    '-metadata', `title=Jain Granite & Marble 100 kWp rooftop solar walk-around ${VERSION}`, '-metadata', 'artist=NRG Technologists', file],
+  { stdio: 'inherit' }).on('close', (c) => (c === 0 ? res() : rej(new Error('ffmpeg exit ' + c)))));
+  console.log('video', file, (statSync(file).size / 1e6).toFixed(1), 'MB');
   process.exit(0);
 }
 

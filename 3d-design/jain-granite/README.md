@@ -1,17 +1,19 @@
 # Jain Granite & Marble — 100 kWp rooftop: 3D views + walk-around video
 
-Version: **v1 (2026-10-28)** · NRG Technologists
+Version: **v2 (2026-10-28)** · NRG Technologists
+
+**v2 changes:** the real NRG Technologists Pvt. Ltd. logo replaces the v1 placeholder sun mark (viewer, stills, both videos). Nothing else changed: same model and same camera path. The v1 files stay in `output/` for reference.
 
 Standalone deliverable. **Not wired into the SolarConnect app yet**; that is a later step.
 
-## What is in `output/`
+## What is in `output/` (use the `_v2` files)
 
 | File | What it is |
 |---|---|
-| `Jain-Granite_3D-Viewer_v1.html` | Interactive 3D model in a single file that works offline. Open it in Chrome/Edge/Safari on a laptop or phone. Drag to rotate, scroll or pinch to zoom, right-drag or two fingers to pan. The view buttons are Aerial / Top / West / East / Walkway / Inverter / Ground. **▶ Walk-around** plays the guided tour. |
-| `Jain-Granite_Walkaround_1080p_v1.mp4` | 58 s walk-around video (H.264, 1920×1080, 22 MB) for presentations and Drive. Sequence: aerial establishing shot, 360° orbit, top view (north up, matches the layout photo), walk along the rooftop walkway, inverter / ACDB / earth pits, closing aerial. |
-| `Jain-Granite_Walkaround_720p-WhatsApp_v1.mp4` | Same video at 1280×720, 10 MB. Under WhatsApp's 16 MB video limit, so send this one to the client. |
-| `stills/Jain-Granite_3D_0X-<view>_v1.png` | 8 still renders (1920×1080) for the proposal / WhatsApp. |
+| `Jain-Granite_3D-Viewer_v2.html` | Interactive 3D model in a single file that works offline. Open it in Chrome/Edge/Safari on a laptop or phone. Drag to rotate, scroll or pinch to zoom, right-drag or two fingers to pan. The view buttons are Aerial / Top / West / East / Walkway / Inverter / Ground. **▶ Walk-around** plays the guided tour. |
+| `Jain-Granite_Walkaround_1080p_v2.mp4` | 58 s walk-around video (H.264, 1920×1080, 22 MB) for presentations and Drive. Sequence: aerial establishing shot, 360° orbit, top view (north up, matches the layout photo), walk along the rooftop walkway, inverter / ACDB / earth pits, closing aerial. |
+| `Jain-Granite_Walkaround_720p-WhatsApp_v2.mp4` | Same video at 1280×720, 10 MB. Under WhatsApp's 16 MB video limit, so send this one to the client. |
+| `stills/Jain-Granite_3D_0X-<view>_v2.png` | 8 still renders (1920×1080) for the proposal / WhatsApp. |
 
 ## Inputs used
 
@@ -36,13 +38,16 @@ Standalone deliverable. **Not wired into the SolarConnect app yet**; that is a l
 
 ```bash
 cd 3d-design/jain-granite
-node build.mjs                    # -> output/Jain-Granite_3D-Viewer_v1.html (three.js r158 inlined)
+node build.mjs                    # -> output/Jain-Granite_3D-Viewer_v2.html (three.js r158 + logo inlined)
 node render.mjs                   # -> stills + 1080p MP4  (Playwright Chromium + ffmpeg)
 node render.mjs --stills          # stills only
 node render.mjs --video --size 1280x720   # smaller video, rendered directly
-# WhatsApp copy from the 1080p master (what v1 used):
-ffmpeg -i output/Jain-Granite_Walkaround_1080p_v1.mp4 -vf scale=1280:720:flags=lanczos -c:v libx264 -preset slow \
-  -crf 25 -maxrate 1.6M -bufsize 3.2M -pix_fmt yuv420p -movflags +faststart output/Jain-Granite_Walkaround_720p-WhatsApp_v1.mp4
+# Only the overlay changed (logo, footnote)? Re-brand the older video in ~1.5 min instead of a ~1 h re-render.
+# This is how the v2 video was made from v1:
+node render.mjs --rebrand output/Jain-Granite_Walkaround_1080p_v1.mp4   # -> output/Jain-Granite_Walkaround_1080p_v2.mp4
+# WhatsApp copy from the 1080p master:
+ffmpeg -i output/Jain-Granite_Walkaround_1080p_v2.mp4 -vf scale=1280:720:flags=lanczos -c:v libx264 -preset slow \
+  -crf 25 -maxrate 1.6M -bufsize 3.2M -pix_fmt yuv420p -movflags +faststart output/Jain-Granite_Walkaround_720p-WhatsApp_v2.mp4
 node render.mjs --only 12,36      # quick test frames at those seconds
 ```
 
@@ -50,7 +55,8 @@ Increase `VERSION` in `build.mjs`, `render.mjs` and the template together when y
 
 ## Files
 
-- `src/viewer.template.html`: the model, materials, camera path, captions, viewer UI (v1)
+- `src/viewer.template.html`: the model, materials, camera path, captions, viewer UI (v2)
+- `src/assets/nrg-logo.png`: NRG Technologists Pvt. Ltd. logo (from the owner, resized to 240 px tall), embedded by `build.mjs`
 - `src/vendor/three-r158.min.js`: three.js (MIT, see `three-LICENSE.txt`)
 - `build.mjs`: inlines three.js into the template and writes the viewer
 - `render.mjs`: renders the stills and video from the viewer in headless Chromium and pipes the frames to ffmpeg

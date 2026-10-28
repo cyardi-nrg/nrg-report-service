@@ -1,10 +1,10 @@
 <!doctype html>
 <!--
   Jain Granite & Marble — 100 kWp rooftop solar — 3D viewer + walk-around path
-  Version: v1 (2026-10-28) · NRG Technologists
+  Version: v2 (2026-10-28) · NRG Technologists — v2: real NRG logo in the brand box (v1 had a placeholder sun mark)
   Geometry: CEIG drawing set v6 (Jain-Granite_02 Equipment / 04 Walkway / 05 Cable-tray layouts)
             + client layout photo (north up, roof sloping east-west) + owner: warehouse 8 m high.
-  Built by build.mjs, which inlines three.js r158 where the THREE placeholder sits below, so the
+  Built by build.mjs, which inlines three.js r158 (THREE placeholder) and the logo (LOGO placeholder), so the
   output HTML is a single file that opens offline (double-click, or send on WhatsApp/Drive).
   URL options:  ?capture=1  -> no buttons, used by render.mjs for the video + stills
 -->
@@ -25,11 +25,12 @@
   .lbl::after { content:""; position:absolute; left:50%; top:100%; width:1px; height:1.1em; background:#0f172acc; }
   .lbl small { display:block; font-weight:400; opacity:.85; font-size:.85em; }
 
-  #brand { position:absolute; left:2.2vh; top:2.2vh; display:flex; align-items:center; gap:1.2vh; background:#ffffffe8;
-           padding:1vh 1.6vh 1vh 1.2vh; border-radius:1vh; box-shadow:0 .4vh 1.6vh #0f172a22; }
-  #brand svg { width:4.6vh; height:4.6vh; }
-  #brand .n { font-weight:800; font-size:2.3vh; letter-spacing:.06em; line-height:1; }
-  #brand .s { font-size:1.25vh; color:var(--muted); letter-spacing:.12em; margin-top:.45vh; }
+  /* opaque and at least 37.5vh wide: render.mjs --rebrand lays this box over older renders, so it must hide the old one */
+  #brand { position:absolute; left:2.2vh; top:2.2vh; display:flex; align-items:center; gap:1.6vh; background:#fff; min-width:37.5vh;
+           padding:1vh 2vh 1vh 1.2vh; border-radius:1vh; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #brand img { height:10.5vh; width:auto; display:block; }
+  #brand .n { font-weight:800; font-size:2.6vh; letter-spacing:.08em; line-height:1; color:#0000fe; }
+  #brand .s { font-size:1.4vh; color:var(--muted); letter-spacing:.12em; margin-top:.7vh; }
 
   #caption { position:absolute; left:2.2vh; bottom:3vh; max-width:70%; background:#0f172ad9; color:#fff; padding:1.4vh 2.2vh 1.5vh;
              border-radius:1vh; border-left:.6vh solid var(--accent); transition:opacity .5s; }
@@ -40,7 +41,7 @@
           line-height:1.55; box-shadow:0 .4vh 1.6vh #0f172a22; }
   #spec b { font-size:1.75vh; }
   #compass { position:absolute; right:2.6vh; bottom:3vh; width:8vh; height:8vh; }
-  #note { position:absolute; right:12vh; bottom:3.4vh; font-size:1.15vh; color:#0f172a; background:#ffffffb0; padding:.4vh .8vh; border-radius:.5vh; }
+  #note { position:absolute; right:12vh; bottom:3.4vh; font-size:1.15vh; color:#0f172a; background:#fff; padding:.4vh .8vh; border-radius:.5vh; }
 
   #ui { position:fixed; left:50%; transform:translateX(-50%); top:1.6vh; display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
         max-width:min(760px, calc(100% - 32px)); }
@@ -53,7 +54,8 @@
   body.capture #ui, body.capture #help { display:none; }
   @media (max-width: 700px) {
     #spec { display:none; }
-    #brand { top:auto; bottom:13vh; }
+    #brand { top:auto; bottom:17vh; min-width:0; }
+    #brand img { height:8vh; }
     #ui { top:8px; }
     #ui button { padding:7px 8px; font-size:12px; }
     #caption { max-width:calc(100% - 4vh); bottom:2vh; }
@@ -67,16 +69,8 @@
   <canvas id="c"></canvas>
   <div id="labels"></div>
   <div id="brand">
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="24" cy="24" r="9" fill="#f59e0b"/>
-      <g stroke="#f59e0b" stroke-width="3.2" stroke-linecap="round">
-        <line x1="24" y1="3" x2="24" y2="9"/><line x1="24" y1="39" x2="24" y2="45"/>
-        <line x1="3" y1="24" x2="9" y2="24"/><line x1="39" y1="24" x2="45" y2="24"/>
-        <line x1="9.2" y1="9.2" x2="13.4" y2="13.4"/><line x1="34.6" y1="34.6" x2="38.8" y2="38.8"/>
-        <line x1="9.2" y1="38.8" x2="13.4" y2="34.6"/><line x1="34.6" y1="13.4" x2="38.8" y2="9.2"/>
-      </g>
-    </svg>
-    <div><div class="n">NRG TECHNOLOGISTS</div><div class="s">SOLAR EPC · VADODARA</div></div>
+    <img src="/*__LOGO__*/" alt="NRG Technologists Pvt. Ltd.">
+    <div><div class="n">SOLAR EPC</div><div class="s">VADODARA · GUJARAT</div></div>
   </div>
   <div id="spec">
     <b>Jain Granite &amp; Marble</b><br>
@@ -94,7 +88,7 @@
     </g>
     <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
   </svg>
-  <div id="note">Concept visualisation · roof size &amp; equipment positions scaled from layout — verify on site · v1</div>
+  <div id="note">Concept visualisation · roof size &amp; equipment positions scaled from layout — verify on site · v2</div>
 </div>
 
 <div id="ui">
@@ -115,7 +109,7 @@
 <script>
 (function () {
 'use strict';
-var VERSION = 'v1';
+var VERSION = 'v2';
 var Q = new URLSearchParams(location.search);
 var CAPTURE = Q.has('capture');
 if (CAPTURE) document.body.classList.add('capture');
