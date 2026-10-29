@@ -1,4 +1,6 @@
-# Version: v1 (2026-10-29) — Jain Granite & Marble layout set WITH Y-CONNECTORS (3 sheets)
+# Version: v2 (2026-10-29) — L-01 now marks panel placing: mounting-set points (red dots) and the yellow
+#   ADANI label corner written on every module, plus an enlarged placing detail. L-02 / L-03 unchanged (v1).
+# Was v1 (2026-10-29) — Jain Granite & Marble layout set WITH Y-CONNECTORS (3 sheets)
 #   L-01  PANEL LAYOUT + ELECTRICAL WIRING (strings, Y-connectors, wiring diagram)
 #   L-02  WALKWAY LAYOUT
 #   L-03  CABLE TRAY (DUCTING) + CABLE LENGTHS
@@ -20,7 +22,10 @@ from generate_ceig_drawings import (T, TL, R, L, PL, C, table, compass, legend_b
                                     TRAY_COL, WALK_FILL, WALK_STROKE, CON_Y0, WALK_W, SOUTH_Y0, LADDER, LA,
                                     BRAND, RIDGE_X)
 
-VERSION = 'v1'
+VERSION = 'v1'          # L-02, L-03
+VERSION_L01 = 'v2'      # L-01 (panel placing marks added)
+LABEL_YELLOW = '#fde047'
+SET_RED = '#d62828'
 g.P['date'] = '29-10-26'
 
 # ---------------------------------------------------------------- Y design data
@@ -93,15 +98,42 @@ def ysym(x, y, pol, r=6):
             L(x, y, x, y + r * 0.55, '#fff', 1.2))
 
 
-def title(dwg_no, name, scale, sheet):
+def title(dwg_no, name, scale, sheet, ver=VERSION):
     tb = g.title_block(dwg_no, name, scale)
     tb = tb.replace(f'NRG CEIG drawing set {g.VERSION} — generated 27-10-2026',
-                    f'NRG layout set with Y-connectors {VERSION} — generated 29-10-2026')
+                    f'NRG layout set with Y-connectors — {dwg_no} {ver} — generated 29-10-2026')
     return tb.replace('01 OF 01', f'{sheet:02d} OF 03')
 
 
 def page(body, name):
     g.page(body, name)
+
+
+def label_mark(x1, y1, x2, y2, corner, s=7, fs=4.4, inset=3.0):
+    """yellow brand-label corner with the brand name written beside it (NE = as delivered, SW = rotated 180°)"""
+    if corner == 'NE':
+        pts = f'{x2},{y1} {x2-s},{y1} {x2},{y1+s}'
+        txt = T(x2 - inset, y1 + s + fs + 0.8, BRAND, fs, 'end', 'bold', '#111')
+    else:
+        pts = f'{x1},{y2} {x1+s},{y2} {x1},{y2-s}'
+        txt = T(x1 + inset, y2 - s - 1.6, BRAND, fs, 'start', 'bold', '#111')
+    return f'<polygon points="{pts}" fill="{LABEL_YELLOW}" stroke="#111" stroke-width="0.5"/>' + txt
+
+
+def mounting_points(P_, r_dot=1.6):
+    """80 x 100 trapezoidal mounting sets: on every long-edge line of each row, at 1/4 and 3/4 of the
+    module length (same rule as the landscape / portrait cost comparison). returns (svg, count)"""
+    o, n = [], 0
+    for bx in BLOCK_X:
+        for r in range(8):
+            y0 = BLOCK_Y + r * (MOD_L + MGAP)
+            for li in range(6):
+                x = bx + li * (MOD_W + MGAP) - MGAP / 2
+                for fy in (0.25, 0.75):
+                    px, py = P_(x, y0 + MOD_L * fy)
+                    o.append(C(px, py, r_dot, '#7f1d1d', 0.4, SET_RED))
+                    n += 1
+    return ''.join(o), n
 
 
 def strings_on_plan(P_, marks=True):
@@ -117,7 +149,7 @@ def strings_on_plan(P_, marks=True):
                 for (r, c), corner in label_corners(cells).items():
                     x1, y1 = P_(bx + c * (MOD_W + MGAP), BLOCK_Y + r * (MOD_L + MGAP))
                     x2, y2 = P_(bx + c * (MOD_W + MGAP) + MOD_W, BLOCK_Y + r * (MOD_L + MGAP) + MOD_L)
-                    o.append(corner_mark(x1, y1, x2, y2, corner))
+                    o.append(label_mark(x1, y1, x2, y2, corner))
     for m, sn, sf, sl, gap, rp, rm in mppt_pairs():
         tx = TRAY_GAP_X[gap]
         for row, pol in ((rp, '+'), (rm, '−')):
@@ -153,6 +185,8 @@ def sheet_l01():
     pl, P_ = g.plan(ox, oy, k, labels=False, string_colours=True)
     o.append(pl)
     o.append(g.draw_trays(P_))
+    ms, n_sets = mounting_points(P_)
+    o.append(ms)
     o.append(strings_on_plan(P_))
     for b, bx in enumerate(BLOCK_X):
         for half in range(2):
@@ -239,6 +273,42 @@ def sheet_l01():
                               '30.1 A THEY WILL CARRY HERE. BUY ≥ 40 A, SAME MAKE AS THE MODULE',
                               'CONNECTORS (MIXED MAKES = HOT JOINTS).'], 6.8, weight='bold', fill='#b91c1c'))
 
+    # ---- detail B: panel placing (S1, rows 1-2 of block 1, enlarged)
+    bk = 24.0
+    bx0, by0 = 985, y + 78
+    o.append(T(bx0 + 70, by0 - 30, 'DETAIL B — PANEL PLACING (S1, ROWS 1–2, BLOCK 1)', 8.5, 'middle', 'bold'))
+    o.append(T(bx0 + 70, by0 - 19, 'LANDSCAPE: LONG SIDE N–S, ALONG THE RIDGE', 6.8, 'middle'))
+    seq = snake_cells(0, 0)
+    corners = label_corners(seq)
+    for (r, c), corner in corners.items():
+        if r > 1:
+            continue
+        x1 = bx0 + c * (MOD_W + MGAP) * bk
+        y1 = by0 + r * (MOD_L + MGAP) * bk
+        w_, h_ = MOD_W * bk, MOD_L * bk
+        o.append(R(x1, y1, w_, h_, stroke='#1f3bb8', sw=1, fill=SCOL['S1'] + '22'))
+        o.append(label_mark(x1, y1, x1 + w_, y1 + h_, corner, 9, 5.6, 5.0))
+        o.append(T(x1 + w_ - 3 if corner == 'NE' else x1 + 3, y1 + h_ / 2 + 3, '+', 9, 'end' if corner == 'NE' else 'start', 'bold', PLUS_COL))
+        o.append(T(x1 + 3 if corner == 'NE' else x1 + w_ - 3, y1 + h_ / 2 + 3, '−', 9, 'start' if corner == 'NE' else 'end', 'bold', '#111'))
+    for r in range(2):
+        for li in range(6):
+            for fy in (0.25, 0.75):
+                o.append(C(bx0 + (li * (MOD_W + MGAP) - MGAP / 2) * bk, by0 + (r * (MOD_L + MGAP) + MOD_L * fy) * bk, 2.6, '#7f1d1d', 0.5, SET_RED))
+        corner = corners[[cell for cell in seq if cell[0] == r][0]]
+        o.append(T(bx0 + 5 * (MOD_W + MGAP) * bk + 6, by0 + (r * (MOD_L + MGAP) + MOD_L / 2) * bk + 3,
+                   'ROW %d: AS DELIVERED' % (r + 1) if corner == 'NE' else 'ROW %d: ROTATED 180°' % (r + 1), 6.8, weight='bold',
+                   fill='#111' if corner == 'NE' else '#b45309'))
+    dy2 = by0 + 2 * (MOD_L + MGAP) * bk
+    o.append(dim_h(bx0, bx0 + MOD_W * bk, dy2 + 12, '1134'))
+    o.append(L(bx0 - 10, by0, bx0 - 10, by0 + MOD_L * bk, '#d62828', 0.8) + T(bx0 - 13, by0 + MOD_L * bk / 2, '2382', 7, 'middle', fill='#d62828', rot=-90))
+    o.append(TL(bx0 - 40, dy2 + 34, [f'● = MOUNTING SET (80 x 100 TRAPEZOIDAL SECTION) ON EVERY LONG-EDGE LINE,',
+                                     '    AT ¼ AND ¾ OF THE MODULE LENGTH (≈ 595 MM FROM EACH END). INNER SETS',
+                                     '    CLAMP TWO MODULES (MID CLAMP), END SETS ONE (END CLAMP).',
+                                     f'◥ = {BRAND} LABEL CORNER, ON THE MODULE\'S + SIDE: TOP RIGHT (NE) AS',
+                                     '    DELIVERED IN ROWS 1, 3, 5, 7 OF BLOCKS 1 & 3; BOTTOM LEFT (SW) =',
+                                     '    MODULE ROTATED 180° IN THE OTHER ROWS (SEE PLAN FOR EACH BLOCK).',
+                                     f'MOUNTING SETS ON THIS ROOF: {n_sets} NOS (4 BLOCKS x 8 ROWS x 6 LINES x 2).'], 6.4))
+
     # ---- wiring diagram (electrical) under the plan
     wx, wy = 150, 862
     o.append(T(wx, wy, 'ELECTRICAL WIRING DIAGRAM — STRINGS → Y-CONNECTORS → 6 SQ MM HOME RUN → GW80K-MT', 9, weight='bold'))
@@ -267,7 +337,8 @@ def sheet_l01():
                            'INVERTER NOW MONITORS PER MPPT, NOT PER STRING. LENGTHS SCALED FROM THE LAYOUT IMAGE (*) — VERIFY ON SITE.'], 7.6))
     leg = [
         (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1.2, fill=SCOL['S1'] + '33'), 'MODULE (TINT = STRING)'),
-        (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1) + corner_mark(x - 9, y - 6, x + 9, y + 6, 'NE', 6), f'{BRAND} LABEL CORNER (NE / SW = ROTATED 180°)'),
+        (lambda x, y: R(x - 9, y - 6, 18, 12, stroke='#1f3bb8', sw=1) + label_mark(x - 9, y - 6, x + 9, y + 6, 'NE', 6, 0.1), f'{BRAND} LABEL CORNER (NE / SW = ROTATED 180°)'),
+        (lambda x, y: C(x - 10, y, 2.2, '#7f1d1d', 0.5, SET_RED) + C(x + 10, y, 2.2, '#7f1d1d', 0.5, SET_RED), 'MOUNTING SET (80 x 100 SECTION)'),
         (lambda x, y: L(x - 20, y, x + 20, y, SCOL['S5'], 1.6), 'STRING WIRING ORDER'),
         (lambda x, y: C(x - 10, y, 6, '#000', 0.8, '#fff') + T(x - 10, y + 3, '+', 8, 'middle', 'bold') + C(x + 10, y, 6, '#000', 0.8, '#fff') + T(x + 10, y + 3, '−', 8, 'middle', 'bold'), 'STRING + / − TERMINAL'),
         (lambda x, y: ysym(x - 10, y, '+') + ysym(x + 10, y, '−'), 'Y-CONNECTOR + / − (≥ 40 A)'),
@@ -280,8 +351,8 @@ def sheet_l01():
     o.append(tb)
     tb, y = system_block(y + 12)
     o.append(tb)
-    o.append(title('L-01', 'PANEL LAYOUT + ELECTRICAL WIRING (Y)', '1:200 (A3)', 1))
-    page(''.join(o), 'Jain-Granite_L01_Panel-Layout-Wiring-Y_' + VERSION)
+    o.append(title('L-01', 'PANEL LAYOUT + ELECTRICAL WIRING (Y)', '1:200 (A3)', 1, VERSION_L01))
+    page(''.join(o), 'Jain-Granite_L01_Panel-Layout-Wiring-Y_' + VERSION_L01)
 
 
 # ================================================================= L-02  WALKWAY LAYOUT
