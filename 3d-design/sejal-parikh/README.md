@@ -19,7 +19,8 @@ Standalone deliverable. **Not wired into the SolarConnect app yet.**
 | `Sejal-Parikh_3D-Viewer_v1.html` | Interactive 3D model in a single file that works offline. Drag to rotate, scroll or pinch to zoom. Views: Aerial / Top / Structure / Terrace / Fresh-air unit / Ground. **▶ Walk-around** plays the tour. **AC & services** shows or hides the equipment. |
 | `Sejal-Parikh_Walkaround_1080p_v1.mp4` | 52 s walk-around. Sequence: aerial, 360° orbit, top view (north up), down between rows 3 and 4 to show the 4 ft front legs, fresh-air-unit area, closing aerial. |
 | `Sejal-Parikh_Walkaround_720p-WhatsApp_v1.mp4` | Same video at 720p, for WhatsApp. |
-| `stills/Sejal-Parikh_3D_0X-<view>_v1.png` | 7 still renders (1920×1080). |
+| `stills/Sejal-Parikh_3D_NN-<view>_v1.png` | 15 still renders (1920×1080): 4 aerials (SE, NW, NE, SW), top view with and without row labels, structure, terrace, fresh-air-unit area, row close-up, north strip (AC/VRF), south and east elevations (telephoto, trees hidden), approach and street views. |
+| `../Sejal-Parikh_3D-Views-Overview_v1.png` | All 15 views on one sheet. |
 
 ## Inputs used
 

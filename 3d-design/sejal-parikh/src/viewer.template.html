@@ -326,6 +326,7 @@ function extrude(shape, depth, mat, y) {
   m.rotation.x = -Math.PI / 2; m.position.y = y || 0; m.castShadow = m.receiveShadow = true; return m;
 }
 var BB = (function () { var x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; OUTER.forEach(function (p) { var v = P(p[0], p[1]); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); z0 = Math.min(z0, v.z); z1 = Math.max(z1, v.z); }); return { x0: x0, x1: x1, z0: z0, z1: z1 }; })();
+var TREES = [];                         // hidden in the elevation stills (views with notrees: true)
 (function () {
   var g = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), M.ground); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; site.add(g);
   var cx0 = BB.x0 - 5, cx1 = BB.x1 + 5, cz0 = BB.z0 - 4, cz1 = BB.z1 + 8;
@@ -356,7 +357,7 @@ var BB = (function () { var x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; OUTER.forE
       leaves.setMatrixAt(k * 2 + j, m4); leaves.setColorAt(k * 2 + j, col.setHSL(0.24 + r() * 0.06, 0.38, 0.24 + r() * 0.08));
     }
   });
-  site.add(trunks); site.add(leaves);
+  site.add(trunks); site.add(leaves); TREES.push(trunks, leaves);
 })();
 
 // ======================================================================= house (G+1) + terrace + 4 ft parapet
@@ -547,6 +548,15 @@ var VIEWS = {
   terrace:   { p: [-8.9, 8.65, -2.5], t: [3, 7.9, -4], cap: ['On the terrace', 'Walking space under and between the rows'], lab: ['r2', 'r3', 'odu'] },
   tfa:       { p: [5, 14, 12.5],  t: [-3, 7.6, 2.6], cap: ['Fresh-air unit area', '4 modules left out beside the TFA unit, its shed and 2250 CFM duct'], lab: ['tfa', 'tfaodu', 'gap'] },
   ground:    { p: [-12, 1.7, 30], t: [0, 6, 0],     cap: ['Approach view', 'From the gate at eye level'], lab: [] },
+  // stills only (no button). fov < 42 = telephoto, so the elevations read almost like flat drawings
+  aerialne:  { p: [30, 24, -28],  t: [0, 6, 0],     cap: ['Mrs. Sejal Parikh Residence — 42.48 kWp', 'Aerial view from the north-east'], lab: ['odu'] },
+  aerialsw:  { p: [-30, 24, 30],  t: [0, 6, 0],     cap: ['Mrs. Sejal Parikh Residence — 42.48 kWp', 'Aerial view from the south-west'], lab: ['tfa'] },
+  southelev: { p: [0, 17, 95],    t: [0, 7.0, 0], fov: 15, notrees: true, cap: ['South elevation', 'All 59 modules face south at 15° on the elevated structure'], lab: [] },
+  eastelev:  { p: [95, 13, 0],    t: [0, 7.4, 0], fov: 15, notrees: true, cap: ['East elevation', 'Row profiles: front leg 4 ft, back leg ≈ 5.5 ft, above the 4 ft parapet'], lab: ['parapet'] },
+  rowdetail: { p: [8.0, 9.7, 10.6], t: [4.5, 8.2, 4.5], cap: ['Module rows — close-up', '720 Wp modules on GI purlins and rafters, concrete pedestals under each leg'], lab: ['r4', 'r5'] },
+  northstrip:{ p: [-12.5, 11.2, -10.4], t: [2, 7.6, -9.8], cap: ['North strip', 'VRF units, heat pumps and 7 AC outdoor units along the north parapet, clear of row 1'], lab: ['vrf', 'hp', 'odu'] },
+  planclean: { p: [0, 58, 6],     t: [0, 7, -0.4],  cap: ['Top view · north ↑', '59 × 720 Wp = 42.48 kWp'], lab: [] },
+  groundse:  { p: [12, 1.7, 33],  t: [0, 7, 0],     cap: ['Street view', 'From the south-east at eye level — the 4 ft parapet hides the panels from the road'], lab: [] },
 };
 
 // ======================================================================= walk-around camera path (seconds)
@@ -651,8 +661,10 @@ function pan(dx, dy) {
   fwd.y = 0; fwd.normalize();
   ctl.target.addScaledVector(right, -dx * k).addScaledVector(fwd, dy * k);
 }
+function setFov(f) { if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); } }
+function showTrees(on) { TREES.forEach(function (t) { t.visible = on; }); }
 function flyTo(name) {
-  var v = VIEWS[name]; stopAuto();
+  var v = VIEWS[name]; stopAuto(); setFov(42); showTrees(true);
   anim = { from: { p: camera.position.clone(), g: ctl.target.clone() }, to: { p: new THREE.Vector3().fromArray(v.p), g: new THREE.Vector3().fromArray(v.t) }, t0: performance.now(), dur: 1400 };
   setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || null;
 }
@@ -667,7 +679,7 @@ window.addEventListener('resize', resize); resize();
 function setCam(p, g) { camera.position.copy(p); camera.lookAt(g); cTarget.copy(g); }
 function renderNow() { camera.updateMatrixWorld(); updateLabels(); updateCompass(); renderer.render(scene, camera); }
 function applyTime(t) {
-  var s = pathAt(t); setCam(s.p, s.g);
+  var s = pathAt(t); setFov(42); showTrees(true); setCam(s.p, s.g);
   var c = captionAt(t); setCaption(c[2], c[3]); visibleLabels = c[4];
 }
 
@@ -675,7 +687,7 @@ function applyTime(t) {
 window.__nrg3d = {
   version: VERSION, duration: DURATION, views: Object.keys(VIEWS),
   time: function (t) { applyTime(t); renderNow(); return true; },
-  view: function (name) { var v = VIEWS[name]; setCam(new THREE.Vector3().fromArray(v.p), new THREE.Vector3().fromArray(v.t)); setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || []; renderNow(); return true; },
+  view: function (name) { var v = VIEWS[name]; setFov(v.fov || 42); showTrees(!v.notrees); setCam(new THREE.Vector3().fromArray(v.p), new THREE.Vector3().fromArray(v.t)); setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || []; renderNow(); return true; },
 };
 
 if (CAPTURE) {
