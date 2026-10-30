@@ -1,4 +1,4 @@
-// Version: v1 (2026-10-30) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
+// Version: v2 (2026-10-30) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
 // the Architect's Residence from the built viewer, using headless Chromium (Playwright) + ffmpeg.
 // Same script as ../jain-granite/render.mjs, with this project's file names.
 //   node build.mjs && node render.mjs                 -> stills + 1080p video
@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 let playwright;
 try { playwright = require('playwright'); } catch { playwright = require('/opt/node22/lib/node_modules/playwright'); }
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, 'output');
 mkdirSync(join(out, 'stills'), { recursive: true });

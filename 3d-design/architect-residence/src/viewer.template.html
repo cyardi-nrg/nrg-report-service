@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Architect's Residence (G+1) — 15 solar modules — 3D viewer
-  Version: v1 (2026-10-30) · NRG Technologists
+  Version: v2 (2026-10-30) · NRG Technologists — v2: fewer legs; the elevated array rests on the west parapet + terrace-room wall only
   Geometry: owner's design screenshots (top view + 4 obliques): 6 modules (2 x 3 portrait) on an elevated structure over
             the main roof, 9 modules (2 x 5, one bay open) on the terrace-room roof, both at the same level.
   House facade is a representative contemporary design (owner: "2-storeyed residence of an architect").
@@ -89,7 +89,7 @@
     </g>
     <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
   </svg>
-  <div id="note">Concept visualisation · layout scaled from the design screenshots; heights, tilt &amp; module size assumed — verify on site · v1</div>
+  <div id="note">Concept visualisation · layout scaled from the design screenshots; heights, tilt &amp; module size assumed — verify on site · v2</div>
 </div>
 
 <div id="ui">
@@ -108,7 +108,7 @@
 <script>
 (function () {
 'use strict';
-var VERSION = 'v1';
+var VERSION = 'v2';
 var Q = new URLSearchParams(location.search);
 var CAPTURE = Q.has('capture');
 if (CAPTURE) document.body.classList.add('capture');
@@ -414,33 +414,45 @@ var tableInfo = {};
       var zl = (r - (T.rows - 1) / 2) * (MOD_L + GAP), xl = (cc - (T.cols - 1) / 2) * (MOD_W + GAP);
       m4.compose(new THREE.Vector3(c.x + xl, hc + -zl * sinT, c.z + zl * cosT), q, one); mods.setMatrixAt(k++, m4);
     }
-    // structure: rafters + legs (front / middle / back) per frame, purlins, braces, pedestals
+    // structure (v2, owner: "reduce the number of legs; the ones on the lower terrace take on the wall and the parapet only")
+    // modules on purlins (E-W) on rafters (N-S, under every module joint) on two E-W beams (front + back) on the supports
     var zF = c.z + (Lh - 0.35) * cosT, zB = c.z - (Lh - 0.35) * cosT;
     function hR(z) { return low - 0.12 + (c.z + Lh * cosT - z) * tanT; }    // top of rafter under the modules
-    var nf = T.cols + 1, xs = [];
-    for (var f = 0; f < nf; f++) xs.push(c.x - Wd / 2 + 0.25 + (Wd - 0.5) * f / (nf - 1));
-    xs.forEach(function (x) {
-      var raf = box(0.06, 0.08, 2 * Lh / cosT * cosT + 0.1, legMat); raf.rotation.x = TILT; raf.position.set(x, hR(c.z) - 0.04, c.z); bos.add(raf);
-      [zF, c.z, zB].forEach(function (z) {
-        var lh = hR(z) - floor, leg = box(T.elevated ? 0.09 : 0.06, lh, T.elevated ? 0.09 : 0.06, legMat); leg.position.set(x, floor + lh / 2, z); bos.add(leg);
-        var ped = box(0.3, 0.15, 0.3, pedMat); ped.position.set(x, floor + 0.075, z); bos.add(ped);
-      });
-      bos.add(tube([new THREE.Vector3(x, floor + 0.15, zF), new THREE.Vector3(x, hR(c.z) - 0.2, c.z)], 0.025, legMat));
-      bos.add(tube([new THREE.Vector3(x, floor + 0.15, zB), new THREE.Vector3(x, hR(c.z) - 0.2, c.z)], 0.025, legMat));
-    });
+    for (var f = 0; f <= T.cols; f++) {
+      var rx = c.x - Wd / 2 + Math.min(Math.max(f * (MOD_W + GAP), 0.12), Wd - 0.12);
+      var raf = box(0.06, 0.08, 2 * Lh + 0.1, legMat); raf.rotation.x = TILT; raf.position.set(rx, hR(c.z) - 0.04, c.z); bos.add(raf);
+    }
     for (var pr = 0; pr < T.rows * 2; pr++) {
       var z = c.z + (-Lh + (pr + 0.5) * Lh) * cosT, pu = box(Wd, 0.06, 0.05, legMat); pu.position.set(c.x, hR(z) + 0.03, z); bos.add(pu);
     }
-    if (T.elevated) {                                          // tall structure: tie beams and X-bracing between frames
-      [zF, zB].forEach(function (z) {
-        var tb = box(Wd - 0.5, 0.08, 0.08, legMat); tb.position.set(c.x, floor + 1.6, z); bos.add(tb);
-        for (var i = 0; i < xs.length - 1; i++) {
-          bos.add(tube([new THREE.Vector3(xs[i], floor + 0.2, z), new THREE.Vector3(xs[i + 1], floor + 1.55, z)], 0.02, legMat));
-          bos.add(tube([new THREE.Vector3(xs[i + 1], floor + 0.2, z), new THREE.Vector3(xs[i], floor + 1.55, z)], 0.02, legMat));
+    function beamY(z) { return hR(z) - 0.08 - 0.075; }                // centre of a 150 mm deep beam under the rafters
+    var supports, xA, xB, label;
+    if (T.elevated) {
+      // nothing stands on the lower terrace: posts on the west parapet + short posts on the terrace-room wall
+      xA = HB.x0 + 0.115; xB = P(ROOM[0], 0).x + 0.15;
+      supports = [[xA, ROOF + PARAPET, 0.1], [xB, roomTop, 0.1]];
+    } else {
+      xA = c.x - Wd / 2 + 0.3; xB = c.x + Wd / 2 - 0.3;
+      supports = [[xA, floor, 0.06], [c.x, floor, 0.06], [xB, floor, 0.06]];   // 3 frames x 2 legs = 6 legs
+    }
+    [zF, zB].forEach(function (z) {
+      var yb = beamY(z), beam = box(xB - xA + 0.2, 0.15, 0.1, legMat); beam.position.set((xA + xB) / 2, yb, z); bos.add(beam);
+      supports.forEach(function (sp) {
+        var ph = yb - 0.075 - sp[1];
+        if (ph > 0.02) { var post = box(sp[2], ph, sp[2], legMat); post.position.set(sp[0], sp[1] + ph / 2, z); bos.add(post); }
+        var bp = box(0.26, 0.02, 0.26, legMat); bp.position.set(sp[0], sp[1] + 0.01, z); bos.add(bp);           // anchored base plate
+        if (T.elevated && sp[0] === xA) {                                                              // knee brace post -> beam
+          bos.add(tube([new THREE.Vector3(xA, yb - 0.8, z), new THREE.Vector3(xA + 0.8, yb - 0.075, z)], 0.025, legMat));
         }
       });
-    }
-    tableInfo[T.id] = { c: c, top: hc, floor: floor, zF: zF, x: xs[0], frontLeg: hR(zF) - floor };
+    });
+    supports.forEach(function (sp) {                                      // bracing in the N-S plane of each support line
+      var lo = sp[1] + 0.1, hiF = beamY(zF) - 0.15, hiB = beamY(zB) - 0.15;
+      if (hiB - lo < 0.3) return;
+      bos.add(tube([new THREE.Vector3(sp[0], lo, zF), new THREE.Vector3(sp[0], hiB, zB)], 0.022, legMat));
+      if (T.elevated) bos.add(tube([new THREE.Vector3(sp[0], lo, zB), new THREE.Vector3(sp[0], hiF, zF)], 0.022, legMat));
+    });
+    tableInfo[T.id] = { c: c, top: hc, floor: floor, zF: zF, x: xA, post: beamY(zF) - 0.075 - (ROOF + PARAPET) };
   });
   site.add(mods);
 })();
@@ -449,7 +461,7 @@ var tableInfo = {};
 var LABELS = {
   tl: { p: tableInfo.L.c.clone().setY(tableInfo.L.top + 1.3), t: 'Elevated array', s: '6 modules · 2 × 3 portrait' },
   tr: { p: tableInfo.R.c.clone().setY(tableInfo.R.top + 1.3), t: 'Terrace-room roof', s: '9 modules · 2 × 5, one bay open' },
-  legs: { p: new THREE.Vector3(tableInfo.L.x, ROOF + 1.6, tableInfo.L.zF), t: 'Elevated structure', s: 'Front leg ≈ ' + (tableInfo.L.frontLeg * 3.281).toFixed(0) + ' ft · same level as the terrace-room array' },
+  legs: { p: new THREE.Vector3(tableInfo.L.x, ROOF + PARAPET + 1.2, tableInfo.L.zF), t: 'On the parapet + terrace-room wall', s: 'No legs on the lower terrace · posts ≈ ' + (tableInfo.L.post * 3.281).toFixed(0) + ' ft on the parapet' },
   room: { p: P(690, 495, ROOF + ROOM_H + 0.3), t: 'Terrace room', s: '≈ 3 m (assumed)' },
   terrace: { p: P(570, 260, ROOF + 0.6), t: 'Open terrace', s: 'North part of the roof kept free' },
   gap: { p: P(622, 570, ROOF + ROOM_H + 1.2), t: 'Bay left open', s: 'As in the design' },
@@ -497,7 +509,7 @@ var VIEWS = {
   aerial:    { p: [20, 17, 24],   t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the south-east'], lab: ['tl', 'tr'] },
   aerialnw:  { p: [-20, 18, -22], t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the north-west — open terrace in front'], lab: ['terrace', 'room'] },
   plan:      { p: [0, 40, 3],     t: [0, 7, -0.3],  cap: ['Top view · north ↑', 'Same layout as the design: 6 elevated + 9 on the terrace room'], lab: ['tl', 'tr', 'gap'] },
-  elevated:  { p: [-3.3, 8.45, -4.6], t: [-3.3, 9.4, 2.4], cap: ['Under the elevated array', 'Walk-under structure on the main roof, braced for its height'], lab: ['legs'] },
+  elevated:  { p: [-3.3, 8.45, -4.6], t: [-3.3, 9.4, 2.4], cap: ['Under the elevated array', 'Carried on the west parapet and the terrace-room wall — the lower terrace floor stays clear'], lab: ['legs'] },
   terrace:   { p: [-4.4, 8.6, -5.5], t: [1.2, 9.2, 2.2], cap: ['On the open terrace', 'Terrace room and both arrays seen from the north-west corner'], lab: ['room', 'tl', 'tr'] },
   ground:    { p: [-8.6, 1.7, 12.6], t: [0, 6.6, 0], fov: 62,   cap: ['Approach view', 'From the gate at eye level'], lab: [] },
   aerialne:  { p: [21, 17, -21],  t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the north-east'], lab: ['room'] },
@@ -557,7 +569,7 @@ var CAPS = [
   [5, 20, 'Ground + 1 residence', '6 modules on an elevated structure, 9 on the terrace-room roof', ['tl', 'tr', 'height']],
   [20, 29, 'Top view · north ↑', 'Same layout as the design', ['tl', 'tr', 'gap']],
   [29, 35, 'On the open terrace', 'North part of the roof kept free', ['room', 'tl', 'tr']],
-  [35, 42, 'Under the elevated array', 'Walk-under structure, braced for its height', ['legs']],
+  [35, 42, 'Under the elevated array', 'Carried on the parapet and the terrace-room wall — terrace floor clear', ['legs']],
   [42, 47.1, 'NRG Technologists', '15 modules · elevated rooftop structure', []],
 ];
 function captionAt(t) { for (var i = 0; i < CAPS.length; i++) if (t >= CAPS[i][0] && t < CAPS[i][1]) return CAPS[i]; return CAPS[CAPS.length - 1]; }
