@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.7.2, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.7.3, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -32,9 +32,7 @@ A job for a stage the Mac can't do yet simply **waits in the queue** and runs on
 1. **Get the folder onto the Mac.** Install **GitHub Desktop** (free, desktop.github.com) and sign in.
    - File → Clone repository → `cyardi-nrg/nrg-report-service` → Clone.
    - At the top, switch the branch to `claude/3d-design-walkthrough-videos-pim15v`.
-2. **Install Python 3.13** (the Mac's own Python is too old, and 3.14 is too new — NREL SAM has no version for it yet).
-   Open python.org/downloads/macos, find the newest **Python 3.13.x**, click its **macOS 64-bit universal2 installer**,
-   open it and click Continue / Install. (Having 3.14 as well is fine.)
+2. **Python:** nothing to install — the setup brings the worker its own private Python 3.12 (via Astral's free "uv").
 3. **Have the keys ready.** Open Railway → the SolarConnect service → **Variables**. You will copy five values:
    `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`,
    `GOOGLE_DRIVE_ROOT_FOLDER_ID` (and check `SUPABASE_URL` is the same as in the file).
