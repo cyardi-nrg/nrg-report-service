@@ -1,0 +1,20 @@
+{
+  "_note": "Version v1 (2026-10-31). Roofs read off google-satellite.webp (north up). px on that image; scale bar 215 px = 20 m -> 10.75 px/m. Heights are ASSUMED (not visible from above).",
+  "scale_px_per_m": 10.75,
+  "roofs": [
+    {"id": 1, "name": "Main shed", "type": "gable", "ridge": "E-W", "x": [430, 1232], "y": [200, 690], "ridge_y": 478, "monitor_y": [457, 500], "eave": 8.0, "slope": 0.1,
+     "note": "Ridge runs east-west with a ridge vent; slopes fall north and south. Existing solar on the south slope."},
+    {"id": 2, "name": "North-west shed", "type": "gable", "ridge": "E-W", "x": [190, 420], "y": [170, 350], "ridge_y": 260, "eave": 6.5, "slope": 0.1,
+     "note": "Slope direction to confirm (ribs appear to run north-south)."},
+    {"id": 3, "name": "West shed", "type": "gable", "ridge": "E-W", "x": [150, 365], "y": [400, 690], "ridge_y": 545, "eave": 6.5, "slope": 0.1,
+     "note": "Translucent sheet grid visible; slope direction to confirm."},
+    {"id": 4, "name": "Link lean-to (between 3 and 1)", "type": "mono", "x": [365, 430], "y": [350, 690], "high": 6.0, "low": 5.3, "down": "W",
+     "note": "Narrow lean-to against the main shed's west wall, falling west."},
+    {"id": 5, "name": "South-west lean-to", "type": "mono", "x": [150, 440], "y": [690, 775], "high": 5.0, "low": 4.3, "down": "S",
+     "note": "Lean-to along the south side of roof 3, falling south."},
+    {"id": 6, "name": "North lean-to", "type": "mono", "x": [600, 1075], "y": [140, 200], "high": 5.0, "low": 4.3, "down": "N",
+     "note": "Low structures along the main shed's north wall, falling north to the road."}
+  ],
+  "existing_solar": {"on_roof": 1, "groups_x": [[690, 862], [868, 1040], [1047, 1220]], "rows_y": [[505, 545], [555, 598], [605, 645]],
+                     "note": "Approximate: 3 rows x 3 groups on the south slope of roof 1. Count to confirm."}
+}
