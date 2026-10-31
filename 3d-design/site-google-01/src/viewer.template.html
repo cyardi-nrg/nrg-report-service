@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Site from Google Maps screenshot (site-google-01) — step 1: roofs identified (no new solar yet) — 3D viewer
-  Version: v2 (2026-10-31) · NRG Technologists — v2: north-side photo: ridge + turbo ventilators on roof 1, roof 6 heights
+  Version: v3 (2026-10-31) · NRG Technologists — v3: new building (drawings + photos), roof 1 ridge centred, roof 3 at 8 m, roof 5 as wide as 3, roofs 2/4/6 not for solar
   Geometry: Google Maps satellite screenshot (north up, scale bar 20 m = 215 px) -> src/roofs.json. Heights assumed.
   Framework shared with ../jain-granite, ../sejal-parikh, ../architect-residence. build.mjs inlines three.js + logo.
 -->
@@ -71,10 +71,10 @@
   </div>
   <div id="spec">
     <b>Site from Google Maps</b><br>
-    Step 1 · roofs identified<br>
-    Roof 1 ≈ 75 × 46 m, gable E–W<br>
-    Roofs 2–6: sheds + lean-tos<br>
-    Heights assumed
+    Pluga Pumps &amp; Motors · Savli<br>
+    Roofs 1, 3, 5 · candidates<br>
+    Roofs 2, 4, 6 · not for solar<br>
+    New building 28.2 × 46 m, 12.35 m
   </div>
   <div id="caption"><div class="t"></div><div class="s"></div></div>
   <svg id="compass" viewBox="-50 -50 100 100" aria-label="North arrow">
@@ -85,7 +85,7 @@
     </g>
     <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
   </svg>
-  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights assumed — verify on site · v2</div>
+  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights partly assumed — verify on site · v3</div>
 </div>
 
 <div id="ui">
@@ -104,7 +104,7 @@
 <script>
 (function () {
 'use strict';
-var VERSION = 'v2';
+var VERSION = 'v3';
 var Q = new URLSearchParams(location.search);
 var CAPTURE = Q.has('capture');
 if (CAPTURE) document.body.classList.add('capture');
@@ -115,16 +115,21 @@ if (CAPTURE) document.body.classList.add('capture');
 var SCALE = 215 / 20, CX = 700, CY = 460;
 function P(px, py, h) { return new THREE.Vector3((px - CX) / SCALE, h || 0, (py - CY) / SCALE); }
 var ROOFS = [
-  { id: 1, name: 'Main shed', type: 'gable', x: [430, 1232], y: [200, 690], ridgeY: 478, eave: 8.0, slope: 0.1, monitor: [457, 500] },
-  { id: 2, name: 'North-west shed', type: 'gable', x: [190, 420], y: [170, 350], ridgeY: 260, eave: 6.5, slope: 0.1 },
-  { id: 3, name: 'West shed', type: 'gable', x: [150, 365], y: [400, 690], ridgeY: 545, eave: 6.5, slope: 0.1 },
-  { id: 4, name: 'Link lean-to', type: 'mono', x: [365, 430], y: [350, 690], high: 6.0, low: 5.3, down: 'W' },
-  { id: 5, name: 'South-west lean-to', type: 'mono', x: [150, 440], y: [690, 775], high: 5.0, low: 4.3, down: 'S' },
-  { id: 6, name: 'North lean-to', type: 'mono', x: [600, 1075], y: [140, 200], high: 6.3, low: 5.5, down: 'N' },   // v2: from the north-side photo
+  { id: 1, name: 'Main shed', type: 'gable', x: [430, 1232], y: [200, 690], ridgeY: 445, eave: 8.0, slope: 0.1, monitor: true },   // v3: ridge in the centre (owner)
+  { id: 2, name: 'North-west shed', type: 'gable', x: [190, 420], y: [170, 350], ridgeY: 260, eave: 6.5, slope: 0.1, exclude: true },
+  { id: 3, name: 'West shed', type: 'gable', x: [150, 365], y: [400, 690], ridgeY: 545, eave: 8.0, slope: 0.1 },                   // v3: 8 m (owner)
+  { id: 4, name: 'Link lean-to', type: 'mono', x: [365, 430], y: [350, 690], high: 6.0, low: 5.3, down: 'W', exclude: true },
+  { id: 5, name: 'South-west lean-to', type: 'mono', x: [150, 365], y: [690, 775], high: 6.0, low: 5.3, down: 'S' },             // v3: only as wide as 3 (owner)
+  { id: 6, name: 'North lean-to', type: 'mono', x: [600, 1075], y: [140, 200], high: 6.3, low: 5.5, down: 'N', exclude: true },
+  // v3: new building under construction west of 3 + 5 (drawings 262711-AR-A-00-101 R8 + 262711-AR-T-01-101 R3; owner photos).
+  // 28.2 x 46 m, east wall against roof 3; ridge line E 14.4 m from the south edge. South roof 11.00 -> 12.35 m (falls S),
+  // north roof about 10.4 -> 7.50 m (falls N), wall light in the step between them. Extends west past the screenshot edge.
+  { id: 7, name: 'New building · south roof', type: 'mono', x: [-153, 150], y: [581, 736], high: 12.35, low: 11.0, down: 'S', newb: true },
+  { id: 8, name: 'New building · north roof', type: 'mono', x: [-153, 150], y: [238, 581], high: 10.4, low: 7.5, down: 'N', newb: true },
 ];
 var EXISTING = { roof: 1, groupsX: [[690, 862], [868, 1040], [1047, 1220]], rowsY: [[505, 545], [555, 598], [605, 645]] };   // approx.
 var MOD_W = 1.134, MOD_L = 2.278, MOD_T = 0.035;
-var ROOF_COL = { 1: '#ef4444', 2: '#f59e0b', 3: '#22c55e', 4: '#3b82f6', 5: '#a855f7', 6: '#ec4899' };
+var ROOF_COL = { 1: '#ef4444', 2: '#9ca3af', 3: '#22c55e', 4: '#9ca3af', 5: '#a855f7', 6: '#9ca3af', 7: '#0ea5e9', 8: '#0ea5e9' };   // grey = not for solar (owner)
 
 // ======================================================================= renderer / scene
 var canvas = document.getElementById('c');
@@ -286,6 +291,7 @@ scene.add(site); scene.add(bos);
 // ======================================================================= ground, roads, trees, neighbours
 var TREES = [];
 var clad = new THREE.MeshStandardMaterial({ color: '#bfc5ca', roughness: 0.8, metalness: 0.2 });
+var newClad = new THREE.MeshStandardMaterial({ color: '#9fb4c8', roughness: 0.7, metalness: 0.3 });   // new building (light blue-grey)
 var brick = new THREE.MeshStandardMaterial({ color: '#b9a48a', roughness: 0.95 });
 var ribTex = canvasTex(32, 8, function (g, w, h) {           // trapezoidal sheet, ribs running down the slope (along v)
   g.fillStyle = '#a89c8a'; g.fillRect(0, 0, w, h); g.fillStyle = '#c2b7a5'; g.fillRect(0, 0, 6, h); g.fillStyle = '#867b6b'; g.fillRect(6, 0, 2, h);
@@ -296,7 +302,9 @@ var ribTex = canvasTex(32, 8, function (g, w, h) {           // trapezoidal shee
     m.rotation.x = -Math.PI / 2; m.position.set((a.x + b.x) / 2, 0.03, (a.z + b.z) / 2); m.receiveShadow = true; site.add(m); }
   var road = new THREE.MeshStandardMaterial({ color: '#a7a195', roughness: 0.95 });
   slab(-400, 95, 2300, 165, road);              // road along the north side
-  slab(0, 165, 150, 790, road);                 // yard west of the sheds
+  slab(0, 165, 150, 790, road);                 // yard west of the sheds (new building now stands on most of it)
+  slab(-260, 165, -153, 800, road);             // 4.5 m road west of the new building (master layout)
+  slab(-260, 736, 150, 800, road);              // 4.5 m road south of the new building
   slab(150, 690, 1240, 705, road);              // apron along the south wall
   // neighbour sheds north-east (low, plain)
   [[1315, 40, 1700, 125, 4.5], [1430, 40, 1470, 125, 4.8]].forEach(function (n) {
@@ -368,11 +376,11 @@ var ROOF_INFO = {};
       }
       ROOF_INFO[R.id] = { zr: zr, ridge: ridge, aS: aS, aN: aN, eave: R.eave, label: new THREE.Vector3(cx, ridge + 2.2, R.id === 1 ? a.z + runN * 0.35 : zr) };
     } else {
-      var body2 = box(W, R.low, D, clad); body2.position.set(cx, R.low / 2, cz); site.add(body2);
+      var body2 = box(W, R.low, D, R.newb ? newClad : clad); body2.position.set(cx, R.low / 2, cz); site.add(body2);
       var rise = R.high - R.low, ang, len;
       if (R.down === 'N' || R.down === 'S') {
         var zHigh = R.down === 'N' ? b.z : a.z, zLow = R.down === 'N' ? a.z : b.z;
-        profile([[zLow, R.low], [zHigh, R.low], [zHigh, R.high]], W, clad, 'x', b.x);
+        profile([[zLow, R.low], [zHigh, R.low], [zHigh, R.high]], W, R.newb ? newClad : clad, 'x', b.x);
         ang = Math.atan2(rise, D); len = (D + OH) / Math.cos(ang);
         sheet(len, W + 2 * OH, cx, (R.low + R.high) / 2 + 0.03, cz + (R.down === 'N' ? -OH / 2 : OH / 2), R.down === 'N' ? -ang : ang, 0);
       } else {
@@ -387,6 +395,10 @@ var ROOF_INFO = {};
     var dsc = new THREE.Mesh(new THREE.CylinderGeometry(R.id === 1 ? 2.2 : 1.4, R.id === 1 ? 2.2 : 1.4, 0.08, 32), new THREE.MeshBasicMaterial({ color: ROOF_COL[R.id] }));
     dsc.position.copy(ROOF_INFO[R.id].label).add(new THREE.Vector3(0, -1.2, 0)); bos.add(dsc);
   });
+  // new building: wall light (glazing) in the step between the north and south roofs (section 1, detail X7)
+  var nb7 = ROOFS.filter(function (r) { return r.id === 7; })[0], na = P(nb7.x[0], nb7.y[0]), nb = P(nb7.x[1], nb7.y[0]);
+  var wl = box(nb.x - na.x - 0.4, 12.35 - 10.6, 0.05, new THREE.MeshStandardMaterial({ color: '#7d9bb5', roughness: 0.15, metalness: 0.4 }));
+  wl.position.set((na.x + nb.x) / 2, (12.35 + 10.6) / 2 - 0.1, na.z - 0.05); site.add(wl);
   // a few doors / shutters on the main shed
   var r1 = ROOFS[0], a1 = P(r1.x[0], r1.y[0]), b1 = P(r1.x[1], r1.y[1]);
   [0.25, 0.55].forEach(function (f) { var s = box(5, 5.5, 0.1, M.shutter); s.position.set(a1.x + (b1.x - a1.x) * f, 2.75, b1.z + 0.06); site.add(s); });
@@ -418,8 +430,10 @@ var existingCount = 0;
 // ======================================================================= labels
 var LABELS = {};
 ROOFS.forEach(function (R) {
-  var kind = R.type === 'gable' ? 'Gable · ridge E–W · falls N + S' : 'Lean-to · falls ' + { N: 'north', S: 'south', E: 'east', W: 'west' }[R.down];
-  LABELS['r' + R.id] = { p: ROOF_INFO[R.id].label, t: 'Roof ' + R.id + ' · ' + R.name, s: kind };
+  var kind = R.type === 'gable' ? 'Gable · ridge E–W · falls N + S' : (R.newb ? R.low.toFixed(1) + ' → ' + R.high.toFixed(2) + ' m · falls ' : 'Lean-to · falls ') + { N: 'north', S: 'south', E: 'east', W: 'west' }[R.down];
+  if (R.id === 1 || R.id === 3) kind += ' · eave ' + R.eave + ' m';
+  if (R.exclude) kind += ' · NOT for solar';
+  LABELS['r' + R.id] = { p: ROOF_INFO[R.id].label, t: (R.newb ? '' : 'Roof ' + R.id + ' · ') + R.name, s: kind };
 });
 LABELS.vents = { p: new THREE.Vector3(P(560, 0).x, ROOF_INFO[1].ridge + 1.6, ROOF_INFO[1].zr), t: 'Ridge + turbo ventilators', s: 'As in the north-side photo' };
 LABELS.ex = { p: P(955, 575, ROOF_INFO[1].ridge + 0.6), t: 'Existing solar (approx.)', s: '≈ ' + existingCount + ' modules drawn — count to confirm' };
@@ -461,17 +475,18 @@ var capEl = document.getElementById('caption'), capT = capEl.querySelector('.t')
 function setCaption(t, s) { capT.textContent = t || ''; capS.textContent = s || ''; capEl.style.opacity = t ? 1 : 0; }
 
 // ======================================================================= views (stills + buttons)
-var ALLR = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'];
+var ALLR = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'];
 var VIEWS = {
-  aerial:    { p: [70, 55, 85],    t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the south-east'], lab: ALLR.concat(['ex']) },
-  aerialnw:  { p: [-75, 55, -60],  t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-west'], lab: ALLR.concat(['vents']) },
-  plan:      { p: [0, 120, 10],    t: [0, 6, -0.5], fov: 40, cap: ['Top view · north ↑', 'Roofs 1–6 as numbered on the satellite screenshot'], lab: ALLR.concat(['ex']) },
-  aerialsw:  { p: [-80, 50, 85],   t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the south-west'], lab: ALLR },
+  aerial:    { p: [62, 62, 98],    t: [-10, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the south-east'], lab: ALLR.concat(['ex']) },
+  aerialnw:  { p: [-95, 60, -70],  t: [-10, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-west'], lab: ALLR.concat(['vents']) },
+  plan:      { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', 'Roofs 1–6 as numbered on the satellite screenshot'], lab: ALLR.concat(['ex']) },
+  aerialsw:  { p: [-95, 58, 95],   t: [-10, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the south-west'], lab: ALLR },
   aerialne:  { p: [80, 52, -60],   t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-east'], lab: ['r1', 'r6', 'r2', 'vents'] },
   southelev: { p: [0, 14, 160],    t: [0, 5, 0], fov: 22, notrees: true, cap: ['South elevation', 'Roof heights assumed — to be confirmed'], lab: ALLR },
   westelev:  { p: [-160, 14, 5],   t: [0, 5, 3], fov: 18, notrees: true, cap: ['West elevation', 'Gable of roof 1 behind roofs 2–5'], lab: ['r1', 'r2', 'r3', 'r4', 'r5'] },
   northphoto:{ p: [-1, 9.5, -42], t: [-1, 7.2, 0], fov: 42, notrees: true, cap: ['From the north (like the site photo)', 'Roof 6 lean-to in front, roof 1 north slope rising to the ridge ventilators'], lab: ['r6', 'r1', 'vents'] },
-  planclean: { p: [0, 120, 10],    t: [0, 6, -0.5], fov: 40, cap: ['Top view · north ↑', 'Site model v1'], lab: [] },
+  newbldg:   { p: [-95, 42, 82], t: [-18, 6, 8], cap: ['New building beside roofs 3 + 5', '12.35 m PEB next to the 8 m shed — it will shade roofs 3 and 5 in the afternoon'], lab: ['r7', 'r8', 'r3', 'r5'] },
+  planclean: { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', 'Site model v1'], lab: [] },
 };
 
 // ======================================================================= in-viewer tour (no video for this step)

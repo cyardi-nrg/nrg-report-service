@@ -1,5 +1,5 @@
 {
-  "_note": "Version v2 (2026-10-31; v2 from the owner photo src/photo-roof1-from-north.jpg). Roofs read off google-satellite.webp (north up). px on that image; scale bar 215 px = 20 m -> 10.75 px/m. Heights are ASSUMED (not visible from above).",
+  "_note": "Version v3 (2026-10-31). Roofs read off google-satellite.webp (north up); scale bar 215 px = 20 m -> 10.75 px/m. v2: north-side photo. v3: owner corrections + drawings 262711-AR-A-00-101 R8 (master layout) and 262711-AR-T-01-101 R3 (new building). Heights partly assumed.",
   "scale_px_per_m": 10.75,
   "roofs": [
     {
@@ -15,14 +15,10 @@
         200,
         690
       ],
-      "ridge_y": 478,
-      "monitor_y": [
-        457,
-        500
-      ],
+      "ridge_y": 445,
       "eave": 8.0,
       "slope": 0.1,
-      "note": "Ridge runs east-west (confirmed by the north-side photo) with half-round ridge ventilators and turbo ventilators; slopes fall north and south. Existing solar on the south slope. A blue steel frame stands above the ridge line in the photo."
+      "note": "Ridge in the centre (owner), narrow band of half-round ridge + turbo ventilators. Existing solar on the south slope."
     },
     {
       "id": 2,
@@ -40,7 +36,8 @@
       "ridge_y": 260,
       "eave": 6.5,
       "slope": 0.1,
-      "note": "Slope direction to confirm (ribs appear to run north-south)."
+      "note": "Slope direction to confirm (ribs appear to run north-south). NOT FOR SOLAR (owner). Master layout: existing shed / M/C shop area.",
+      "exclude": true
     },
     {
       "id": 3,
@@ -56,9 +53,9 @@
         690
       ],
       "ridge_y": 545,
-      "eave": 6.5,
+      "eave": 8.0,
       "slope": 0.1,
-      "note": "Translucent sheet grid visible; slope direction to confirm."
+      "note": "Eave 8 m (owner). Slope direction to confirm."
     },
     {
       "id": 4,
@@ -75,7 +72,8 @@
       "high": 6.0,
       "low": 5.3,
       "down": "W",
-      "note": "Narrow lean-to against the main shed's west wall, falling west."
+      "note": "Narrow lean-to against the main shed's west wall, falling west. NOT FOR SOLAR (owner).",
+      "exclude": true
     },
     {
       "id": 5,
@@ -83,16 +81,16 @@
       "type": "mono",
       "x": [
         150,
-        440
+        365
       ],
       "y": [
         690,
         775
       ],
-      "high": 5.0,
-      "low": 4.3,
+      "high": 6.0,
+      "low": 5.3,
       "down": "S",
-      "note": "Lean-to along the south side of roof 3, falling south."
+      "note": "Only as wide as roof 3 (owner). Heights assumed."
     },
     {
       "id": 6,
@@ -109,7 +107,44 @@
       "high": 6.3,
       "low": 5.5,
       "down": "N",
-      "note": "Low structures along the main shed's north wall, falling north to the road. Confirmed by the north-side photo (over the loading door); heights estimated from it."
+      "note": "Low structures along the main shed's north wall, falling north to the road. Confirmed by the north-side photo (over the loading door); heights estimated from it. NOT FOR SOLAR (owner).",
+      "exclude": true
+    },
+    {
+      "id": 7,
+      "name": "New building - south roof",
+      "type": "mono",
+      "x": [
+        -153,
+        150
+      ],
+      "y": [
+        581,
+        736
+      ],
+      "high": 12.35,
+      "low": 11.0,
+      "down": "S",
+      "new_building": true,
+      "note": "Under construction. 28.2 x 46 m PEB west of roofs 3 + 5. South roof 11.00 -> 12.35 m at ridge line E (14.4 m from the south edge), falls south 1:10."
+    },
+    {
+      "id": 8,
+      "name": "New building - north roof",
+      "type": "mono",
+      "x": [
+        -153,
+        150
+      ],
+      "y": [
+        238,
+        581
+      ],
+      "high": 10.4,
+      "low": 7.5,
+      "down": "N",
+      "new_building": true,
+      "note": "North roof about 10.4 -> 7.50 m, falls north 1:10; wall light in the step at ridge line E. Extends 15 m north of roof 3."
     }
   ],
   "existing_solar": {
