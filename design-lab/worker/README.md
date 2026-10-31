@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.6.0, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.7.0, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -22,6 +22,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | 4c | Expected generation month by month — NREL SAM (PySAM, PVWatts v8) hour by hour on a PVGIS typical year for the site, each roof face simulated on its own; a chart per option; SAM's yearly units used everywhere | **done (v1.5)** |
 | 5a | Stringing: strings of 20 (roofs filled in whole strings), 5-row landscape groups so + and − land on the walkway side, MPPT voltage / current checks (Voc at 5 °C, Vmp 70 °C → 5 °C), single 4 sq mm runs ×2 vs Y-connector + 6 sq mm ×1 — the cheaper wins; stringing layout + string schedule; DC cable and MC4 sets into the BOM | **done (v1.6)** |
 | 5b | Walkway (between the row groups), cable tray (array → roof edge → down the wall), earthing (3 pits DC / AC / LA, lightning arresters by kW), AC cable to the meter — three drawings, lengths into the BOM | **done (v1.6)** |
+| 5d | v1.7 (owner): Y pairs join where the SAME poles meet (one pole's ends side by side); strings of 18–20 (20 first); a mix of Y pairs and single strings, each pair priced on its own; one string length per MPPT; earth pits 3 m apart | **done (v1.7)** |
 | 5c | SLD, CEIG set — made general from the Jain Granite programs | next |
 
 A job for a stage the Mac can't do yet simply **waits in the queue** and runs on its own once that phase is installed.
@@ -31,19 +32,21 @@ A job for a stage the Mac can't do yet simply **waits in the queue** and runs on
 1. **Get the folder onto the Mac.** Install **GitHub Desktop** (free, desktop.github.com) and sign in.
    - File → Clone repository → `cyardi-nrg/nrg-report-service` → Clone.
    - At the top, switch the branch to `claude/3d-design-walkthrough-videos-pim15v`.
-2. **Have the keys ready.** Open Railway → the SolarConnect service → **Variables**. You will copy five values:
+2. **Install Python 3.12** (the Mac's own Python is too old). Open python.org/downloads/macos, download the latest
+   **macOS 64-bit universal2 installer**, open it and click Continue / Install. Nothing else to set.
+3. **Have the keys ready.** Open Railway → the SolarConnect service → **Variables**. You will copy five values:
    `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`,
    `GOOGLE_DRIVE_ROOT_FOLDER_ID` (and check `SUPABASE_URL` is the same as in the file).
-3. **Run the setup.** Open **Terminal** and type (the path is where GitHub Desktop put it, usually `Documents/GitHub`):
+4. **Run the setup.** Open **Terminal** and type (the path is where GitHub Desktop put it, usually `Documents/GitHub`):
    ```
    bash ~/Documents/GitHub/nrg-report-service/design-lab/worker/mac/install.sh
    ```
    - It installs what it needs inside that folder only.
    - It opens a settings file in TextEdit: paste the values, save, close TextEdit, press Return in Terminal.
    - It checks the connection (✓ Supabase, ✓ Google Drive, ✓ Heartbeat) and starts the worker.
-4. **For AutoCAD DWG files** (DXF works without this): install the free **ODA File Converter** from
+5. **For AutoCAD DWG files** (DXF works without this): install the free **ODA File Converter** from
    opendesign.com/guestfiles/oda_file_converter (drag it into Applications). Or, if you use Homebrew: `brew install libredwg`.
-5. **Nightly wake** (asks for your Mac password once):
+6. **Nightly wake** (asks for your Mac password once):
    ```
    sudo pmset repeat wakeorpoweron MTWRFSU 20:55:00
    ```

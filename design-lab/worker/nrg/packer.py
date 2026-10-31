@@ -1,4 +1,4 @@
-# Design Lab worker v1.6.0 (2026-10-31) — fit panels on each roof face.
+# Design Lab worker v1.7.0 (2026-10-31) — fit panels on each roof face.
 #
 # Rules carried over from the owner-approved Pluga layout, made general:
 #  * rows run along the building's own lines, across the slope (a rotated

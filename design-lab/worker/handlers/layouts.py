@@ -1,11 +1,11 @@
-# Design Lab worker v1.6.0 (2026-10-31) — stage 'layouts': walkway, cable tray and
+# Design Lab worker v1.7.0 (2026-10-31) — stage 'layouts': walkway, cable tray and
 # earthing layouts for the chosen panel option, with their lengths written into the
 # BOM's "as per design" column.
 #   Walkways (owner): between the rows — in the gap the layout leaves after each row group,
 #     running along the rows (FRP on sheet roofs; tables on flat roofs have their own gaps).
 #   Cable tray: along each array's side nearest the inverter, then over the roof to the
 #     edge nearest the inverter and down the wall.
-#   Earthing (owner): 3 pits — DC, AC (beside the inverter) and LA; lightning arresters on
+#   Earthing (owner): 3 pits — DC, AC (beside the inverter) and LA, 3 m apart (owner: at least 2 m, 3 m if possible); lightning arresters on
 #     the highest roof, how many by inverter kW (the app's own LA bands, Rates → BOM
 #     Components). Earthing runs from each array to the DC pit, LA down-conductor to the LA pit.
 #   AC cable: inverter to the meter mark (per inverter).
@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw
 from handlers import panels, views
 from nrg import render
 
+PIT_GAP = 3.0   # m between earth pits (owner: at least 2 m, 3 m if possible)
 LA_BANDS = [(0, 100, 1), (101, 250, 2), (251, 500, 3), (501, 750, 4), (751, 1000, 5)]   # app default (lib/bom-generator.ts)
 
 
@@ -152,10 +153,10 @@ def run(job) -> dict:
     la_n = _la_count(job, total_kw)
     if site.inverter:
         ix, iy = site.inverter
-        pits = [('EP-1 (DC)', (ix - 2.5, iy + 3.0)), ('EP-2 (AC)', (ix, iy + 3.0))]
+        pits = [('EP-1 (DC)', (ix - PIT_GAP, iy + 3.0)), ('EP-2 (AC)', (ix, iy + 3.0))]
         for a in arrays:
             cx = sum(m.x for m in a['_mods']) / len(a['_mods']); cy = sum(m.y for m in a['_mods']) / len(a['_mods'])
-            earth.append([(cx, cy), (ix - 2.5, cy), (ix - 2.5, iy + 3.0)])
+            earth.append([(cx, cy), (ix - PIT_GAP, cy), (ix - PIT_GAP, iy + 3.0)])
     if hi_arr:
         ms = hi_arr['_mods']
         lo, hi = min(ms, key=lambda m: m.u), max(ms, key=lambda m: m.u)
@@ -164,7 +165,7 @@ def run(job) -> dict:
             la_pts.append((lo.x + (hi.x - lo.x) * f, lo.y + (hi.y - lo.y) * f))
         drop = la_pts[0] if la_pts else (lo.x, lo.y)
         ref = site.inverter or drop
-        la_pit = (ref[0] + 2.5, ref[1] + 3.0)
+        la_pit = (ref[0] + PIT_GAP, ref[1] + 3.0)
         pits.append(('EP-3 (LA)', la_pit))
         for p in la_pts:
             la_runs.append([p, (la_pit[0], p[1]), la_pit])
@@ -180,7 +181,7 @@ def run(job) -> dict:
         ('walkway', 'walkway_layout_drawing', 'Walkway layout', [f'FRP walkway between the row groups: {walk_m:,} m (0.6 m wide)', 'Grey bands = walkway', note]),
         ('tray', 'cable_tray_layout_drawing', 'Cable tray layout', [f'Cable tray: {tray_m:,} m (incl. the drop down the wall)' + (f' · AC cable to the meter: {ac_m:,} m' if ac_m else ''), 'Orange = tray route', note]),
         ('earthing', 'earthing_layout_drawing', 'Earthing layout', [f'3 earth pits (DC, AC, LA) · {la_n} lightning arrester(s) for {total_kw:g} kW · structure earthing {earth_m:,} m · LA down-conductor {la_m:,} m',
-                                                                    'Pits: 1 = DC, 2 = AC, 3 = LA · green = structure earthing to pit 1 · red = LA down-conductor to pit 3', note])):
+                                                                    'Pits 3 m apart: 1 = DC, 2 = AC, 3 = LA · green = structure earthing to pit 1 · red = LA down-conductor to pit 3', note])):
         path = os.path.join(job.workdir, f'{title}.png')
         _draw(site, base, arrays, layer, items, f'{title} — {opt["name"]} · {opt["kwp"]} kWp', lines, path)
         job.file_output(path, dtype, title=title)

@@ -1,4 +1,4 @@
-# Design Lab worker v1.6.0 (2026-10-31) — stage 'panels' (per quote / layout):
+# Design Lab worker v1.7.0 (2026-10-31) — stage 'panels' (per quote / layout):
 # fit this quote's panels onto the drawn roofs, three ways, and draw them.
 #
 #   Option A  Best generation first  — south faces, then east / west, then north
@@ -68,28 +68,41 @@ def plan(job) -> dict:
     return {'model': model, 'roof_v': roof_v, 'spec': spec, 'site': site, 'sun': sun, 'packs': packs, 'capacity': capacity}
 
 
-STRING_UNIT = 20    # owner: strings of 20 — a roof that is filled before moving on takes whole strings
+STRING_UNIT = 20         # owner: strings of 20 preferred ...
+STRING_MIN = 18          # ... "it could be 19+19 or 18+18 also" (v1.7)
+
+
+def _stringable(n: int) -> bool:
+    """n panels split into strings of 18–20 each."""
+    return n == 0 or (n >= STRING_MIN and math.ceil(n / STRING_UNIT) * STRING_MIN <= n)
 
 
 def option_arrays(P: dict, order: list, whole_strings: bool = True) -> tuple[list, list]:
     """Fill the quote's panels roof by roof in this order (whole columns from the inverter end). A roof that
-    can't take all that is left takes whole strings of 20 so every roof strings cleanly; if that can't reach
-    the quote's total, every panel is used instead."""
+    can't take all that is left takes whole strings of 20 — or, if 20s can't reach the quote's total, as many
+    as split into strings of 18–20 — so every roof strings cleanly; if neither reaches the total, every
+    panel is used instead (the Stringing stage then uses whatever lengths the inverter allows)."""
     target = P['spec']['target']
-    if whole_strings and target >= STRING_UNIT:
-        left, plan_counts = target, []
-        for p in order:
-            if left <= 0:
+    counts = None
+    if whole_strings and target >= STRING_MIN:
+        # first try whole strings of 20 on every part-filled roof, then strings of 18–20
+        for ok in ((lambda k: k % STRING_UNIT == 0), _stringable):
+            left, plan_counts = target, []
+            for p in order:
+                if left <= 0:
+                    break
+                cap = len(p['modules'])
+                if cap >= left and _stringable(left):
+                    n = left
+                else:
+                    n = next((k for k in range(min(cap, left), 0, -1) if ok(k) and (left - k == 0 or left - k >= STRING_MIN)), 0)
+                plan_counts.append((p, n))
+                left -= n
+            if left == 0:
+                counts = {id(p): n for p, n in plan_counts}
                 break
-            cap = len(p['modules'])
-            n = left if cap >= left else (cap // STRING_UNIT) * STRING_UNIT
-            plan_counts.append((p, n))
-            left -= n
-        if left > 0:          # whole strings don't reach the total — use every panel instead
+        if counts is None:    # neither reaches the total — use every panel instead
             return option_arrays(P, order, whole_strings=False)
-        counts = {id(p): n for p, n in plan_counts}
-    else:
-        counts = None
     left, arrays, mods_all = target, [], []
     for p in order:
         if left <= 0:
