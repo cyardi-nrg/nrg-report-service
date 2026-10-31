@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.1 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
+# Design Lab worker v1.8.3 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
 # v1.7 (owner): Y pairs join where the SAME poles meet ("+ and + or − and − need to come close
 #   to each other"); strings of 18–20 (19+19, 18+18 are fine); a mix of Y pairs and single strings —
 #   each pair is made only where its Y is cheaper; strings on one MPPT are always the same length.
@@ -168,6 +168,87 @@ def size_y(m4: float, m6: float, n: int, mod: dict, rates: dict, vmax: float = D
     return sq, leg + vd_pct(2 * i, m6, sq, v), m4 * rate(rates, 4) + m6 * rate(rates, sq) + rates['ySet']
 
 
+def _meet_edges(strings: list) -> dict:
+    """Where string ends meet: i → [(end of i, j, end of j)] for ends within ADJ_M (same roof face)."""
+    n = len(strings)
+    edges = {i: [] for i in range(n)}
+    for i in range(n):
+        for j in range(i + 1, n):
+            if strings[i]['face'] != strings[j]['face']:
+                continue
+            for ki, ei in enumerate((strings[i]['mods'][0], strings[i]['mods'][-1])):
+                for kj, ej in enumerate((strings[j]['mods'][0], strings[j]['mods'][-1])):
+                    if _pdist(ei, ej) <= ADJ_M:
+                        edges[i].append((ki, j, kj))
+                        edges[j].append((kj, i, ki))
+    return edges
+
+
+def _orient(strings: list, edges: dict, fixed: dict) -> tuple[list, int]:
+    """Which end of each string is + (o[i] = 0: first panel of the snake, 1: last) so that, wherever two strings
+    meet, the ends are the same colour. `fixed` holds the Y-pair strings (their + ends together). Returns
+    (o, number of red-next-to-black meetings left)."""
+    n = len(strings)
+    o = [fixed.get(i) for i in range(n)]
+    near = lambda i, e: _pdist(strings[i]['mods'][-e[0]], strings[e[1]]['mods'][-e[2]])
+
+    def spread(start):
+        queue = [start]
+        while queue:
+            i = queue.pop(0)
+            for ki, j, kj in sorted(edges[i], key=lambda e: near(i, e)):
+                if o[j] is None:
+                    o[j] = kj if ki == o[i] else 1 - kj         # same colour as i's end here
+                    queue.append(j)
+    for i in range(n):
+        if o[i] is not None:
+            spread(i)
+    for i in range(n):
+        if o[i] is None:
+            o[i] = min(edges[i], key=lambda e: near(i, e))[0] if edges[i] else 0     # red at its first meeting
+            spread(i)
+    clash_at = lambda i: sum(1 for ki, j, kj in edges[i] if (ki == o[i]) != (kj == o[j]))
+    improved = True
+    while improved:                                    # corners: flip free strings while it helps
+        improved = False
+        for i in range(n):
+            if i in fixed or not edges[i]:
+                continue
+            before = clash_at(i)
+            o[i] = 1 - o[i]
+            if clash_at(i) < before:
+                improved = True
+            else:
+                o[i] = 1 - o[i]
+    clashes = sum(1 for i in range(n) for ki, j, kj in edges[i] if i < j and (ki == o[i]) != (kj == o[j]))
+    return o, clashes
+
+
+def _pair_fix(strings: list, i: int, j: int, bp, bm) -> dict:
+    """The two strings of a Y pair, wired so their + (red) ends are the ones side by side (owner's rule)."""
+    A, B = strings[i], strings[j]
+    a0, a1 = A['mods'][0], A['mods'][-1]
+    if _pdist(a0, bp) <= _pdist(a1, bm):
+        pa, pb = a0, bp
+    else:
+        pa, pb = a1, bm
+    return {i: 0 if pa is a0 else 1, j: 0 if pb is B['mods'][0] else 1}
+
+
+def _apply_poles(site, strings: list, pairs: list) -> int:
+    """Sets every string's + / − ends by the two rules and returns how many red-next-to-black meetings are left."""
+    fixed = {k: v for q in pairs for k, v in q.get('_fix', {}).items()}
+    o, clashes = _orient(strings, _meet_edges(strings), fixed)
+    for i, st in enumerate(strings):
+        a, b = st['mods'][0], st['mods'][-1]
+        st['plus'], st['minus'] = (a, b) if o[i] == 0 else (b, a)
+        st['plusM'] = round(_run(site, st['plus'].x, st['plus'].y, max(st['plus'].z)), 1)
+        st['minusM'] = round(_run(site, st['minus'].x, st['minus'].y, max(st['minus'].z)), 1)
+    for q in pairs:
+        q.pop('_fix', None)
+    return clashes
+
+
 def _y_cost(site, pa, ma, pb, mb, rates):
     """A Y pair: 4 sq mm legs from each end to the joint (midway between the same-pole ends), one 6 sq mm run
     per pole from the joint to the inverter. Returns (m4, m6, cost)."""
@@ -227,24 +308,26 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                 cs = size_single(runs(a0, a1), mod, rates, vmax)[3] + size_single(runs(bp, bm), mod, rates, vmax)[3]
                 if cy < cs:
                     cands.append((d1 + d2, i, j, bp, bm, m4, m6, cy, cs, min(d1, d2), max(d1, d2), hsq, hvd))
-        used = set()
+        # RULES (owner): in a Y pair the RED (+) ends are the ones side by side; and wherever two strings meet the
+        # ends are the same colour. Along a row the meetings alternate red-red / black-black, so a Y pair can only
+        # sit at a red meeting: a pair is kept only if every meeting can still be matched.
+        edges = _meet_edges(strings)
+        fixed, used = {}, set()
+        _, base = _orient(strings, edges, fixed)
         for d, i, j, bp, bm, m4, m6, cy, cs, near, far, hsq, hvd in sorted(cands, key=lambda c: c[0]):
             if i in used or j in used:
                 continue
+            fx = _pair_fix(strings, i, j, bp, bm)
+            trial = {**fixed, **fx}
+            if _orient(strings, edges, trial)[1] > base:
+                continue
+            fixed = trial
             used |= {i, j}
-            A, B = strings[i], strings[j]
-            a0, a1 = A['mods'][0], A['mods'][-1]
-            # RULE (owner): in a Y pair the RED (+) ends are the ones side by side. Either string can be wired
-            # either way round, so whichever ends meet become +, and the − ends take the longer leg.
-            if _pdist(a0, bp) <= _pdist(a1, bm):
-                A['plus'], A['minus'], B['plus'], B['minus'] = a0, a1, bp, bm
-            else:
-                A['plus'], A['minus'], B['plus'], B['minus'] = a1, a0, bm, bp
-            for st in (A, B):
-                st['plusM'] = round(_run(site, st['plus'].x, st['plus'].y, max(st['plus'].z)), 1)
-                st['minusM'] = round(_run(site, st['minus'].x, st['minus'].y, max(st['minus'].z)), 1)
             pairs.append({'a': i, 'b': j, 'nearM': round(near, 1), 'farM': round(far, 1), 'm4': m4, 'm6': m6, 'homeSq': hsq, 'vdPct': round(hvd, 2),
-                          'cost': cy, 'singleCost': cs})
+                          'cost': cy, 'singleCost': cs, '_fix': fx})
+    pole_clashes = _apply_poles(site, strings, pairs)
+    if pole_clashes:
+        warnings.append(f'{pole_clashes} place(s) where a red (+) end meets a black (−) end could not be avoided — see the stringing drawing.')
     for k, pr in enumerate(sorted(pairs, key=lambda q: min(q['a'], q['b']))):
         pr['id'] = f'Y{k + 1}'
         strings[pr['a']]['pair'] = strings[pr['b']]['pair'] = pr['id']
