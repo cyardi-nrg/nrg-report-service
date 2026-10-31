@@ -1,5 +1,5 @@
 #!/bin/bash
-# Design Lab worker v1.0.0 (2026-10-31) — one-time setup on the Mac.
+# Design Lab worker v1.3.0 (2026-10-31) — one-time setup on the Mac.
 # Run from Terminal:   bash design-lab/worker/mac/install.sh
 set -e
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +15,7 @@ echo "== 1/4  Installing the worker's Python packages (private to this folder)"
 python3 -m venv .venv
 .venv/bin/pip install --quiet --upgrade pip
 .venv/bin/pip install --quiet -r requirements.txt
+.venv/bin/python3 -m playwright install chromium     # the browser the 3D pictures and video are rendered in (~150 MB, once)
 mkdir -p logs
 
 echo "== 2/4  Settings (.env)"

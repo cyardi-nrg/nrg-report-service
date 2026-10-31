@@ -1,4 +1,4 @@
-# Design Lab worker v1.2.0 (2026-10-31) — fit panels on each roof face.
+# Design Lab worker v1.3.0 (2026-10-31) — fit panels on each roof face.
 #
 # Rules carried over from the owner-approved Pluga layout, made general:
 #  * rows run along the building's own lines, across the slope (a rotated
@@ -10,7 +10,8 @@
 #    or portrait in groups of 2, a 0.6 m walkway between groups; whichever
 #    of landscape / portrait fits more ("portrait panels where they fit more");
 #  * FLAT roofs: tables at 10° facing the roof's side nearest south —
-#    portrait 1 / 2 / 3 rows or landscape 2 / 3 rows, whichever fits most —
+#    PORTRAIT preferred (1 / 2 / 3 rows; owner: landscape needs ~2.5× the
+#    40×40 purlin pipe), landscape 2 / 3 rows only if it fits 10 %+ more —
 #    spaced so a table never shades the next one on 21 Dec 9:00–15:00,
 #    front leg at least as high as the parapet;
 #  * then the shade check (nrg/sun.py) drops any panel with a shaded corner.
@@ -31,6 +32,7 @@ WALK = 0.6           # walkway between row groups on sheet roofs, m
 TILT_FLAT = 10.0     # table tilt on flat roofs, degrees
 FRONT_LEG = 0.6      # minimum front leg on flat roofs, m
 LIFT = 0.15          # panel above the sheet, m
+LANDSCAPE_MARGIN = 0.10   # flat roofs (GI): landscape tables only if they fit 10 %+ more panels than portrait
 
 
 @dataclass
@@ -148,8 +150,8 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list) -> dict:
             candidates.append((o, mods, n_rows))
         tilt = TILT_FLAT
 
-    # shade check on every candidate set, keep the one with most panels
-    best_o, best, best_raw, best_rows = 'L', [], 0, 0
+    # shade check on every candidate set, then pick
+    results = []
     for o, mods, n_rows in candidates:
         if not mods:
             continue
@@ -157,9 +159,18 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list) -> dict:
         ys = np.array([c[1] for m in mods for c in m.corners])
         zs = np.array([z for m in mods for z in m.z])
         hit = shaded(site, xs, ys, zs, sun).reshape(len(mods), 4).any(axis=1)
-        kept = [m for m, h in zip(mods, hit) if not h]
-        if len(kept) > len(best):
-            best_o, best, best_raw, best_rows = o, kept, len(mods), n_rows
+        results.append((o, [m for m, h in zip(mods, hit) if not h], len(mods), n_rows))
+    best_o, best, best_raw, best_rows = 'L', [], 0, 0
+    if results:
+        top = lambda o: max((r for r in results if r[0] == o), key=lambda r: len(r[1]), default=None)
+        p_best, l_best = top('P'), top('L')
+        if face.kind == 'flat' and p_best and l_best:
+            # GI tables: portrait first — landscape needs ~2.5× the 40×40 purlin (owner). Landscape only if it
+            # fits clearly more panels (LANDSCAPE_MARGIN).
+            pick = l_best if len(l_best[1]) >= (1 + LANDSCAPE_MARGIN) * len(p_best[1]) and len(l_best[1]) > len(p_best[1]) else p_best
+        else:
+            pick = max(results, key=lambda r: len(r[1]))   # sheet roofs: whichever fits more (owner)
+        best_o, best, best_raw, best_rows = pick
     return {
         'key': face.key, 'roof_no': face.roof_no, 'name': face.name, 'kind': face.kind, 'facing': face.facing,
         'tilt_deg': round(tilt, 1), 'orient': best_o, 'table_rows': best_rows, 'modules': best, 'shaded_out': best_raw - len(best),

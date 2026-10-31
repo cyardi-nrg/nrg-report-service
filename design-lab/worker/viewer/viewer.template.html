@@ -1,0 +1,317 @@
+<!doctype html>
+<!--
+  NRG Design Lab — general 3D viewer · Version: v1.0 (2026-10-31) · NRG Technologists
+  Built by the Design Lab worker (design-lab/worker/handlers/views.py) from the roofs drawn in the
+  Design Lab and the chosen panel layout option. Same look and the same capture hooks
+  (window.__nrg3d: views / view(name) / duration / time(t)) as the hand-built viewers in 3d-design/.
+  One self-contained file: three.js r158 (MIT, see three-LICENSE.txt), the NRG logo and the scene are inlined.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>/*__TITLE__*/</title>
+<style>
+  :root { --ink:#0f172a; --muted:#475569; --accent:#f59e0b; --panel:#ffffffee; --line:#e2e8f0; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:#cfdcea; font-family:"Liberation Sans", Arial, Helvetica, sans-serif; color:var(--ink); overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; width:100%; height:100%; touch-action:none; }
+  #labels { position:fixed; inset:0; pointer-events:none; }
+  .lbl { position:absolute; transform:translate(-50%,-100%); white-space:nowrap; font-size:clamp(10px,1.35vh,15px); font-weight:700; color:#fff;
+         background:#0f172acc; padding:.3em .6em; border-radius:.4em; border-left:3px solid var(--accent); }
+  .lbl small { display:block; font-weight:400; opacity:.85; font-size:.85em; }
+  #brand { position:fixed; left:2.2vh; top:2.2vh; display:flex; align-items:center; gap:1.6vh; background:#fff; min-width:37.5vh;
+           padding:1vh 2vh 1vh 1.2vh; border-radius:1vh; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #brand img { height:10.5vh; width:auto; display:block; }
+  #brand .n { font-weight:800; font-size:2.6vh; letter-spacing:.08em; line-height:1; color:#0000fe; }
+  #brand .s { font-size:1.4vh; color:var(--muted); letter-spacing:.12em; margin-top:.7vh; }
+  #caption { position:fixed; left:2.2vh; bottom:3vh; max-width:70%; background:#0f172ad9; color:#fff; padding:1.4vh 2.2vh 1.5vh;
+             border-radius:1vh; border-left:.6vh solid var(--accent); transition:opacity .4s; }
+  #caption .t { font-weight:800; font-size:3vh; line-height:1.15; }
+  #caption .s { font-size:1.8vh; opacity:.9; margin-top:.6vh; line-height:1.35; }
+  #spec { position:fixed; right:2.2vh; top:2.2vh; background:#ffffffe8; border-radius:1vh; padding:1.2vh 1.6vh; font-size:1.45vh; line-height:1.55;
+          box-shadow:0 .4vh 1.6vh #0f172a22; max-width:42vh; }
+  #spec b { font-size:1.75vh; }
+  #compass { position:fixed; right:2.6vh; bottom:3vh; width:8vh; height:8vh; }
+  #note { position:fixed; right:12vh; bottom:3.4vh; font-size:1.15vh; color:#0f172a; background:#fff; padding:.4vh .8vh; border-radius:.5vh; max-width:60vh; }
+  #ui { position:fixed; left:50%; transform:translateX(-50%); top:1.6vh; display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:min(760px, calc(100% - 32px)); }
+  #ui button { font:600 13px/1 "Liberation Sans", Arial, sans-serif; border:1px solid var(--line); background:var(--panel); padding:8px 11px;
+               border-radius:8px; cursor:pointer; color:var(--ink); box-shadow:0 2px 6px #0f172a1a; }
+  #ui button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  #ui button.play { background:var(--accent); border-color:#d97706; color:#111; }
+  #help { position:fixed; left:50%; transform:translateX(-50%); bottom:1.2vh; font-size:12px; color:#334155; background:#ffffffc0; padding:4px 10px; border-radius:6px; }
+  body.capture #ui, body.capture #help { display:none; }
+  @media (max-width: 700px) {
+    #spec { display:none; } #brand { top:auto; bottom:17vh; min-width:0; } #brand img { height:8vh; }
+    #caption { max-width:calc(100% - 4vh); bottom:2vh; } #compass { bottom:auto; top:120px; width:56px; height:56px; right:12px; }
+    #note, #help { display:none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+<div id="brand"><img src="/*__LOGO__*/" alt="NRG Technologists Pvt. Ltd."><div><div class="n">SOLAR EPC</div><div class="s">VADODARA · GUJARAT</div></div></div>
+<div id="spec"></div>
+<div id="caption"><div class="t"></div><div class="s"></div></div>
+<svg id="compass" viewBox="-50 -50 100 100" aria-label="North arrow"><circle r="46" fill="#ffffffd8" stroke="#0f172a33" stroke-width="2"/>
+  <g id="needle"><path d="M0,-38 L11,4 L0,-3 L-11,4 Z" fill="#dc2626"/><path d="M0,38 L11,4 L0,-3 L-11,4 Z" fill="#94a3b8"/></g>
+  <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text></svg>
+<div id="note"></div>
+<div id="ui"><button class="play" id="play">▶ Walk-around</button></div>
+<div id="help">Drag to turn · right-drag / two fingers to move · scroll / pinch to zoom</div>
+
+<script>/*__THREE__*/</script>
+<script>
+(function () {
+var S = /*__SCENE__*/null;
+var capture = /[?&]capture=1/.test(location.search);
+if (capture) document.body.classList.add('capture');
+document.getElementById('spec').innerHTML = S.spec.map(function (l, i) { return i ? l : '<b>' + l + '</b>'; }).join('<br>');
+document.getElementById('note').textContent = S.note;
+
+// site frame (metres, x east, y south) -> three.js (X east, Y up, Z south), centred
+var CX = S.center[0], CY = S.center[1], R = S.extent;
+function V(x, y, z) { return new THREE.Vector3(x - CX, z || 0, y - CY); }
+
+var canvas = document.getElementById('c');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
+var scene = new THREE.Scene();
+scene.background = new THREE.Color('#cfdcea');
+scene.fog = new THREE.Fog('#dfe7ee', R * 4, R * 12);
+var camera = new THREE.PerspectiveCamera(38, 1, 0.3, R * 30);
+scene.add(new THREE.HemisphereLight('#dceaff', '#8a826c', 0.75));
+var sun = new THREE.DirectionalLight('#fff4e2', 2.4);
+sun.position.set(R * 0.6, R * 1.4, R * 0.9); sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+var sc = sun.shadow.camera; sc.left = -R * 1.3; sc.right = R * 1.3; sc.top = R * 1.3; sc.bottom = -R * 1.3; sc.near = 1; sc.far = R * 5;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05; scene.add(sun);   // normalBias: no striped 'shadow acne'
+
+function canvasTex(w, h, draw, rx, ry) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  var t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (rx) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry || rx); }
+  return t;
+}
+var panelTex = canvasTex(240, 482, function (g, w, h) {      // one module: 6 x 12 cells, silver frame
+  g.fillStyle = '#c8ccd2'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#16233f'; g.fillRect(6, 6, w - 12, h - 12);
+  g.strokeStyle = '#2f4a78'; g.lineWidth = 1.5;
+  for (var i = 1; i < 6; i++) { g.beginPath(); g.moveTo(6 + i * (w - 12) / 6, 6); g.lineTo(6 + i * (w - 12) / 6, h - 6); g.stroke(); }
+  for (var j = 1; j < 12; j++) { g.beginPath(); g.moveTo(6, 6 + j * (h - 12) / 12); g.lineTo(w - 6, 6 + j * (h - 12) / 12); g.stroke(); }
+});
+var M = {
+  sheet: new THREE.MeshStandardMaterial({ color: '#c3c9d1', roughness: 0.55, metalness: 0.35, side: THREE.DoubleSide }),
+  rcc: new THREE.MeshStandardMaterial({ color: '#d9d3c6', roughness: 0.95, side: THREE.DoubleSide }),
+  unused: new THREE.MeshStandardMaterial({ color: '#a9aeb5', roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide }),
+  wall: new THREE.MeshStandardMaterial({ color: '#ebe6dc', roughness: 0.9, side: THREE.DoubleSide }),
+  parapet: new THREE.MeshStandardMaterial({ color: '#f1ece2', roughness: 0.9, side: THREE.DoubleSide }),
+  panel: new THREE.MeshStandardMaterial({ map: panelTex, roughness: 0.25, metalness: 0.35, side: THREE.FrontSide }),
+  panelBack: new THREE.MeshStandardMaterial({ color: '#b9bec6', roughness: 0.6, side: THREE.BackSide }),
+  leg: new THREE.MeshStandardMaterial({ color: '#9aa3ad', roughness: 0.5, metalness: 0.6 }),
+  cabin: new THREE.MeshStandardMaterial({ color: '#e7dfd1', roughness: 0.9, side: THREE.DoubleSide }),
+  tank: new THREE.MeshStandardMaterial({ color: '#222831', roughness: 0.6, side: THREE.DoubleSide }),
+  vent: new THREE.MeshStandardMaterial({ color: '#d7dbe0', roughness: 0.3, metalness: 0.8 }),
+  sky: new THREE.MeshStandardMaterial({ color: '#cfe3ef', roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
+  existing: new THREE.MeshStandardMaterial({ map: (function () { var t = panelTex.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.rotation = Math.PI / 2; t.needsUpdate = true; return t; })(),
+                                            roughness: 0.3, metalness: 0.3, side: THREE.DoubleSide }),   // existing array: panels tiled, landscape
+  tree: new THREE.MeshStandardMaterial({ color: '#3f7d3a', roughness: 0.9 }),
+  trunk: new THREE.MeshStandardMaterial({ color: '#6b4f33', roughness: 0.9 }),
+  inverter: new THREE.MeshStandardMaterial({ color: '#ea580c', roughness: 0.5 }),
+};
+
+// ---------- ground: the base picture laid out to scale, on a wider plain
+(function () {
+  var plain = new THREE.Mesh(new THREE.PlaneGeometry(R * 24, R * 24), new THREE.MeshStandardMaterial({ color: '#b9b29a', roughness: 1 }));
+  plain.rotation.x = -Math.PI / 2; plain.position.y = -0.03; plain.receiveShadow = true; scene.add(plain);
+  if (!S.ground || !S.ground.img) return;
+  var tex = new THREE.TextureLoader().load(S.ground.img, function () { renderOnce(); }); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  var c = S.ground.corners, g = new THREE.BufferGeometry();          // tl, tr, br, bl
+  var p = [c[0], c[1], c[2], c[3]].map(function (q) { return V(q[0], q[1], -0.01); });
+  g.setAttribute('position', new THREE.Float32BufferAttribute([].concat(p[0].toArray(), p[3].toArray(), p[1].toArray(), p[1].toArray(), p[3].toArray(), p[2].toArray()), 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0], 2));
+  g.computeVertexNormals();
+  var m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 1 })); m.receiveShadow = true; scene.add(m);
+})();
+
+// ---------- helpers
+function polyMesh(pts3, mat, tile) {                // flat or sloping planar polygon, pts3 = [[x,y,z],...]; tile = [w,h] m per texture repeat
+  var shape = pts3.map(function (p) { return new THREE.Vector2(p[0], p[1]); });
+  var tris = THREE.ShapeUtils.triangulateShape(shape, []), pos = [], uv = [];
+  tris.forEach(function (t) { t.forEach(function (i) { var v = V(pts3[i][0], pts3[i][1], pts3[i][2]); pos.push(v.x, v.y, v.z); if (tile) uv.push(pts3[i][0] / tile[0], pts3[i][1] / tile[1]); }); });
+  var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  if (tile) g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.computeVertexNormals();
+  var m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m;
+}
+function sides(pts, zlo, zhi, mat) {               // vertical walls along a closed outline; zlo / zhi number or per-vertex array
+  var pos = [];
+  for (var i = 0; i < pts.length; i++) {
+    var a = pts[i], b = pts[(i + 1) % pts.length];
+    var a0 = typeof zlo === 'number' ? zlo : zlo[i], b0 = typeof zlo === 'number' ? zlo : zlo[(i + 1) % pts.length];
+    var a1 = typeof zhi === 'number' ? zhi : zhi[i], b1 = typeof zhi === 'number' ? zhi : zhi[(i + 1) % pts.length];
+    [V(a[0], a[1], a0), V(b[0], b[1], b0), V(b[0], b[1], b1), V(a[0], a[1], a0), V(b[0], b[1], b1), V(a[0], a[1], a1)].forEach(function (v) { pos.push(v.x, v.y, v.z); });
+  }
+  var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  var m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m;
+}
+function centroid(pts) { var x = 0, y = 0; pts.forEach(function (p) { x += p[0]; y += p[1]; }); return [x / pts.length, y / pts.length]; }
+
+// ---------- buildings: roof faces + walls down to the ground (+ parapets)
+S.faces.forEach(function (F) {
+  scene.add(polyMesh(F.poly, F.used ? (F.kind === 'flat' ? M.rcc : M.sheet) : M.unused));
+  scene.add(sides(F.poly.map(function (p) { return [p[0], p[1]]; }), 0, F.poly.map(function (p) { return p[2]; }), M.wall));
+  if (F.parapet > 0) {
+    var top = F.poly[0][2] + F.parapet;
+    scene.add(sides(F.poly.map(function (p) { return [p[0], p[1]]; }), F.poly[0][2], top, M.parapet));
+  }
+});
+
+// ---------- what stands on the roofs
+S.obstacles.forEach(function (o) {
+  var pts = o.poly, c = centroid(pts);
+  if (o.kind === 'turbo_vent') {
+    var v = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), M.vent); v.position.copy(V(c[0], c[1], o.base + 0.28)); v.castShadow = true; scene.add(v);
+    var nck = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.3, 14), M.vent); nck.position.copy(V(c[0], c[1], o.base + 0.15)); scene.add(nck);
+  } else if (o.kind === 'skylight') {
+    scene.add(polyMesh(pts.map(function (p, i) { return [p[0], p[1], o.zs[i] + 0.03]; }), M.sky));
+  } else if (o.kind === 'existing_solar') {
+    scene.add(polyMesh(pts.map(function (p, i) { return [p[0], p[1], o.zs[i] + 0.25]; }), M.existing, [1.134 + 0.02, 2.382 + 0.02]));
+  } else if (o.kind === 'tree') {
+    var r = Math.max(1.2, Math.sqrt(Math.abs(o.area)) / 2), tr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, o.top * 0.45, 8), M.trunk);
+    tr.position.copy(V(c[0], c[1], o.top * 0.22)); tr.castShadow = true; scene.add(tr);
+    var cr = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), M.tree); cr.position.copy(V(c[0], c[1], o.top - r * 0.8)); cr.castShadow = true; scene.add(cr);
+  } else {
+    var mat = o.kind === 'tank' ? M.tank : M.cabin;
+    scene.add(sides(pts, o.base, o.top, mat));
+    scene.add(polyMesh(pts.map(function (p) { return [p[0], p[1], o.top]; }), mat));
+  }
+});
+
+// ---------- the new panels: one geometry for all (fast), legs for tables on flat roofs
+(function () {
+  var pos = [], uv = [];
+  S.modules.forEach(function (m) {
+    var c = m.c.map(function (q) { return V(q[0], q[1], q[2]); });   // corners in order: 0-1 along the row, 3 is below 0
+    var portrait = m.o === 'P';
+    var u = portrait ? [[0, 1], [1, 1], [1, 0], [0, 0]] : [[0, 0], [0, 1], [1, 1], [1, 0]];
+    [[0, 3, 1], [1, 3, 2]].forEach(function (t) { t.forEach(function (i) { pos.push(c[i].x, c[i].y, c[i].z); uv.push(u[i][0], u[i][1]); }); });
+  });
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  var front = new THREE.Mesh(g, M.panel); front.castShadow = true; front.receiveShadow = true; scene.add(front);
+  scene.add(new THREE.Mesh(g, M.panelBack));
+  var legs = S.modules.filter(function (m) { return m.base != null; });
+  if (legs.length) {
+    var leg = new THREE.CylinderGeometry(0.03, 0.03, 1, 6), inst = new THREE.InstancedMesh(leg, M.leg, legs.length * 4), mt = new THREE.Matrix4(), k = 0;
+    legs.forEach(function (m) {
+      [0, 1, 2, 3].forEach(function (i) {                 // a leg under every corner: short at the front, tall at the back
+        var q = m.c[i], h = Math.max(0.05, q[2] - m.base), p = V(q[0], q[1], m.base + h / 2);
+        mt.makeScale(1, h, 1); mt.setPosition(p.x, p.y, p.z); inst.setMatrixAt(k++, mt);
+      });
+    });
+    inst.castShadow = true; scene.add(inst);
+  }
+})();
+
+if (S.inverter) {
+  var inv = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.2, 0.45), M.inverter);
+  inv.position.copy(V(S.inverter[0], S.inverter[1], 0.6)); inv.castShadow = true; scene.add(inv);
+}
+
+// ---------- labels
+var labelsEl = document.getElementById('labels'), LBL = [];
+S.labels.forEach(function (L) {
+  var el = document.createElement('div'); el.className = 'lbl'; el.innerHTML = L.t + (L.s ? '<small>' + L.s + '</small>' : '');
+  labelsEl.appendChild(el); LBL.push({ el: el, p: V(L.x, L.y, L.z) });
+});
+function updateLabels() {
+  var w = canvas.clientWidth, h = canvas.clientHeight;
+  LBL.forEach(function (L) {
+    var p = L.p.clone().project(camera), vis = p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
+    L.el.style.display = vis ? '' : 'none';
+    if (vis) { L.el.style.left = ((p.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - p.y) / 2 * h) + 'px'; }
+  });
+}
+
+// ---------- camera: orbit around a target (own controls — no extra library)
+var cam = { az: 135, el: 32, dist: R * 2.3, tx: 0, ty: 0, tz: 0 };
+var focus = S.focus ? V(S.focus[0], S.focus[1], S.focus[2] || 0) : new THREE.Vector3();   // the panels, at roof height
+var MIDH = (S.roofMid || 0);                                                          // look at roofs, not the ground
+function place() {
+  var a = THREE.MathUtils.degToRad(cam.az), e = THREE.MathUtils.degToRad(cam.el);
+  // az measured from north, clockwise (90 = from the east); camera sits on that side looking at the target
+  camera.position.set(cam.tx + cam.dist * Math.cos(e) * Math.sin(a), cam.ty + cam.dist * Math.sin(e), cam.tz - cam.dist * Math.cos(e) * Math.cos(a));
+  camera.lookAt(cam.tx, cam.ty, cam.tz);
+  document.getElementById('needle').setAttribute('transform', 'rotate(' + (-cam.az + 180) + ')');
+}
+function renderOnce() { place(); renderer.render(scene, camera); updateLabels(); }
+function resize() { var w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); renderOnce(); }
+window.addEventListener('resize', resize);
+
+var VIEWS = {
+  aerial_se: { az: 135, el: 32, dist: R * 2.3, t: [0, MIDH, 0], cap: ['Aerial view from the south-east', S.capAll] },
+  aerial_sw: { az: 225, el: 32, dist: R * 2.3, t: [0, MIDH, 0], cap: ['Aerial view from the south-west', S.capAll] },
+  top: { az: 180, el: 89, dist: R * 2.6, t: [0, MIDH, 0], cap: ['Top view', 'North is up · panels to scale'] },
+  south: { az: 180, el: 9, dist: R * 2.1, t: [0, MIDH, 0], cap: ['From the south', 'Heights as drawn in the Design Lab'] },
+  close: { az: 150, el: 30, dist: Math.max(12, R * 0.9), t: [focus.x, focus.y, focus.z], cap: ['Close-up', S.capClose] },
+};
+var VIEW_NAMES = Object.keys(VIEWS);
+var captionT = document.querySelector('#caption .t'), captionS = document.querySelector('#caption .s');
+function caption(t, s) { captionT.textContent = t; captionS.textContent = s || ''; }
+function setView(n) {
+  var v = VIEWS[n]; cam.az = v.az; cam.el = v.el; cam.dist = v.dist; cam.tx = v.t[0]; cam.ty = v.t[1]; cam.tz = v.t[2];
+  caption(v.cap[0], v.cap[1]); renderOnce();
+}
+
+// walk-around: one slow turn round the site, closing in on the panels, then rising to a top view
+var DURATION = S.duration || 40;
+function ease(x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
+function atTime(t) {
+  var f = Math.max(0, Math.min(1, t / DURATION));
+  if (f < 0.8) {
+    var g = f / 0.8;
+    cam.az = 135 + 360 * ease(g); cam.el = 34 - 12 * Math.sin(Math.PI * g); cam.dist = R * (2.4 - 1.0 * Math.sin(Math.PI * g));
+    cam.tx = focus.x * Math.sin(Math.PI * g); cam.ty = MIDH + (focus.y - MIDH) * Math.sin(Math.PI * g); cam.tz = focus.z * Math.sin(Math.PI * g);
+  } else {
+    var h = ease((f - 0.8) / 0.2);
+    cam.az = 135 + 360 + 45 * h; cam.el = 34 + 55 * h; cam.dist = R * (2.4 + 0.2 * h); cam.tx = cam.tz = 0; cam.ty = MIDH;
+  }
+  var cap = S.timeline.filter(function (c) { return t >= c.at; }).pop();
+  if (cap) caption(cap.t, cap.s);
+  renderOnce();
+}
+
+// ---------- mouse / touch
+var drag = null;
+canvas.addEventListener('pointerdown', function (e) { playing = false; drag = { x: e.clientX, y: e.clientY, b: e.button, az: cam.az, el: cam.el, tx: cam.tx, tz: cam.tz }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', function (e) {
+  if (!drag) return;
+  var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (drag.b === 2 || e.shiftKey) {
+    var s = cam.dist / 900, a = THREE.MathUtils.degToRad(cam.az);
+    cam.tx = drag.tx - (dx * Math.cos(a) + dy * Math.sin(a)) * s; cam.tz = drag.tz - (dx * Math.sin(a) - dy * Math.cos(a)) * s;
+  } else { cam.az = drag.az - dx * 0.3; cam.el = Math.max(3, Math.min(89, drag.el + dy * 0.25)); }
+  renderOnce();
+});
+canvas.addEventListener('pointerup', function () { drag = null; });
+canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+canvas.addEventListener('wheel', function (e) { e.preventDefault(); cam.dist = Math.max(R * 0.25, Math.min(R * 6, cam.dist * (e.deltaY > 0 ? 1.1 : 0.9))); renderOnce(); }, { passive: false });
+
+var ui = document.getElementById('ui');
+var LABEL_OF = { aerial_se: 'Aerial SE', aerial_sw: 'Aerial SW', top: 'Top view', south: 'South', close: 'Close-up' };
+VIEW_NAMES.forEach(function (n) { var b = document.createElement('button'); b.textContent = LABEL_OF[n]; b.onclick = function () { playing = false; setView(n); }; ui.appendChild(b); });
+var playing = false, t0 = 0;
+document.getElementById('play').onclick = function () { playing = true; t0 = performance.now(); };
+function loop() { if (playing) { var t = (performance.now() - t0) / 1000; if (t > DURATION) playing = false; else atTime(t); } requestAnimationFrame(loop); }
+
+window.__nrg3d = { views: VIEW_NAMES, view: setView, duration: DURATION, time: atTime };
+resize(); setView('aerial_se');
+if (!capture) requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -239,6 +239,8 @@ def sync_packages() -> None:
         return
     log.info('Installing the Python packages this version needs…')
     subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', '-r', req], check=True)
+    if 'playwright' in open(req).read():
+        subprocess.run([sys.executable, '-m', 'playwright', 'install', 'chromium'], check=False)   # 3D pictures / video (phase 4)
     open(stamp, 'w').write(open(req).read())
 
 

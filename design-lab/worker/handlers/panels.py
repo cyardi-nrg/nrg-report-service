@@ -42,7 +42,8 @@ def _blocks(face_pack: dict, mods: list) -> list:
     return [{'name': face_pack['name'], 'rows': n_rows, 'cols': math.ceil(len(mods) / n_rows)}]
 
 
-def run(job) -> dict:
+def plan(job) -> dict:
+    """Everything the layout needs, worked out (shared with the 3D stage, which rebuilds the chosen option)."""
     model, roof_v = roof_model(job)
     spec = panel_spec(job.layout)
     if not spec['target']:
@@ -63,24 +64,39 @@ def run(job) -> dict:
         p['modules'].sort(key=lambda m: (col_d[round(m.u, 1)], round(m.u, 1), m.row))
     capacity = sum(len(p['modules']) for p in packs)
 
-    orders = {
+    return {'model': model, 'roof_v': roof_v, 'spec': spec, 'site': site, 'sun': sun, 'packs': packs, 'capacity': capacity}
+
+
+def option_arrays(P: dict, order: list) -> tuple[list, list]:
+    """Fill the quote's panels roof by roof in this order (whole columns from the inverter end)."""
+    left, arrays, mods_all = P['spec']['target'], [], []
+    for p in order:
+        if left <= 0:
+            break
+        take = p['modules'][:left]
+        left -= len(take)
+        mods_all += take
+        arrays.append({'face': p['key'], 'name': p['name'], 'facing': p['facing'], 'tilt': p['tilt_deg'], 'orient': p['orient'],
+                       'modules': len(take), 'capacity': len(p['modules']), 'kwp': round(len(take) * P['spec']['wp'] / 1000, 2),
+                       'kwh': round(len(take) * P['spec']['wp'] / 1000 * p['yield']), 'blocks': _blocks(p, take), '_mods': take, '_pack': p})
+    return arrays, mods_all
+
+
+def orders(packs: list) -> dict:
+    return {
         'A': ('Best generation first', sorted(packs, key=lambda p: (-p['yield'], p['avg_dist']))),
         'B': ('Nearest the inverter (least DC cable)', sorted(packs, key=lambda p: (p['avg_dist'], -p['yield']))),
         'C': ('Biggest roofs first (fewest arrays)', sorted(packs, key=lambda p: (-len(p['modules']), -p['yield']))),
     }
+
+
+def run(job) -> dict:
+    P = plan(job)
+    model, roof_v, spec, site, packs, capacity = P['model'], P['roof_v'], P['spec'], P['site'], P['packs'], P['capacity']
     options, seen = [], {}
     base = base_picture(job, model)
-    for k, (title, order) in orders.items():
-        left, arrays, mods_all = spec['target'], [], []
-        for p in order:
-            if left <= 0:
-                break
-            take = p['modules'][:left]
-            left -= len(take)
-            mods_all += take
-            arrays.append({'face': p['key'], 'name': p['name'], 'facing': p['facing'], 'tilt': p['tilt_deg'], 'orient': p['orient'],
-                           'modules': len(take), 'capacity': len(p['modules']), 'kwp': round(len(take) * spec['wp'] / 1000, 2),
-                           'kwh': round(len(take) * spec['wp'] / 1000 * p['yield']), 'blocks': _blocks(p, take), '_mods': take, '_pack': p})
+    for k, (title, order) in orders(packs).items():
+        arrays, mods_all = option_arrays(P, order)
         n = len(mods_all)
         dc = sum(a['modules'] / STRING * 2 * (sum(_dist(site, m) for m in a['_mods']) / max(1, a['modules'])) for a in arrays)
         sig = tuple(sorted((round(m.x, 2), round(m.y, 2)) for m in mods_all))
