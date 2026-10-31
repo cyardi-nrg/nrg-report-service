@@ -1,23 +1,50 @@
-# Design Lab worker v1.0.0 (2026-10-31) — reads the .env file next to worker.py.
+# Design Lab worker v1.7.1 (2026-10-31) — reads the .env file next to worker.py.
+# v1.7.1: forgiving for a hand-pasted file — a private key pasted over several lines (with or
+#         without quotes), and TextEdit's curly quotes, are both read correctly.
 import os
 from dataclasses import dataclass
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION = open(os.path.join(HERE, 'VERSION')).read().strip()
 
+QUOTES = {'"': '"', "'": "'", '\u201c': '\u201d', '\u2018': '\u2019'}
+
 
 def _load_env_file(path: str) -> None:
     if not os.path.exists(path):
         return
-    for raw in open(path, encoding='utf-8'):
-        line = raw.strip()
+    lines = open(path, encoding='utf-8-sig').read().splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        i += 1
         if not line or line.startswith('#') or '=' not in line:
             continue
         k, v = line.split('=', 1)
-        v = v.strip()
-        if len(v) >= 2 and v[0] == v[-1] and v[0] in '"\'':
+        k, v = k.strip(), v.strip()
+        # a quoted value that goes on over more lines (e.g. a private key pasted with real line breaks)
+        if v and v[0] in QUOTES and not (len(v) >= 2 and v[-1] == QUOTES[v[0]]):
+            close, parts = QUOTES[v[0]], [v[1:]]
+            while i < len(lines):
+                nxt = lines[i].rstrip()
+                i += 1
+                if nxt.endswith(close):
+                    parts.append(nxt[:-1]); break
+                parts.append(nxt)
+            v = '\n'.join(p.strip() for p in parts)
+        elif len(v) >= 2 and v[0] in QUOTES and v[-1] == QUOTES[v[0]]:
             v = v[1:-1]
-        os.environ.setdefault(k.strip(), v)
+        # an unquoted private key pasted over several lines: read on to the END line
+        if 'BEGIN' in v and 'PRIVATE KEY' in v and 'END' not in v:
+            parts = [v]
+            while i < len(lines):
+                nxt = lines[i].strip()
+                i += 1
+                parts.append(nxt)
+                if 'END' in nxt and 'PRIVATE KEY' in nxt:
+                    break
+            v = '\n'.join(parts)
+        os.environ.setdefault(k, v)
 
 
 @dataclass

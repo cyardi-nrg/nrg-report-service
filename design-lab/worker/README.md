@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.7.0, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.7.1, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
