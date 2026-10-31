@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Design Lab worker v1.0.0 (2026-10-31) — starts the worker when you log in and restarts it if it stops.
+     install.sh fills in __WORKER_DIR__ and copies this to ~/Library/LaunchAgents/. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.nrg.designlab.worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__WORKER_DIR__/.venv/bin/python3</string>
+    <string>__WORKER_DIR__/worker.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>__WORKER_DIR__</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>60</integer>
+  <key>StandardOutPath</key><string>__WORKER_DIR__/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>__WORKER_DIR__/logs/launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+</dict>
+</plist>

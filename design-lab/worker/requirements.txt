@@ -1,0 +1,3 @@
+# Design Lab worker v1.0.0 (2026-10-31)
+requests>=2.31
+google-auth>=2.29
