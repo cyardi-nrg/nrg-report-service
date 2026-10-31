@@ -1,0 +1,715 @@
+<!doctype html>
+<!--
+  Site from Google Maps screenshot (site-google-01) — step 1: roofs identified (no new solar yet) — 3D viewer
+  Version: v6 (2026-10-31) · NRG Technologists — v6: layout v4: roof 3 gable; its south half + roof 5 = one south slope; roof 3 north half not used; new-building skylights kept free
+  Geometry: Google Maps satellite screenshot (north up, scale bar 20 m = 215 px) -> src/roofs.json. Heights assumed.
+  Framework shared with ../jain-granite, ../sejal-parikh, ../architect-residence. build.mjs inlines three.js + logo.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Site Roofs 3D</title>
+<style>
+  :root { --ink:#0f172a; --muted:#475569; --accent:#f59e0b; --panel:#ffffffee; --line:#e2e8f0; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:#cfdcea; font-family:"Liberation Sans", Arial, Helvetica, sans-serif; color:var(--ink); overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #c { display:block; width:100%; height:100%; touch-action:none; }
+  #labels { position:absolute; inset:0; pointer-events:none; }
+  .lbl { position:absolute; transform:translate(-50%,-100%); white-space:nowrap; font-size:clamp(10px,1.35vh,15px);
+         font-weight:700; color:#fff; background:#0f172acc; padding:.3em .6em; border-radius:.4em; border-left:3px solid var(--accent); }
+  .lbl::after { content:""; position:absolute; left:50%; top:100%; width:1px; height:1.1em; background:#0f172acc; }
+  .lbl small { display:block; font-weight:400; opacity:.85; font-size:.85em; }
+
+  /* opaque and at least 37.5vh wide: render.mjs --rebrand lays this box over older renders, so it must hide the old one */
+  #brand { position:absolute; left:2.2vh; top:2.2vh; display:flex; align-items:center; gap:1.6vh; background:#fff; min-width:37.5vh;
+           padding:1vh 2vh 1vh 1.2vh; border-radius:1vh; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #brand img { height:10.5vh; width:auto; display:block; }
+  #brand .n { font-weight:800; font-size:2.6vh; letter-spacing:.08em; line-height:1; color:#0000fe; }
+  #brand .s { font-size:1.4vh; color:var(--muted); letter-spacing:.12em; margin-top:.7vh; }
+
+  #caption { position:absolute; left:2.2vh; bottom:3vh; max-width:70%; background:#0f172ad9; color:#fff; padding:1.4vh 2.2vh 1.5vh;
+             border-radius:1vh; border-left:.6vh solid var(--accent); transition:opacity .5s; }
+  #caption .t { font-weight:800; font-size:3vh; line-height:1.15; }
+  #caption .s { font-size:1.8vh; opacity:.9; margin-top:.6vh; line-height:1.35; }
+
+  #spec { position:absolute; right:2.2vh; top:2.2vh; background:#ffffffe8; border-radius:1vh; padding:1.2vh 1.6vh; font-size:1.45vh;
+          line-height:1.55; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #spec b { font-size:1.75vh; }
+  #compass { position:absolute; right:2.6vh; bottom:3vh; width:8vh; height:8vh; }
+  #note { position:absolute; right:12vh; bottom:3.4vh; font-size:1.15vh; color:#0f172a; background:#fff; padding:.4vh .8vh; border-radius:.5vh; }
+
+  #ui { position:fixed; left:50%; transform:translateX(-50%); top:1.6vh; display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
+        max-width:min(760px, calc(100% - 32px)); }
+  #ui button { font:600 13px/1 "Liberation Sans", Arial, sans-serif; border:1px solid var(--line); background:var(--panel);
+               padding:8px 11px; border-radius:8px; cursor:pointer; color:var(--ink); box-shadow:0 2px 6px #0f172a1a; }
+  #ui button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  #ui button.play { background:var(--accent); border-color:#d97706; color:#111; }
+  #help { position:fixed; left:50%; transform:translateX(-50%); bottom:1.2vh; font-size:12px; color:#334155; background:#ffffffc0;
+          padding:4px 10px; border-radius:6px; }
+  body.capture #ui, body.capture #help { display:none; }
+  @media (max-width: 700px) {
+    #spec { display:none; }
+    #brand { top:auto; bottom:17vh; min-width:0; }
+    #brand img { height:8vh; }
+    #ui { top:8px; }
+    #ui button { padding:7px 8px; font-size:12px; }
+    #caption { max-width:calc(100% - 4vh); bottom:2vh; }
+    #compass { bottom:auto; top:190px; width:56px; height:56px; right:12px; }
+    #note, #help { display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div id="brand">
+    <img src="/*__LOGO__*/" alt="NRG Technologists Pvt. Ltd.">
+    <div><div class="n">SOLAR EPC</div><div class="s">VADODARA · GUJARAT</div></div>
+  </div>
+  <div id="spec">
+    <b>Site from Google Maps</b><br>
+    Pluga Pumps &amp; Motors · Savli<br>
+    NEW 300 kWp · 480 × 625 Wp<br>
+    South 158.75 kWp · North 141.25 kWp<br>
+    + existing ≈ 90–95 kWp
+  </div>
+  <div id="caption"><div class="t"></div><div class="s"></div></div>
+  <svg id="compass" viewBox="-50 -50 100 100" aria-label="North arrow">
+    <circle r="46" fill="#ffffffd8" stroke="#0f172a33" stroke-width="2"/>
+    <g id="needle">
+      <path d="M0,-38 L11,4 L0,-3 L-11,4 Z" fill="#dc2626"/>
+      <path d="M0,38 L11,4 L0,-3 L-11,4 Z" fill="#94a3b8"/>
+    </g>
+    <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
+  </svg>
+  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights partly assumed — verify on site · v6</div>
+</div>
+
+<div id="ui">
+  <button class="play" id="play">▶ Walk-around</button>
+  <button data-view="aerial">Aerial SE</button>
+  <button data-view="aerialnw">Aerial NW</button>
+  <button data-view="plan">Top view</button>
+  <button data-view="southelev">South</button>
+  <button data-view="westelev">West</button>
+  <button id="tgLabels" class="on">Labels</button>
+  <button id="tgBos" class="on">Roof numbers</button>
+</div>
+<div id="help">Drag to rotate · right-drag / two fingers to pan · scroll / pinch to zoom</div>
+
+<script>/*__THREE__*/</script>
+<script>
+(function () {
+'use strict';
+var VERSION = 'v6';
+var Q = new URLSearchParams(location.search);
+var CAPTURE = Q.has('capture');
+if (CAPTURE) document.body.classList.add('capture');
+
+// ======================================================================= site data (metres)
+// Read off google-satellite.webp (Google Maps satellite screenshot, north up, 1890 x 1276 px). Scale bar: 20 m = 215 px.
+// Numbers in px are positions on that screenshot. Roof list = roofs.json (v1). HEIGHTS ARE ASSUMED: not visible from above.
+var SCALE = 215 / 20, CX = 700, CY = 460;
+function P(px, py, h) { return new THREE.Vector3((px - CX) / SCALE, h || 0, (py - CY) / SCALE); }
+var ROOFS = [
+  { id: 1, name: 'Main shed', type: 'gable', x: [430, 1232], y: [200, 690], ridgeY: 445, eave: 8.0, slope: 0.1, monitor: true },   // v3: ridge in the centre (owner)
+  { id: 2, name: 'North-west shed', type: 'gable', x: [190, 420], y: [170, 350], ridgeY: 260, eave: 6.5, slope: 0.1, exclude: true },
+  { id: 3, name: 'North half', type: 'mono', x: [150, 365], y: [400, 545], high: 8.0, low: 6.65, down: 'N' },               // v6: roof 3 is a gable, ridge 8 m (owner)
+  { id: 4, name: 'Link lean-to', type: 'mono', x: [365, 430], y: [350, 690], high: 6.0, low: 5.3, down: 'W', exclude: true },
+  { id: 5, name: 'South half + roof 5', type: 'mono', x: [150, 365], y: [545, 775], high: 8.0, low: 5.86, down: 'S' },      // v6: one slope (owner)
+  { id: 6, name: 'North lean-to', type: 'mono', x: [600, 1075], y: [140, 200], high: 6.3, low: 5.5, down: 'N', exclude: true },
+  // v3: new building under construction west of 3 + 5 (drawings 262711-AR-A-00-101 R8 + 262711-AR-T-01-101 R3; owner photos).
+  // 28.2 x 46 m, east wall against roof 3; ridge line E 14.4 m from the south edge. South roof 11.00 -> 12.35 m (falls S),
+  // north roof about 10.4 -> 7.50 m (falls N), wall light in the step between them. Extends west past the screenshot edge.
+  { id: 7, name: 'New building · south roof', type: 'mono', x: [-153, 150], y: [581, 736], high: 12.35, low: 11.0, down: 'S', newb: true },
+  { id: 8, name: 'New building · north roof', type: 'mono', x: [-153, 150], y: [238, 581], high: 10.4, low: 7.5, down: 'N', newb: true },
+];
+var EXISTING = { roof: 1, groupsX: [[690, 862], [868, 1040], [1047, 1220]], rowsY: [[505, 545], [555, 598], [605, 645]] };   // approx.
+var MOD_W = 1.134, MOD_L = 2.278, MOD_T = 0.035;
+var LAYOUT = /*__LAYOUT__*/null;   // design/layout.json (300 kWp layout), injected by build.mjs
+var ROOF_COL = { 1: '#ef4444', 2: '#9ca3af', 3: '#22c55e', 4: '#9ca3af', 5: '#a855f7', 6: '#9ca3af', 7: '#0ea5e9', 8: '#0ea5e9' };   // grey = not for solar (owner)
+
+// ======================================================================= renderer / scene
+var canvas = document.getElementById('c');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: CAPTURE });
+renderer.setPixelRatio(CAPTURE ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 2000);
+
+// sky dome (also used to build the reflection environment, so the glass reflects a real sky)
+function skyMesh(radius) {
+  var g = new THREE.SphereGeometry(radius, 48, 24);
+  var pos = g.attributes.position, col = [];
+  var top = new THREE.Color('#4f86cc'), hor = new THREE.Color('#e4ecf2'), gnd = new THREE.Color('#9c977f');
+  for (var i = 0; i < pos.count; i++) {
+    var y = pos.getY(i) / radius, c = new THREE.Color();
+    if (y >= 0) c.copy(hor).lerp(top, Math.pow(Math.min(1, y / 0.9), 0.55));
+    else c.copy(hor).lerp(gnd, Math.min(1, -y * 8));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+}
+scene.add(skyMesh(900));
+(function () {
+  var envScene = new THREE.Scene();
+  envScene.add(skyMesh(50));
+  var pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+})();
+scene.fog = new THREE.Fog('#dfe7ee', 350, 1400);
+
+scene.add(new THREE.HemisphereLight('#dceaff', '#8a826c', 0.55));
+var sun = new THREE.DirectionalLight('#fff4e2', 2.6);
+// late-morning sun from the south-east (Vadodara ~22°N): az 125°, elevation 52°
+(function () {
+  var az = THREE.MathUtils.degToRad(125), el = THREE.MathUtils.degToRad(52), d = 120;
+  sun.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d);
+})();
+sun.castShadow = true;
+sun.shadow.mapSize.set(CAPTURE ? 4096 : 2048, CAPTURE ? 4096 : 2048);
+var sc = sun.shadow.camera; sc.left = -75; sc.right = 75; sc.top = 75; sc.bottom = -75; sc.far = 400; sc.near = 20; sc.far = 260;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun); scene.add(sun.target);
+
+// ======================================================================= procedural textures
+function canvasTex(w, h, draw, rx, ry) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  var t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx || 1, ry || 1);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+// module face: 6 x 22 half-cut cells (132-cell 625 Wp TOPCon), silver frame lip, white backsheet gaps
+var panelTex = canvasTex(240, 482, function (g, w, h) {
+  g.fillStyle = '#d7dbe0'; g.fillRect(0, 0, w, h);
+  var fr = 7; g.fillStyle = '#e9edf2'; g.fillRect(fr, fr, w - 2 * fr, h - 2 * fr);
+  var cols = 6, rows = 22, gx = 2, gy = 2, mid = 6;
+  var cw = (w - 2 * fr - 8 - (cols - 1) * gx) / cols, ch = (h - 2 * fr - 8 - (rows - 1) * gy - mid) / rows;
+  for (var i = 0; i < cols; i++) for (var j = 0; j < rows; j++) {
+    var x = fr + 4 + i * (cw + gx), y = fr + 4 + j * (ch + gy) + (j >= rows / 2 ? mid : 0);
+    var gr = g.createLinearGradient(x, y, x + cw, y + ch);
+    gr.addColorStop(0, '#15213d'); gr.addColorStop(1, '#0b1226');
+    g.fillStyle = gr; g.fillRect(x, y, cw, ch);
+    g.fillStyle = '#3a4a6e';
+    for (var b = 1; b <= 3; b++) g.fillRect(x + b * cw / 4 - 0.5, y, 1, ch);   // busbars
+  }
+});
+var roofTex = canvasTex(16, 64, function (g, w, h) {           // trapezoidal sheet ribs, one rib per tile
+  g.fillStyle = '#d8d3c8'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#efebe3'; g.fillRect(0, 0, w, 10);
+  g.fillStyle = '#b9b3a6'; g.fillRect(0, 10, w, 4);
+  g.fillStyle = '#c9c3b7'; g.fillRect(0, 44, w, 3);
+}, 1, 12);           // sheet ribs on the fresh-air-unit shed
+function wallTex(rx, ry) {
+  return canvasTex(64, 16, function (g, w, h) {                // vertical cladding ribs
+    g.fillStyle = '#c4ccd4'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#dde3e9'; g.fillRect(0, 0, 14, h);
+    g.fillStyle = '#9fa9b3'; g.fillRect(14, 0, 4, h);
+    g.fillStyle = '#b3bcc6'; g.fillRect(40, 0, 2, h);
+  }, rx, ry);
+}
+var shutterTex = canvasTex(8, 32, function (g, w, h) {
+  for (var y = 0; y < h; y += 4) { g.fillStyle = '#8f99a3'; g.fillRect(0, y, w, 3); g.fillStyle = '#6d7680'; g.fillRect(0, y + 3, w, 1); }
+}, 1, 30);
+var gratingTex = canvasTex(32, 32, function (g, w, h) {
+  g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#c9ced3';
+  for (var i = 0; i < w; i += 8) g.fillRect(i, 0, 3, h);
+  for (var j = 0; j < h; j += 8) g.fillRect(0, j, w, 2);
+}, 1, 1);
+var groundTex = canvasTex(256, 256, function (g, w, h) {
+  g.fillStyle = '#a39b7c'; g.fillRect(0, 0, w, h);
+  var r = mulberry(7);
+  for (var i = 0; i < 3500; i++) {
+    var v = r();
+    g.fillStyle = v < 0.33 ? '#8f8a63' : v < 0.66 ? '#b2a98a' : '#7f8a55';
+    g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 3);
+  }
+}, 60, 60);
+var concreteTex = canvasTex(128, 128, function (g, w, h) {
+  g.fillStyle = '#bdb8ae'; g.fillRect(0, 0, w, h);
+  var r = mulberry(3);
+  for (var i = 0; i < 1500; i++) { g.fillStyle = r() < 0.5 ? '#b2ada3' : '#c7c2b8'; g.fillRect(r() * w, r() * h, 1.5, 1.5); }
+  g.fillStyle = '#a19c93'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h);   // 3 m panel joints
+}, 1, 1);
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ======================================================================= materials
+var M = {
+  glass: new THREE.MeshPhysicalMaterial({ map: panelTex, roughness: 0.3, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.12, envMapIntensity: 0.55 }),
+  frame: new THREE.MeshStandardMaterial({ color: '#c7ccd3', metalness: 0.85, roughness: 0.35 }),
+  back:  new THREE.MeshStandardMaterial({ color: '#e8e8e4', roughness: 0.8 }),
+  rail:  new THREE.MeshStandardMaterial({ color: '#b8bec6', metalness: 0.8, roughness: 0.4 }),
+  roof:  new THREE.MeshStandardMaterial({ map: roofTex, metalness: 0.45, roughness: 0.5 }),
+  trim:  new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.6, roughness: 0.45 }),
+  plinth:new THREE.MeshStandardMaterial({ color: '#a59f94', roughness: 0.95 }),
+  shutter:new THREE.MeshStandardMaterial({ map: shutterTex, metalness: 0.5, roughness: 0.5 }),
+  walk:  new THREE.MeshStandardMaterial({ map: gratingTex, color: '#fcd34d', metalness: 0.2, roughness: 0.7 }),
+  tray:  new THREE.MeshStandardMaterial({ color: '#aeb6bf', metalness: 0.75, roughness: 0.35 }),
+  ground:new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1 }),
+  concrete:new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.95 }),
+  cwall: new THREE.MeshStandardMaterial({ color: '#e6dccb', roughness: 0.95 }),
+  inv:   new THREE.MeshStandardMaterial({ color: '#f4f5f6', roughness: 0.45 }),
+  invFace:new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.4 }),
+  acdb:  new THREE.MeshStandardMaterial({ color: '#c9cdd2', roughness: 0.55, metalness: 0.2 }),
+  red:   new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.5 }),
+  copper:new THREE.MeshStandardMaterial({ color: '#b8733a', metalness: 0.8, roughness: 0.35 }),
+  steel: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.85, roughness: 0.3 }),
+  pit:   new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.7 }),
+  ladder:new THREE.MeshStandardMaterial({ color: '#facc15', metalness: 0.3, roughness: 0.5 }),
+  trunk: new THREE.MeshStandardMaterial({ color: '#6b4f3a', roughness: 1 }),
+  leaf:  new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true }),
+  cable: new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.6 }),
+};
+
+function box(w, h, d, mat, cast, recv) {
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = cast !== false; m.receiveShadow = recv !== false;
+  return m;
+}
+function tube(points, r, mat) {          // straight-segment cable / conductor through world points
+  var path = new THREE.CurvePath();
+  for (var i = 0; i < points.length - 1; i++) path.add(new THREE.LineCurve3(points[i], points[i + 1]));
+  var m = new THREE.Mesh(new THREE.TubeGeometry(path, points.length * 8, r, 8, false), mat);
+  m.castShadow = true; return m;
+}
+
+var site = new THREE.Group(), bos = new THREE.Group();   // bos = roof-number discs (toggle)
+scene.add(site); scene.add(bos);
+
+// ======================================================================= ground, roads, trees, neighbours
+var TREES = [];
+var clad = new THREE.MeshStandardMaterial({ color: '#bfc5ca', roughness: 0.8, metalness: 0.2 });
+var newClad = new THREE.MeshStandardMaterial({ color: '#9fb4c8', roughness: 0.7, metalness: 0.3 });   // new building (light blue-grey)
+var brick = new THREE.MeshStandardMaterial({ color: '#b9a48a', roughness: 0.95 });
+var ribTex = canvasTex(32, 8, function (g, w, h) {           // trapezoidal sheet, ribs running down the slope (along v)
+  g.fillStyle = '#a89c8a'; g.fillRect(0, 0, w, h); g.fillStyle = '#c2b7a5'; g.fillRect(0, 0, 6, h); g.fillStyle = '#867b6b'; g.fillRect(6, 0, 2, h);
+}, 1, 1);
+(function () {
+  var g = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), M.ground); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; site.add(g);
+  function slab(x0, y0, x1, y1, mat) { var a = P(x0, y0), b = P(x1, y1), m = new THREE.Mesh(new THREE.PlaneGeometry(b.x - a.x, b.z - a.z), mat);
+    m.rotation.x = -Math.PI / 2; m.position.set((a.x + b.x) / 2, 0.03, (a.z + b.z) / 2); m.receiveShadow = true; site.add(m); }
+  var road = new THREE.MeshStandardMaterial({ color: '#a7a195', roughness: 0.95 });
+  slab(-400, 95, 2300, 165, road);              // road along the north side
+  slab(0, 165, 150, 790, road);                 // yard west of the sheds (new building now stands on most of it)
+  slab(-260, 165, -153, 800, road);             // 4.5 m road west of the new building (master layout)
+  slab(-260, 736, 150, 800, road);              // 4.5 m road south of the new building
+  slab(150, 690, 1240, 705, road);              // apron along the south wall
+  // neighbour sheds north-east (low, plain)
+  [[1315, 40, 1700, 125, 4.5], [1430, 40, 1470, 125, 4.8]].forEach(function (n) {
+    var a = P(n[0], n[1]), b = P(n[2], n[3]), m = box(b.x - a.x, n[4], b.z - a.z, brick); m.position.set((a.x + b.x) / 2, n[4] / 2, (a.z + b.z) / 2); site.add(m);
+  });
+  // trees as seen in the screenshot (positions px, canopy radius m)
+  var spots = [[520, 760, 5], [660, 800, 6], [1000, 780, 6], [1210, 770, 5.5], [1440, 770, 5.5], [1760, 750, 6], [1790, 600, 4], [1380, 330, 6],
+               [1290, 430, 4.5], [1540, 560, 4], [1720, 560, 3.5], [480, 60, 4.5], [700, 50, 4.5], [1000, 50, 5], [1200, 50, 4], [1820, 40, 4], [40, 760, 3.5]];
+  var trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25, 0.4, 1, 7), M.trunk, spots.length);
+  var leaves = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), M.leaf, spots.length * 2);
+  trunks.castShadow = leaves.castShadow = true;
+  var r = mulberry(41), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s3 = new THREE.Vector3(), col = new THREE.Color();
+  spots.forEach(function (s, k) {
+    var p = P(s[0], s[1]), th = 3 + r() * 2, cr = s[2] * 0.75;
+    m4.compose(new THREE.Vector3(p.x, th / 2, p.z), q.identity(), s3.set(1, th, 1)); trunks.setMatrixAt(k, m4);
+    for (var j = 0; j < 2; j++) {
+      q.setFromEuler(new THREE.Euler(r(), r() * 6, r()));
+      m4.compose(new THREE.Vector3(p.x + (r() - 0.5) * 2, th + cr * (0.5 + j * 0.45), p.z + (r() - 0.5) * 2), q, s3.set(cr * (1 - j * 0.25), cr * 0.75, cr * (1 - j * 0.25)));
+      leaves.setMatrixAt(k * 2 + j, m4); leaves.setColorAt(k * 2 + j, col.setHSL(0.23 + r() * 0.06, 0.35, 0.22 + r() * 0.07));
+    }
+  });
+  site.add(trunks); site.add(leaves); TREES.push(trunks, leaves);
+})();
+
+// ======================================================================= the six roofs (gable / lean-to), walls, ridge vent
+var ROOF_INFO = {};
+(function () {
+  function profile(pts, depth, mat, axis, pos) {        // closed profile extruded along X (pts in z,y) or along Z (pts in x,y)
+    var sh = new THREE.Shape(pts.map(function (p) { return new THREE.Vector2(p[0], p[1]); }));
+    var m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: depth, bevelEnabled: false }), mat);
+    if (axis === 'x') { m.rotation.y = -Math.PI / 2; m.position.set(pos, 0, 0); } else { m.position.set(0, 0, pos); }
+    m.castShadow = m.receiveShadow = true; site.add(m); return m;
+  }
+  function sheet(len, wid, cx, cy, cz, rx, rz, edgeCol) {   // roof sheet: len along the slope, wid across; ribs along the slope
+    var t = ribTex.clone(); t.needsUpdate = true; t.repeat.set(wid / 0.25, 1);
+    var mat = new THREE.MeshStandardMaterial({ map: t, metalness: 0.4, roughness: 0.55 });
+    var alongZ = rz === 0;
+    var m = box(alongZ ? wid : len, 0.06, alongZ ? len : wid, mat);
+    if (!alongZ) { t.repeat.set(1, 1); t.rotation = Math.PI / 2; t.center.set(0.5, 0.5); t.repeat.set(wid / 0.25, 1); }
+    m.position.set(cx, cy, cz); m.rotation.set(rx, 0, rz); site.add(m); return m;
+  }
+  ROOFS.forEach(function (R) {
+    var a = P(R.x[0], R.y[0]), b = P(R.x[1], R.y[1]), W = b.x - a.x, D = b.z - a.z, cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2, OH = 0.3;
+    if (R.type === 'gable') {
+      var zr = P(0, R.ridgeY).z, runN = zr - a.z, runS = b.z - zr, ridge = R.eave + R.slope * (runN + runS) / 2;
+      var aN = Math.atan2(ridge - R.eave, runN), aS = Math.atan2(ridge - R.eave, runS);
+      var body = box(W, R.eave, D, clad); body.position.set(cx, R.eave / 2, cz); site.add(body);
+      profile([[a.z, R.eave], [b.z, R.eave], [zr, ridge]], W, clad, 'x', b.x);
+      var lN = (runN + OH) / Math.cos(aN), lS = (runS + OH) / Math.cos(aS);
+      sheet(lN, W + 2 * OH, cx, (R.eave + ridge) / 2 + 0.03 - OH * Math.tan(aN) / 2, zr - (runN + OH) / 2, -aN, 0);
+      sheet(lS, W + 2 * OH, cx, (R.eave + ridge) / 2 + 0.03 - OH * Math.tan(aS) / 2, zr + (runS + OH) / 2, aS, 0);
+      var cap = box(W + 2 * OH, 0.12, 0.6, M.trim); cap.position.set(cx, ridge + 0.1, zr); site.add(cap);
+      if (R.monitor) {
+        // v2, from the north-side photo: half-round ridge ventilators along the ridge + turbo ventilators just below it
+        var white = new THREE.MeshStandardMaterial({ color: '#e9e9e4', roughness: 0.45, metalness: 0.35 });
+        var halfG = new THREE.CylinderGeometry(0.42, 0.42, 2.4, 18, 1, true, 0, Math.PI);
+        for (var vx = a.x + 2.5; vx < b.x - 3; vx += 3.3) {
+          var hv = new THREE.Mesh(halfG, white); hv.rotation.z = Math.PI / 2; hv.position.set(vx + 1.2, ridge + 0.1, zr); hv.castShadow = true; site.add(hv);
+        }
+        var tBase = new THREE.CylinderGeometry(0.26, 0.3, 0.4, 16), tTop = new THREE.SphereGeometry(0.34, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        [[-1.8, 0], [-1.8, 4.5], [1.8, 2.2]].forEach(function (o) {          // [offset from ridge (m, - = north), start offset]
+          var ang = o[0] < 0 ? aN : aS;
+          for (var tx = a.x + 4 + o[1]; tx < b.x - 3; tx += 9) {
+            var z = zr + o[0], y = ridge - Math.abs(o[0]) * Math.tan(ang);
+            var tb = new THREE.Mesh(tBase, M.trim); tb.position.set(tx, y + 0.2, z); tb.castShadow = true; site.add(tb);
+            var tt = new THREE.Mesh(tTop, white); tt.position.set(tx, y + 0.4, z); tt.castShadow = true; site.add(tt);
+          }
+        });
+      }
+      ROOF_INFO[R.id] = { zr: zr, ridge: ridge, aS: aS, aN: aN, eave: R.eave, label: new THREE.Vector3(cx, ridge + 2.2, R.id === 1 ? a.z + runN * 0.35 : zr) };
+    } else {
+      var body2 = box(W, R.low, D, R.newb ? newClad : clad); body2.position.set(cx, R.low / 2, cz); site.add(body2);
+      var rise = R.high - R.low, ang, len;
+      if (R.down === 'N' || R.down === 'S') {
+        var zHigh = R.down === 'N' ? b.z : a.z, zLow = R.down === 'N' ? a.z : b.z;
+        profile([[zLow, R.low], [zHigh, R.low], [zHigh, R.high]], W, R.newb ? newClad : clad, 'x', b.x);
+        ang = Math.atan2(rise, D); len = (D + OH) / Math.cos(ang);
+        sheet(len, W + 2 * OH, cx, (R.low + R.high) / 2 + 0.03, cz + (R.down === 'N' ? -OH / 2 : OH / 2), R.down === 'N' ? -ang : ang, 0);
+      } else {
+        var xHigh = R.down === 'W' ? b.x : a.x, xLow = R.down === 'W' ? a.x : b.x;
+        profile([[xLow, R.low], [xHigh, R.low], [xHigh, R.high]], D, clad, 'z', a.z);
+        ang = Math.atan2(rise, W); len = (W + OH) / Math.cos(ang);
+        sheet(len, D + 2 * OH, cx + (R.down === 'W' ? -OH / 2 : OH / 2), (R.low + R.high) / 2 + 0.03, cz, 0, R.down === 'W' ? ang : -ang);
+      }
+      ROOF_INFO[R.id] = { label: new THREE.Vector3(cx, R.high + 2.0, cz) };
+    }
+    // coloured roof-number disc floating above each roof (helps match the numbered screenshot)
+    var dsc = new THREE.Mesh(new THREE.CylinderGeometry(R.id === 1 ? 2.2 : 1.4, R.id === 1 ? 2.2 : 1.4, 0.08, 32), new THREE.MeshBasicMaterial({ color: ROOF_COL[R.id] }));
+    dsc.position.copy(ROOF_INFO[R.id].label).add(new THREE.Vector3(0, -1.2, 0)); bos.add(dsc);
+  });
+  // new building: wall light (glazing) in the step between the north and south roofs (section 1, detail X7)
+  var nb7 = ROOFS.filter(function (r) { return r.id === 7; })[0], na = P(nb7.x[0], nb7.y[0]), nb = P(nb7.x[1], nb7.y[0]);
+  var wl = box(nb.x - na.x - 0.4, 12.35 - 10.6, 0.05, new THREE.MeshStandardMaterial({ color: '#7d9bb5', roughness: 0.15, metalness: 0.4 }));
+  wl.position.set((na.x + nb.x) / 2, (12.35 + 10.6) / 2 - 0.1, na.z - 0.05); site.add(wl);
+  // a few doors / shutters on the main shed
+  var r1 = ROOFS[0], a1 = P(r1.x[0], r1.y[0]), b1 = P(r1.x[1], r1.y[1]);
+  [0.25, 0.55].forEach(function (f) { var s = box(5, 5.5, 0.1, M.shutter); s.position.set(a1.x + (b1.x - a1.x) * f, 2.75, b1.z + 0.06); site.add(s); });
+  var se = box(0.1, 5.5, 5, M.shutter); se.position.set(b1.x + 0.06, 2.75, (a1.z + b1.z) / 2 - 6); site.add(se);
+})();
+
+// ======================================================================= existing solar on roof 1 (approximate, from the screenshot)
+var existingCount = 0;
+(function () {
+  var I = ROOF_INFO[1], tex = M.glass.map.clone(); tex.needsUpdate = true; tex.center.set(0.5, 0.5); tex.rotation = Math.PI / 2;
+  var glassL = M.glass.clone(); glassL.map = tex;
+  var geo = new THREE.BoxGeometry(MOD_L, MOD_T, MOD_W), list = [];
+  EXISTING.groupsX.forEach(function (gx) {
+    EXISTING.rowsY.forEach(function (ry) {
+      var a = P(gx[0], ry[0]), b = P(gx[1], ry[1]);
+      var nC = Math.max(1, Math.round((b.x - a.x) / (MOD_L + 0.02))), nR = Math.max(1, Math.round((b.z - a.z) / Math.cos(I.aS) / (MOD_W + 0.02)));
+      for (var r = 0; r < nR; r++) for (var c = 0; c < nC; c++) {
+        var x = a.x + (c + 0.5) * (b.x - a.x) / nC, z = a.z + (r + 0.5) * (b.z - a.z) / nR;
+        list.push([x, I.ridge - (z - I.zr) * Math.tan(I.aS) + 0.14, z]);
+      }
+    });
+  });
+  var mods = new THREE.InstancedMesh(geo, [M.frame, M.frame, glassL, M.back, M.frame, M.frame], list.length);
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion().setFromEuler(new THREE.Euler(I.aS, 0, 0)), one = new THREE.Vector3(1, 1, 1);
+  list.forEach(function (p, i) { m4.compose(new THREE.Vector3(p[0], p[1], p[2]), q, one); mods.setMatrixAt(i, m4); });
+  mods.castShadow = mods.receiveShadow = true; site.add(mods); existingCount = list.length;
+})();
+
+// ======================================================================= new 300 kWp arrays (design/layout.json) + inverters + transformer
+var NEW_ARRAYS = [];
+(function () {
+  if (!LAYOUT) return;
+  var byId = {}; ROOFS.forEach(function (R) { byId[R.id] = R; });
+  function surface(key, x, z) {                     // roof height + tilt (about X) at a plan point, for the side the array is on
+    var id = { '1S': 1, '1N': 1, '35S': 5, '7S': 7 }[key], R = byId[id];
+    if (R.type === 'gable') {
+      var I = ROOF_INFO[id];
+      return key.slice(-1) === 'N' ? { y: I.ridge - (I.zr - z) * Math.tan(I.aN), rx: -I.aN } : { y: I.ridge - (z - I.zr) * Math.tan(I.aS), rx: I.aS };
+    }
+    var a = P(R.x[0], R.y[0]), b = P(R.x[1], R.y[1]), ang = Math.atan2(R.high - R.low, b.z - a.z);   // mono, falls south
+    return { y: R.high - (z - a.z) * Math.tan(ang), rx: ang };
+  }
+  var mL = LAYOUT.module.L, mW = LAYOUT.module.W;
+  var tex = M.glass.map.clone(); tex.needsUpdate = true; tex.center.set(0.5, 0.5); tex.rotation = Math.PI / 2;
+  var glassL = M.glass.clone(); glassL.map = tex;
+  var geo = new THREE.BoxGeometry(mL, MOD_T, mW), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1);
+  LAYOUT.arrays.forEach(function (A) {
+    var mods = new THREE.InstancedMesh(geo, [M.frame, M.frame, glassL, M.back, M.frame, M.frame], A.mods_px.length), sx = 0, sz = 0, top = 0;
+    A.mods_px.forEach(function (pp, i) {
+      var p = P(pp[0], pp[1]), sf = surface(A.roof, p.x, p.z);
+      m4.compose(new THREE.Vector3(p.x, sf.y + 0.14, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(sf.rx, 0, 0)), one); mods.setMatrixAt(i, m4);
+      sx += p.x; sz += p.z; top = Math.max(top, sf.y);
+    });
+    mods.castShadow = mods.receiveShadow = true; site.add(mods);
+    NEW_ARRAYS.push({ key: A.roof, name: A.name, n: A.modules, kwp: A.kwp, faces: A.faces, c: new THREE.Vector3(sx / A.mods_px.length, top + 1.6, sz / A.mods_px.length) });
+  });
+  // new-building polycarbonate skylights (drawing R3 roof plan) — kept free (owner)
+  var skyM = new THREE.MeshStandardMaterial({ color: '#cfe3ef', roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.85 });
+  (LAYOUT.skylights_px || []).forEach(function (r) {
+    var a = P(r[0], r[2]), b = P(r[1], r[3]), cz = (a.z + b.z) / 2, sf = surface('7S', (a.x + b.x) / 2, cz);
+    var sk = box(b.x - a.x, 0.03, (b.z - a.z) / Math.cos(sf.rx), skyM, false, true); sk.rotation.x = sf.rx; sk.position.set((a.x + b.x) / 2, sf.y + 0.04, cz); site.add(sk);
+  });
+  // turbo ventilators on roofs 3 + 5 (kept clear of panels — owner)
+  var vw = new THREE.MeshStandardMaterial({ color: '#e9e9e4', roughness: 0.45, metalness: 0.35 });
+  (LAYOUT.vents_px || []).forEach(function (v) {
+    var p = P(v[0], v[1]), R = v[1] < 545 ? byId[3] : byId[5], a = P(R.x[0], R.y[0]), b = P(R.x[1], R.y[1]);
+    var sf = { y: R.down === 'N' ? R.high - (b.z - p.z) * (R.high - R.low) / (b.z - a.z) : R.high - (p.z - a.z) * (R.high - R.low) / (b.z - a.z) };
+    var b = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.4, 16), M.trim); b.position.set(p.x, sf.y + 0.2, p.z); b.castShadow = true; site.add(b);
+    var t = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), vw); t.position.set(p.x, sf.y + 0.4, p.z); t.castShadow = true; site.add(t);
+  });
+  // inverters + ACDB on the east wall of roof 1 at its south corner, under a canopy; transformer yard next to it (owner)
+  var ip = P(LAYOUT.inverter.px[0], LAYOUT.inverter.px[1]), tp = P(LAYOUT.transformer.px[0], LAYOUT.transformer.px[1]);
+  var pad = box(1.8, 0.15, 4.2, M.concrete); pad.position.set(ip.x + 0.9, 0.075, ip.z); site.add(pad);
+  [-1.2, 0, 1.2].forEach(function (dz) {
+    var inv = box(0.35, 0.95, 0.75, M.inv); inv.position.set(ip.x + 0.4, 1.5, ip.z + dz); site.add(inv);
+    var f = box(0.01, 0.25, 0.35, M.invFace); f.position.set(ip.x + 0.58, 1.65, ip.z + dz); site.add(f);
+  });
+  var acdb = box(0.3, 1.6, 0.9, M.acdb); acdb.position.set(ip.x + 0.4, 0.95, ip.z + 2.4); site.add(acdb);
+  var can = box(1.9, 0.06, 5.6, M.trim); can.position.set(ip.x + 0.95, 2.7, ip.z + 0.6); can.rotation.z = -0.08; site.add(can);
+  var tb = box(2.6, 0.3, 2.2, M.concrete); tb.position.set(tp.x + 1.3, 0.15, tp.z); site.add(tb);
+  var tk = box(1.5, 1.6, 1.1, new THREE.MeshStandardMaterial({ color: '#6b7a5e', roughness: 0.6, metalness: 0.4 })); tk.position.set(tp.x + 1.3, 1.1, tp.z); site.add(tk);
+  for (var k = -2; k <= 2; k++) { var fin = box(0.05, 1.3, 1.25, M.steel); fin.position.set(tp.x + 1.3 + k * 0.32, 1.05, tp.z + 0.75 * (k % 2 === 0 ? 1 : -1) * 0 + 0.8); site.add(fin); }
+  [-0.4, 0, 0.4].forEach(function (dx) { var b2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.45, 10), new THREE.MeshStandardMaterial({ color: '#8b5a2b' })); b2.position.set(tp.x + 1.3 + dx, 2.1, tp.z - 0.2); site.add(b2); });
+  var fenceM = new THREE.MeshStandardMaterial({ color: '#9ca3af', transparent: true, opacity: 0.45, roughness: 0.8 });
+  [[tp.x - 0.3, tp.z, 0.04, 3.4], [tp.x + 2.9, tp.z, 0.04, 3.4], [tp.x + 1.3, tp.z - 1.7, 3.2, 0.04], [tp.x + 1.3, tp.z + 1.7, 3.2, 0.04]].forEach(function (f) {
+    var w = box(f[2], 2.0, f[3], fenceM, false, false); w.position.set(f[0], 1.0, f[1]); site.add(w);
+  });
+  // DC route (indicative): cable tray along roof 1's south and east eaves down to the inverters
+  var r1 = byId[1], e = P(r1.x[1], r1.y[1]), w0 = P(r1.x[0], r1.y[1]), nE = P(r1.x[1], r1.y[0]);
+  var trayM = new THREE.MeshStandardMaterial({ color: '#f97316', roughness: 0.6 });
+  var t1 = box(e.x - w0.x, 0.08, 0.3, trayM); t1.position.set((e.x + w0.x) / 2, r1.eave + 0.1, e.z + 0.2); site.add(t1);
+  var t2 = box(0.3, 0.08, e.z - nE.z, trayM); t2.position.set(e.x + 0.2, r1.eave + 0.1, (e.z + nE.z) / 2); site.add(t2);
+  var t3 = box(0.3, r1.eave - 2.0, 0.08, trayM); t3.position.set(e.x + 0.2, 2.0 + (r1.eave - 2.0) / 2, ip.z - 1.0); site.add(t3);
+})();
+
+// ======================================================================= labels
+var LABELS = {};
+ROOFS.forEach(function (R) {
+  var kind = R.type === 'gable' ? 'Gable · ridge E–W · falls N + S' : (R.newb ? R.low.toFixed(1) + ' → ' + R.high.toFixed(2) + ' m · falls ' : 'Lean-to · falls ') + { N: 'north', S: 'south', E: 'east', W: 'west' }[R.down];
+  if (R.id === 1) kind += ' · eave ' + R.eave + ' m';
+  if (R.id === 3) kind = 'Faces north · ' + R.low + '–' + R.high + ' m · not used (reserve)';
+  if (R.id === 5) kind = 'One slope · faces south · ' + R.low + '–' + R.high + ' m';
+  if (R.exclude) kind += ' · NOT for solar';
+  LABELS['r' + R.id] = { p: ROOF_INFO[R.id].label, t: (R.newb ? '' : 'Roof ' + R.id + ' · ') + R.name, s: kind };
+});
+LABELS.vents = { p: new THREE.Vector3(P(560, 0).x, ROOF_INFO[1].ridge + 1.6, ROOF_INFO[1].zr), t: 'Ridge + turbo ventilators', s: 'As in the north-side photo' };
+NEW_ARRAYS.forEach(function (A) { LABELS['n' + A.key] = { p: A.c, t: 'NEW · ' + A.name.replace(' (balance)', ''), s: A.n + ' × 625 Wp = ' + A.kwp.toFixed(1) + ' kWp · faces ' + A.faces }; });
+if (LAYOUT) {
+  LABELS.inv = { p: P(LAYOUT.inverter.px[0], LAYOUT.inverter.px[1], 3.6), t: 'Inverters + ACDB', s: 'Roof 1, south-east corner' };
+  LABELS.trf = { p: P(LAYOUT.transformer.px[0] + 13, LAYOUT.transformer.px[1], 3.0), t: 'Transformer', s: 'Next to the inverters' };
+}
+if (LAYOUT && LAYOUT.skylights_px) { var s0 = LAYOUT.skylights_px[0]; LABELS.sky = { p: P((s0[0] + s0[1]) / 2, s0[2], 13.6), t: 'Skylights kept free', s: 'New building · 3 m × 1 m polycarbonate' }; }
+LABELS.ex = { p: P(955, 575, ROOF_INFO[1].ridge + 0.6), t: 'Existing solar (approx.)', s: '≈ ' + existingCount + ' modules drawn — count to confirm' };
+var labelBox = document.getElementById('labels');
+Object.keys(LABELS).forEach(function (k) {
+  var d = document.createElement('div'); d.className = 'lbl';
+  d.innerHTML = LABELS[k].t + (LABELS[k].s ? '<small>' + LABELS[k].s + '</small>' : '');
+  labelBox.appendChild(d); LABELS[k].el = d;
+});
+var labelsOn = true, visibleLabels = null;    // null = all
+var tmpV = new THREE.Vector3();
+function updateLabels() {
+  var w = canvas.clientWidth, h = canvas.clientHeight;
+  Object.keys(LABELS).forEach(function (k) {
+    var L = LABELS[k], show = labelsOn && (!visibleLabels || visibleLabels.indexOf(k) >= 0);
+    if (show) {
+      tmpV.copy(L.p).project(camera);
+      var dist = camera.position.distanceTo(L.p);
+      show = tmpV.z < 1 && Math.abs(tmpV.x) < 0.95 && Math.abs(tmpV.y) < 0.92 && dist < 140;
+      if (show) { L.el.style.left = ((tmpV.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - tmpV.y) / 2 * h - 14) + 'px'; }
+    }
+    L.el.style.display = show ? 'block' : 'none';
+  });
+}
+
+// ======================================================================= compass (projects true north on screen)
+var needle = document.getElementById('needle'), nlabel = document.getElementById('nlabel');
+var cTarget = new THREE.Vector3();
+function updateCompass() {
+  var a = cTarget.clone().project(camera), b = cTarget.clone().add(new THREE.Vector3(0, 0, -5)).project(camera);
+  var ang = Math.atan2((b.x - a.x) * camera.aspect, b.y - a.y);   // 0 = north is screen-up, clockwise positive
+  if (!isFinite(ang)) ang = 0;
+  needle.setAttribute('transform', 'rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')');
+  nlabel.setAttribute('x', (Math.sin(ang) * 39).toFixed(1)); nlabel.setAttribute('y', (-Math.cos(ang) * 39).toFixed(1));
+}
+
+// ======================================================================= captions
+var capEl = document.getElementById('caption'), capT = capEl.querySelector('.t'), capS = capEl.querySelector('.s');
+function setCaption(t, s) { capT.textContent = t || ''; capS.textContent = s || ''; capEl.style.opacity = t ? 1 : 0; }
+
+// ======================================================================= views (stills + buttons)
+var ALLR = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'];
+var VIEWS = {
+  aerial:    { p: [62, 62, 98],    t: [-10, 4, 3],    cap: ['300 kWp — south-facing first', 'Aerial view from the south-east'], lab: ['n1S', 'n7S', 'n35S', 'n1N'].concat(['ex', 'inv']) },
+  aerialnw:  { p: [-95, 60, -70],  t: [-10, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-west'], lab: ALLR.concat(['vents']) },
+  plan:      { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', '480 × 625 Wp = 300 kWp new · layout v4'], lab: ['n1S', 'n7S', 'n35S', 'n1N'].concat(['ex', 'inv']) },
+  aerialsw:  { p: [-95, 58, 95],   t: [-10, 4, 3],    cap: ['300 kWp — south-facing roofs', 'Aerial view from the south-west'], lab: ['n7S', 'n35S', 'n1S', 'r3'] },
+  aerialne:  { p: [80, 52, -60],   t: [0, 4, 3],    cap: ['300 kWp — roof 1 north slope (balance)', 'Aerial view from the north-east'], lab: ['n1N', 'vents'] },
+  southelev: { p: [0, 14, 160],    t: [0, 5, 0], fov: 22, notrees: true, cap: ['South elevation', 'Roof heights assumed — to be confirmed'], lab: ALLR },
+  westelev:  { p: [-160, 14, 5],   t: [0, 5, 3], fov: 18, notrees: true, cap: ['West elevation', 'Gable of roof 1 behind roofs 2–5'], lab: ['r1', 'r2', 'r3', 'r4', 'r5'] },
+  northphoto:{ p: [-1, 9.5, -42], t: [-1, 7.2, 0], fov: 42, notrees: true, cap: ['From the north (like the site photo)', 'Roof 6 lean-to in front, roof 1 north slope rising to the ridge ventilators'], lab: ['r6', 'r1', 'vents'] },
+  newbldg:   { p: [-95, 42, 82], t: [-18, 6, 8], cap: ['New building + roofs 3 and 5', 'New building: skylights kept free · roof 3 south half + roof 5 as one slope, ventilators kept clear'], lab: ['n7S', 'n35S', 'r3', 'sky'] },
+  inverter:  { p: [64, 7, 36],     t: [50, 2.5, 20], cap: ['Inverters + transformer', 'At the south-east corner of roof 1, DC tray down the east wall'], lab: ['inv', 'trf'] },
+  planclean: { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', '300 kWp layout v4'], lab: [] },
+};
+
+// ======================================================================= in-viewer tour (no video for this step)
+var KF = [];
+function kf(t, p, tg, stop, vel) {
+  KF.push({ t: t, p: new THREE.Vector3().fromArray(p), g: new THREE.Vector3().fromArray(tg), stop: !!stop, vel: vel ? new THREE.Vector3().fromArray(vel) : null });
+}
+kf(0, [110, 80, 130], [0, 4, 3], true);
+(function () {
+  var r = 105, h = 55, a0 = Math.atan2(85, 70), n = 12, t0 = 5, dur = 18;
+  for (var i = 0; i <= n; i++) { var a = a0 - i / n * Math.PI * 2; kf(t0 + i / n * dur, [Math.cos(a) * r, h, Math.sin(a) * r], [0, 4, 3]); }
+})();
+kf(28, [0, 120, 10], [0, 6, -0.5], true);
+kf(33, [0, 115, 9.5], [0, 6, -0.5], true);
+var DURATION = 33;
+(function tangents() {
+  ['p', 'g'].forEach(function (k) {
+    for (var i = 0; i < KF.length; i++) {
+      var m = new THREE.Vector3();
+      if (KF[i].vel) m.copy(KF[i].vel);
+      else if (!KF[i].stop && i > 0 && i < KF.length - 1) {
+        var a = KF[i][k].clone().sub(KF[i - 1][k]).divideScalar(KF[i].t - KF[i - 1].t);
+        var b = KF[i + 1][k].clone().sub(KF[i][k]).divideScalar(KF[i + 1].t - KF[i].t);
+        m.copy(a).add(b).multiplyScalar(0.5);
+      }
+      KF[i]['m' + k] = m;
+    }
+  });
+})();
+function pathAt(t) {
+  t = Math.max(0, Math.min(DURATION, t));
+  var i = 0; while (i < KF.length - 2 && KF[i + 1].t < t) i++;
+  var A = KF[i], B = KF[i + 1], h = B.t - A.t, s = h > 0 ? (t - A.t) / h : 0;
+  var s2 = s * s, s3 = s2 * s, h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
+  function H(k) { return A[k].clone().multiplyScalar(h00).add(A['m' + k].clone().multiplyScalar(h10 * h)).add(B[k].clone().multiplyScalar(h01)).add(B['m' + k].clone().multiplyScalar(h11 * h)); }
+  return { p: H('p'), g: H('g') };
+}
+var CAPS = [
+  [0, 5, 'Site — roofs identified', 'Step 1: roofs and slopes (no new panels yet)', ALLR],
+  [5, 23, 'Roofs 1–6', 'Main shed (1), sheds (2, 3), lean-tos (4, 5, 6)', ALLR.concat(['ex'])],
+  [23, 33.1, 'Top view · north ↑', 'Matches the numbered satellite screenshot', ALLR.concat(['ex'])],
+];
+function captionAt(t) { for (var i = 0; i < CAPS.length; i++) if (t >= CAPS[i][0] && t < CAPS[i][1]) return CAPS[i]; return CAPS[CAPS.length - 1]; }
+
+// ======================================================================= orbit controls (mouse + touch)
+var ctl = { target: new THREE.Vector3(0, 6, 0), r: 70, th: 0.8, ph: 1.0 };
+function setFrom(pos, tg) {
+  ctl.target.copy(tg);
+  var d = pos.clone().sub(tg); ctl.r = d.length();
+  ctl.ph = Math.acos(Math.max(-1, Math.min(1, d.y / ctl.r))); ctl.th = Math.atan2(d.x, d.z);
+}
+function applyCtl() {
+  ctl.ph = Math.max(0.02, Math.min(1.54, ctl.ph)); ctl.r = Math.max(2.5, Math.min(260, ctl.r));
+  var s = Math.sin(ctl.ph);
+  camera.position.set(ctl.target.x + ctl.r * s * Math.sin(ctl.th), ctl.target.y + ctl.r * Math.cos(ctl.ph), ctl.target.z + ctl.r * s * Math.cos(ctl.th));
+  if (camera.position.y < 0.6) camera.position.y = 0.6;
+  camera.lookAt(ctl.target);
+  cTarget.copy(ctl.target);
+}
+var anim = null;       // {from:{p,g}, to:{p,g}, t0, dur} for button fly-to
+var playing = null;    // performance.now() start of a walk-around
+function stopAuto() { anim = null; if (playing !== null) { playing = null; document.getElementById('play').textContent = '▶ Walk-around'; visibleLabels = null; } }
+if (!CAPTURE) {
+  var ptrs = {}, last = null;
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  canvas.addEventListener('pointerdown', function (e) { stopAuto(); canvas.setPointerCapture(e.pointerId); ptrs[e.pointerId] = { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }; last = null; });
+  canvas.addEventListener('pointerup', function (e) { delete ptrs[e.pointerId]; last = null; });
+  canvas.addEventListener('pointercancel', function (e) { delete ptrs[e.pointerId]; last = null; });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = ptrs[e.pointerId]; if (!p) return;
+    var ids = Object.keys(ptrs), dx = e.clientX - p.x, dy = e.clientY - p.y;
+    if (ids.length === 1) {
+      if (p.b === 2 || p.sh) pan(dx, dy); else { ctl.th -= dx * 0.006; ctl.ph -= dy * 0.006; }
+    } else if (ids.length === 2) {
+      var o = ptrs[ids[0] == e.pointerId ? ids[1] : ids[0]];
+      var dist = Math.hypot(e.clientX - o.x, e.clientY - o.y), mid = { x: (e.clientX + o.x) / 2, y: (e.clientY + o.y) / 2 };
+      if (last) { ctl.r *= last.d / dist; pan(mid.x - last.m.x, mid.y - last.m.y); }
+      last = { d: dist, m: mid };
+    }
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  canvas.addEventListener('wheel', function (e) { e.preventDefault(); stopAuto(); ctl.r *= Math.exp(e.deltaY * 0.0012); }, { passive: false });
+}
+function pan(dx, dy) {
+  var k = ctl.r * 0.0016, right = new THREE.Vector3(), fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd); right.crossVectors(fwd, camera.up).normalize();
+  fwd.y = 0; fwd.normalize();
+  ctl.target.addScaledVector(right, -dx * k).addScaledVector(fwd, dy * k);
+}
+function setFov(f) { if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); } }
+function showTrees(on) { TREES.forEach(function (t) { t.visible = on; }); }
+function flyTo(name) {
+  var v = VIEWS[name]; stopAuto(); setFov(42); showTrees(true);
+  anim = { from: { p: camera.position.clone(), g: ctl.target.clone() }, to: { p: new THREE.Vector3().fromArray(v.p), g: new THREE.Vector3().fromArray(v.t) }, t0: performance.now(), dur: 1400 };
+  setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || null;
+}
+
+// ======================================================================= frame / resize
+function resize() {
+  var w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+function setCam(p, g) { camera.position.copy(p); camera.lookAt(g); cTarget.copy(g); }
+function renderNow() { camera.updateMatrixWorld(); updateLabels(); updateCompass(); renderer.render(scene, camera); }
+function applyTime(t) {
+  var s = pathAt(t); setFov(42); showTrees(true); setCam(s.p, s.g);
+  var c = captionAt(t); setCaption(c[2], c[3]); visibleLabels = c[4];
+}
+
+// capture hooks (render.mjs)
+window.__nrg3d = {
+  version: VERSION, duration: DURATION, views: Object.keys(VIEWS),
+  time: function (t) { applyTime(t); renderNow(); return true; },
+  view: function (name) { var v = VIEWS[name]; setFov(v.fov || 42); showTrees(!v.notrees); setCam(new THREE.Vector3().fromArray(v.p), new THREE.Vector3().fromArray(v.t)); setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || []; renderNow(); return true; },
+};
+
+if (CAPTURE) {
+  applyTime(Number(Q.get('t') || 0)); renderNow();
+} else {
+  setFrom(new THREE.Vector3().fromArray(VIEWS.aerial.p), new THREE.Vector3().fromArray(VIEWS.aerial.t));
+  setCaption(VIEWS.aerial.cap[0], 'Drag to look around · tap ▶ Walk-around for the guided tour');
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.addEventListener('click', function () { flyTo(b.dataset.view); }); });
+  document.getElementById('play').addEventListener('click', function () {
+    if (playing !== null) { stopAuto(); return; }
+    anim = null; playing = performance.now(); this.textContent = '■ Stop';
+  });
+  document.getElementById('tgLabels').addEventListener('click', function () { labelsOn = !labelsOn; this.classList.toggle('on', labelsOn); });
+  document.getElementById('tgBos').addEventListener('click', function () { bos.visible = !bos.visible; this.classList.toggle('on', bos.visible); });
+  (function loop(now) {
+    if (playing !== null) {
+      var t = (now - playing) / 1000;
+      if (t > DURATION) { var s = pathAt(DURATION); setFrom(s.p, s.g); stopAuto(); }
+      else { applyTime(t); setFrom(camera.position.clone(), pathAt(t).g); }
+    } else if (anim) {
+      var u = Math.min(1, (now - anim.t0) / anim.dur), e = u * u * (3 - 2 * u);
+      var p = anim.from.p.clone().lerp(anim.to.p, e), g = anim.from.g.clone().lerp(anim.to.g, e);
+      setFrom(p, g); if (u >= 1) anim = null;
+    }
+    if (playing === null) applyCtl();
+    renderNow();
+    requestAnimationFrame(loop);
+  })(performance.now());
+}
+})();
+</script>
+</body>
+</html>
