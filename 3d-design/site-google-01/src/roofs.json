@@ -1,5 +1,5 @@
 {
-  "_note": "Version v3 (2026-10-31). Roofs read off google-satellite.webp (north up); scale bar 215 px = 20 m -> 10.75 px/m. v2: north-side photo. v3: owner corrections + drawings 262711-AR-A-00-101 R8 (master layout) and 262711-AR-T-01-101 R3 (new building). Heights partly assumed.",
+  "_note": "Version v4 (2026-10-31). Roofs read off google-satellite.webp (north up); scale bar 215 px = 20 m -> 10.75 px/m. v2: north-side photo. v3: owner corrections + drawings 262711-AR-A-00-101 R8 (master layout) and 262711-AR-T-01-101 R3 (new building). Heights partly assumed. v4: roofs 3 + 5 single slope (owner).",
   "scale_px_per_m": 10.75,
   "roofs": [
     {
@@ -42,8 +42,7 @@
     {
       "id": 3,
       "name": "West shed",
-      "type": "gable",
-      "ridge": "E-W",
+      "type": "mono",
       "x": [
         150,
         365
@@ -52,10 +51,11 @@
         400,
         690
       ],
-      "ridge_y": 545,
-      "eave": 8.0,
       "slope": 0.1,
-      "note": "Eave 8 m (owner). Slope direction to confirm."
+      "note": "Single slope falling south (owner), high side 8 m (owner), low side ~6.7 m (assumed 1:20). 6 turbo ventilators.",
+      "down": "S",
+      "high": 8.0,
+      "low": 6.7
     },
     {
       "id": 4,
@@ -90,7 +90,7 @@
       "high": 6.0,
       "low": 5.3,
       "down": "S",
-      "note": "Only as wide as roof 3 (owner). Heights assumed."
+      "note": "Single slope falling south, only as wide as roof 3 (owner). 3 turbo ventilators. Heights assumed."
     },
     {
       "id": 6,
