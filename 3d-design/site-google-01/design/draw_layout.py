@@ -1,4 +1,4 @@
-# Version: v3 (2026-10-31) — draws design/layout.json on the satellite screenshot -> Pluga-Pumps_300kWp_Layout_v3.png
+# Version: v4 (2026-10-31) — draws design/layout.json on the satellite screenshot -> Pluga-Pumps_300kWp_Layout_v3.png
 import json, math, os
 from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.join(HERE, '..')
@@ -18,16 +18,18 @@ for r in R['roofs']:                                           # roof outlines (
 ex = R['existing_solar']
 for gx in ex['groups_x']:
     g.rectangle([X(gx[0]), ex['rows_y'][0][0], X(gx[1]), ex['rows_y'][-1][1]], fill=(100, 116, 139, 120), outline=(226, 232, 240, 255), width=2)
-COL = {'1S': (37, 99, 235), '7S': (14, 116, 144), '3S': (22, 163, 74), '5': (147, 51, 234), '1N': (124, 58, 237)}
+COL = {'1S': (37, 99, 235), '7S': (14, 116, 144), '35S': (22, 163, 74), '1N': (124, 58, 237)}
 for a in L['arrays']:
     c = COL[a['roof']]; hw = 2.382 * S / 2; hd = a['dp'] * S / 2
     for x, y in a['mods_px']:
         g.rectangle([X(x) - hw, y - hd, X(x) + hw, y + hd], fill=c + (235,), outline=(255, 255, 255, 220), width=1)
+for r in L.get('skylights_px', []):
+    g.rectangle([X(r[0]), r[2], X(r[1]), r[3]], fill=(207, 227, 239, 230), outline=(220, 38, 38, 255), width=2)
 for vx, vy in L.get('vents_px', []):
     r = 0.9 * S; g.ellipse([X(vx) - r, vy - r, X(vx) + r, vy + r], fill=(255, 255, 255, 120), outline=(220, 38, 38, 255), width=3)
 im = Image.alpha_composite(im, ov); g = ImageDraw.Draw(im)
 # array labels
-lab = {'1S': (600, 400), '7S': (0, 330), '3S': (258, 250), '5': (258, 812), '1N': (1010, 255)}
+lab = {'1S': (600, 400), '7S': (0, 330), '35S': (258, 812), '1N': (1010, 255)}
 for a in L['arrays']:
     x, y = lab[a['roof']]; x = X(x); c = COL[a['roof']]
     t1 = f"{a['name'].split(' (')[0]}"; t2 = f"{a['modules']} × 625 Wp = {a['kwp']:.1f} kWp · faces {a['faces']}"
@@ -55,7 +57,7 @@ g.text((X(420), 752), 'DC cable route (indicative): west roofs → along the sou
 W, H = im.size; out = Image.new('RGB', (W + 700, H), 'white'); out.paste(im.convert('RGB'), (0, 0)); d = ImageDraw.Draw(out)
 x = W + 30; y = 22
 d.text((x, y), 'PLUGA PUMPS & MOTORS — 300 kWp LAYOUT', fill=(15, 23, 42), font=font(30, True)); y += 44
-d.text((x, y), 'Savli, Vadodara · north ↑ · 20 m = 215 px · layout v3 · 2026-10-31', fill=(71, 85, 105), font=font(19)); y += 40
+d.text((x, y), 'Savli, Vadodara · north ↑ · 20 m = 215 px · layout v4 · 2026-10-31', fill=(71, 85, 105), font=font(19)); y += 40
 rows = [('Array', 'Modules', 'kWp', 'Faces')] + [(a['name'].split(' (')[0], str(a['modules']), f"{a['kwp']:.1f}", a['faces']) for a in L['arrays']] + [('TOTAL (new)', str(L['total_modules']), f"{L['kwp']:.1f}", '')]
 cw = [380, 100, 90, 70]
 for i, r in enumerate(rows):
@@ -73,15 +75,17 @@ for line in [
     ('Order (owner): south-facing roofs first → roof 1 north for the balance', False),
     ('   roof 1 north filled from the east end (nearest the inverters);', False),
     (f"   {[a for a in L['arrays'] if a['roof'] == '1N'][0]['north_capacity_left']} more modules fit there if needed later", False),
-    ('South-facing: 339 modules = 211.9 kWp · north-facing: 141 = 88.1 kWp', False),
+    ('South-facing: 254 modules = 158.75 kWp · north-facing: 226 = 141.25 kWp', False),
     ('Roof 1 south: west of the existing array only (1 m access path)', False),
-    ('New building: full south roof (its ventilators to be removed — owner)', False),
-    ('Roofs 3 + 5: single slope, full roofs; 9 turbo ventilators kept clear (○)', False),
-    ('   west part of roof 3 gets late-afternoon shade from the new building', True),
+    ('New building: south roof, skylights kept free (▭) — turbovents removed', False),
+    ('Roof 3 = gable: south half + roof 5 = ONE south slope (used, full)', False),
+    ('   roof 3 north half faces north: not used (reserve ≈ 48 modules)', False),
+    ('   9 turbo ventilators kept clear (○)', False),
+    ('   west part gets late-afternoon shade from the new building', True),
     ('Not used: roofs 2, 4, 6 (owner)', True),
     ('New building roof: PEB under construction — ask the PEB vendor', True),
     ('   now to design purlins for the module load (~15 kg/m²)', True),
     ('Check with MGVCL: AC capacity vs 225 kVA contract demand', True)]:
     d.text((x, y), line[0], fill=(185, 28, 28) if line[1] else (51, 65, 85), font=font(18, line[1] and line[0].startswith(('Not', 'New building roof', 'Check')))); y += 27
 d.text((x, H - 40), 'Positions scaled from the satellite screenshot — verify on site before BOQ.', fill=(100, 116, 139), font=font(17, False, True))
-out.save(os.path.join(ROOT, 'Pluga-Pumps_300kWp_Layout_v3.png')); print(out.size)
+out.save(os.path.join(ROOT, 'Pluga-Pumps_300kWp_Layout_v4.png')); print(out.size)

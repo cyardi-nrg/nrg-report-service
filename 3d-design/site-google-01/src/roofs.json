@@ -1,5 +1,5 @@
 {
-  "_note": "Version v4 (2026-10-31). Roofs read off google-satellite.webp (north up); scale bar 215 px = 20 m -> 10.75 px/m. v2: north-side photo. v3: owner corrections + drawings 262711-AR-A-00-101 R8 (master layout) and 262711-AR-T-01-101 R3 (new building). Heights partly assumed. v4: roofs 3 + 5 single slope (owner).",
+  "_note": "Version v5 (2026-10-31). Roofs read off google-satellite.webp (north up); scale bar 215 px = 20 m -> 10.75 px/m. v2: north-side photo. v3: owner corrections + drawings 262711-AR-A-00-101 R8 (master layout) and 262711-AR-T-01-101 R3 (new building). Heights partly assumed. v4: roofs 3 + 5 single slope (owner). v5: roof 3 = gable; its south half + roof 5 = one south slope (owner).",
   "scale_px_per_m": 10.75,
   "roofs": [
     {
@@ -41,7 +41,7 @@
     },
     {
       "id": 3,
-      "name": "West shed",
+      "name": "West shed (roof 3) - north half",
       "type": "mono",
       "x": [
         150,
@@ -49,13 +49,13 @@
       ],
       "y": [
         400,
-        690
+        545
       ],
       "slope": 0.1,
-      "note": "Single slope falling south (owner), high side 8 m (owner), low side ~6.7 m (assumed 1:20). 6 turbo ventilators.",
-      "down": "S",
+      "note": "Owner: roof 3 is a gable; the north half faces north. Ridge 8 m (owner), 1:10 assumed. 3 turbo ventilators.",
+      "down": "N",
       "high": 8.0,
-      "low": 6.7
+      "low": 6.65
     },
     {
       "id": 4,
@@ -77,20 +77,20 @@
     },
     {
       "id": 5,
-      "name": "South-west lean-to",
+      "name": "Roof 3 south half + roof 5 (one slope)",
       "type": "mono",
       "x": [
         150,
         365
       ],
       "y": [
-        690,
+        545,
         775
       ],
-      "high": 6.0,
-      "low": 5.3,
+      "high": 8.0,
+      "low": 5.86,
       "down": "S",
-      "note": "Single slope falling south, only as wide as roof 3 (owner). 3 turbo ventilators. Heights assumed."
+      "note": "Owner: the south half of roof 3 and all of roof 5 are one slope, falling south from roof 3's ridge. 1:10 assumed. 6 turbo ventilators."
     },
     {
       "id": 6,

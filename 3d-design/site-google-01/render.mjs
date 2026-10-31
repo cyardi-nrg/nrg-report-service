@@ -1,4 +1,4 @@
-// Version: v5 (2026-10-31) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
+// Version: v6 (2026-10-31) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
 // site-google-01 from the built viewer, using headless Chromium (Playwright) + ffmpeg.
 // Same script as ../jain-granite/render.mjs, with this project's file names.
 //   node build.mjs && node render.mjs                 -> stills + 1080p video
@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 let playwright;
 try { playwright = require('playwright'); } catch { playwright = require('/opt/node22/lib/node_modules/playwright'); }
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, 'output');
 mkdirSync(join(out, 'stills'), { recursive: true });
