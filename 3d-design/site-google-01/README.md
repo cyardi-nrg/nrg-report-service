@@ -1,6 +1,12 @@
 # Site from a Google Maps screenshot (site-google-01): step 1, roofs identified
 
-Version: **v1 (2026-10-31)** · NRG Technologists
+Version: **v2 (2026-10-31)** · NRG Technologists
+
+**v2 changes, from the owner's north-side photo (`src/photo-roof1-from-north.jpg`):**
+
+- **Roof 1 ridge confirmed** as running E–W. The ridge carries half-round ridge ventilators plus turbo ventilators just below it; these replace the v1 louvred monitor. Adds a view from the north, like the photo.
+- **Roof 6 confirmed** as a lean-to over the loading door, falling north. Heights from the photo: about 5.5 m low, about 6.3 m high.
+- **Open question:** a blue steel frame stands above roof 1's ridge in the photo, with people on it. It isn't modelled yet.
 
 Step 1 only: roofs and slopes identified, numbered 1–6, plus a 3D of the buildings. **No new panels yet.** The owner marks where panels should go next. Client name not given yet.
 
@@ -9,10 +15,11 @@ Step 1 only: roofs and slopes identified, numbered 1–6, plus a 3D of the build
 | File | What it is |
 |---|---|
 | `Site-Google-01_Roofs-Identified_v1.png` | The satellite screenshot with roofs 1–6 outlined. Arrows point down the slope, the line is the ridge, and the existing solar is boxed. A legend gives sizes and slope type. |
-| `Site-Google-01_Step1-Overview_v1.png` | The marked screenshot plus all 8 3D views on one sheet. |
-| `output/Site-Google-01_3D-Viewer_v1.html` | Interactive 3D in a single file that works offline. Views: Aerial SE / NW, Top, South, West. **Roof numbers** shows or hides the coloured discs. |
-| `output/stills/Site-Google-01_3D_NN-<view>_v1.png` | 8 still renders. |
+| `Site-Google-01_Step1-Overview_v2.png` | The marked screenshot plus all 8 3D views on one sheet. |
+| `output/Site-Google-01_3D-Viewer_v2.html` | Interactive 3D in a single file that works offline. Views: Aerial SE / NW, Top, South, West. **Roof numbers** shows or hides the coloured discs. |
+| `output/stills/Site-Google-01_3D_NN-<view>_v2.png` | 9 still renders, including the view from the north. |
 | `src/google-satellite.webp` | The owner's screenshot (north up). |
+| `src/photo-roof1-from-north.jpg` | The owner's photo of roof 1 from the north side. |
 | `src/roofs.json` | Roof outlines (px on the screenshot), type, ridge position and assumed heights. This is the single source for the drawing and the 3D. |
 
 ## How it was read

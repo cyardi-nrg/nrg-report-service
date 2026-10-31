@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Site from Google Maps screenshot (site-google-01) — step 1: roofs identified (no new solar yet) — 3D viewer
-  Version: v1 (2026-10-31) · NRG Technologists
+  Version: v2 (2026-10-31) · NRG Technologists — v2: north-side photo: ridge + turbo ventilators on roof 1, roof 6 heights
   Geometry: Google Maps satellite screenshot (north up, scale bar 20 m = 215 px) -> src/roofs.json. Heights assumed.
   Framework shared with ../jain-granite, ../sejal-parikh, ../architect-residence. build.mjs inlines three.js + logo.
 -->
@@ -85,7 +85,7 @@
     </g>
     <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
   </svg>
-  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights assumed — verify on site · v1</div>
+  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights assumed — verify on site · v2</div>
 </div>
 
 <div id="ui">
@@ -104,7 +104,7 @@
 <script>
 (function () {
 'use strict';
-var VERSION = 'v1';
+var VERSION = 'v2';
 var Q = new URLSearchParams(location.search);
 var CAPTURE = Q.has('capture');
 if (CAPTURE) document.body.classList.add('capture');
@@ -120,7 +120,7 @@ var ROOFS = [
   { id: 3, name: 'West shed', type: 'gable', x: [150, 365], y: [400, 690], ridgeY: 545, eave: 6.5, slope: 0.1 },
   { id: 4, name: 'Link lean-to', type: 'mono', x: [365, 430], y: [350, 690], high: 6.0, low: 5.3, down: 'W' },
   { id: 5, name: 'South-west lean-to', type: 'mono', x: [150, 440], y: [690, 775], high: 5.0, low: 4.3, down: 'S' },
-  { id: 6, name: 'North lean-to', type: 'mono', x: [600, 1075], y: [140, 200], high: 5.0, low: 4.3, down: 'N' },
+  { id: 6, name: 'North lean-to', type: 'mono', x: [600, 1075], y: [140, 200], high: 6.3, low: 5.5, down: 'N' },   // v2: from the north-side photo
 ];
 var EXISTING = { roof: 1, groupsX: [[690, 862], [868, 1040], [1047, 1220]], rowsY: [[505, 545], [555, 598], [605, 645]] };   // approx.
 var MOD_W = 1.134, MOD_L = 2.278, MOD_T = 0.035;
@@ -349,10 +349,22 @@ var ROOF_INFO = {};
       sheet(lN, W + 2 * OH, cx, (R.eave + ridge) / 2 + 0.03 - OH * Math.tan(aN) / 2, zr - (runN + OH) / 2, -aN, 0);
       sheet(lS, W + 2 * OH, cx, (R.eave + ridge) / 2 + 0.03 - OH * Math.tan(aS) / 2, zr + (runS + OH) / 2, aS, 0);
       var cap = box(W + 2 * OH, 0.12, 0.6, M.trim); cap.position.set(cx, ridge + 0.1, zr); site.add(cap);
-      if (R.monitor) {                                    // ridge ventilator (louvred monitor)
-        var z0 = P(0, R.monitor[0]).z, z1 = P(0, R.monitor[1]).z;
-        var lv = box(W - 1, 0.8, z1 - z0 - 0.6, new THREE.MeshStandardMaterial({ color: '#5b6066', roughness: 0.6 })); lv.position.set(cx, ridge + 0.45, zr); site.add(lv);
-        var top = box(W - 0.6, 0.06, z1 - z0 + 0.4, M.trim); top.position.set(cx, ridge + 0.9, zr); site.add(top);
+      if (R.monitor) {
+        // v2, from the north-side photo: half-round ridge ventilators along the ridge + turbo ventilators just below it
+        var white = new THREE.MeshStandardMaterial({ color: '#e9e9e4', roughness: 0.45, metalness: 0.35 });
+        var halfG = new THREE.CylinderGeometry(0.42, 0.42, 2.4, 18, 1, true, 0, Math.PI);
+        for (var vx = a.x + 2.5; vx < b.x - 3; vx += 3.3) {
+          var hv = new THREE.Mesh(halfG, white); hv.rotation.z = Math.PI / 2; hv.position.set(vx + 1.2, ridge + 0.1, zr); hv.castShadow = true; site.add(hv);
+        }
+        var tBase = new THREE.CylinderGeometry(0.26, 0.3, 0.4, 16), tTop = new THREE.SphereGeometry(0.34, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        [[-1.8, 0], [-1.8, 4.5], [1.8, 2.2]].forEach(function (o) {          // [offset from ridge (m, - = north), start offset]
+          var ang = o[0] < 0 ? aN : aS;
+          for (var tx = a.x + 4 + o[1]; tx < b.x - 3; tx += 9) {
+            var z = zr + o[0], y = ridge - Math.abs(o[0]) * Math.tan(ang);
+            var tb = new THREE.Mesh(tBase, M.trim); tb.position.set(tx, y + 0.2, z); tb.castShadow = true; site.add(tb);
+            var tt = new THREE.Mesh(tTop, white); tt.position.set(tx, y + 0.4, z); tt.castShadow = true; site.add(tt);
+          }
+        });
       }
       ROOF_INFO[R.id] = { zr: zr, ridge: ridge, aS: aS, aN: aN, eave: R.eave, label: new THREE.Vector3(cx, ridge + 2.2, R.id === 1 ? a.z + runN * 0.35 : zr) };
     } else {
@@ -409,6 +421,7 @@ ROOFS.forEach(function (R) {
   var kind = R.type === 'gable' ? 'Gable · ridge E–W · falls N + S' : 'Lean-to · falls ' + { N: 'north', S: 'south', E: 'east', W: 'west' }[R.down];
   LABELS['r' + R.id] = { p: ROOF_INFO[R.id].label, t: 'Roof ' + R.id + ' · ' + R.name, s: kind };
 });
+LABELS.vents = { p: new THREE.Vector3(P(560, 0).x, ROOF_INFO[1].ridge + 1.6, ROOF_INFO[1].zr), t: 'Ridge + turbo ventilators', s: 'As in the north-side photo' };
 LABELS.ex = { p: P(955, 575, ROOF_INFO[1].ridge + 0.6), t: 'Existing solar (approx.)', s: '≈ ' + existingCount + ' modules drawn — count to confirm' };
 var labelBox = document.getElementById('labels');
 Object.keys(LABELS).forEach(function (k) {
@@ -451,12 +464,13 @@ function setCaption(t, s) { capT.textContent = t || ''; capS.textContent = s || 
 var ALLR = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'];
 var VIEWS = {
   aerial:    { p: [70, 55, 85],    t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the south-east'], lab: ALLR.concat(['ex']) },
-  aerialnw:  { p: [-75, 55, -60],  t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-west'], lab: ALLR },
+  aerialnw:  { p: [-75, 55, -60],  t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-west'], lab: ALLR.concat(['vents']) },
   plan:      { p: [0, 120, 10],    t: [0, 6, -0.5], fov: 40, cap: ['Top view · north ↑', 'Roofs 1–6 as numbered on the satellite screenshot'], lab: ALLR.concat(['ex']) },
   aerialsw:  { p: [-80, 50, 85],   t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the south-west'], lab: ALLR },
-  aerialne:  { p: [80, 52, -60],   t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-east'], lab: ['r1', 'r6', 'r2'] },
+  aerialne:  { p: [80, 52, -60],   t: [0, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-east'], lab: ['r1', 'r6', 'r2', 'vents'] },
   southelev: { p: [0, 14, 160],    t: [0, 5, 0], fov: 22, notrees: true, cap: ['South elevation', 'Roof heights assumed — to be confirmed'], lab: ALLR },
   westelev:  { p: [-160, 14, 5],   t: [0, 5, 3], fov: 18, notrees: true, cap: ['West elevation', 'Gable of roof 1 behind roofs 2–5'], lab: ['r1', 'r2', 'r3', 'r4', 'r5'] },
+  northphoto:{ p: [-1, 9.5, -42], t: [-1, 7.2, 0], fov: 42, notrees: true, cap: ['From the north (like the site photo)', 'Roof 6 lean-to in front, roof 1 north slope rising to the ridge ventilators'], lab: ['r6', 'r1', 'vents'] },
   planclean: { p: [0, 120, 10],    t: [0, 6, -0.5], fov: 40, cap: ['Top view · north ↑', 'Site model v1'], lab: [] },
 };
 
