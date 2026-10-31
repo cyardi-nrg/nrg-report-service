@@ -12,7 +12,7 @@ from PIL import ImageDraw
 from handlers import panels, views
 from nrg import render, stringing as S
 
-DEFAULT_RATES = {'dc4': 40.0, 'dc6': 60.0, 'dc10': 95.0, 'dc16': 150.0, 'ySet': 400.0, 'vdTargetDc': 2.0, 'vdMaxDc': 3.0, 'vdTargetAc': 2.0, 'vdMaxAc': 3.0}   # % — size for < 2 %, 3 % the limit (owner)   # ₹ per metre of conductor / per pair of Y-connectors — editable in the Design Lab
+DEFAULT_RATES = {'dc4': 40.0, 'dc6': 60.0, 'dc10': 95.0, 'dc16': 150.0, 'ySet': 400.0, 'vdTargetDc': 2.0, 'vdMaxDc': 3.0, 'vdTargetAc': 2.0, 'vdMaxAc': 3.0, 'preferY': 1.0}   # % — size for < 2 %, 3 % the limit (owner)   # ₹ per metre of conductor / per pair of Y-connectors — editable in the Design Lab
 
 
 def inputs(job) -> dict:

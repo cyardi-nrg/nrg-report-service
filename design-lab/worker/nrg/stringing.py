@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.3 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
+# Design Lab worker v1.8.5 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
 # v1.7 (owner): Y pairs join where the SAME poles meet ("+ and + or − and − need to come close
 #   to each other"); strings of 18–20 (19+19, 18+18 are fine); a mix of Y pairs and single strings —
 #   each pair is made only where its Y is cheaper; strings on one MPPT are always the same length.
@@ -102,25 +102,36 @@ def _cut_range(path, N, lo_e, hi_e, p_lo, p_hi):
     cum = [0.0]
     for i in range(N):
         cum.append(cum[-1] + gap_pen[i])
+    # state: (strings so far is odd?, last length) — the 2nd string of each neighbouring pair should match the
+    # 1st in length, so the two can share a Y-connector (owner: Y wherever possible; parallel strings must match)
     INF = float('inf')
-    dp, back = [0.0] + [INF] * N, [0] * (N + 1)
+    dp = [dict() for _ in range(N + 1)]
+    dp[0][(0, 0)] = (0.0, None)
     for end in range(lo_e, N + 1):
         for n in range(lo_e, min(hi_e, end) + 1):
             st = end - n
-            if dp[st] == INF:
+            if not dp[st]:
                 continue
             c = 100.0
             c += 0 if n == p_hi else (6 * (p_hi - n) if p_lo <= n < p_hi else 60 + 12 * min(abs(n - p_lo), abs(n - p_hi)))
             c += cum[end] - cum[st + 1]                              # gaps inside the string (not the one before it)
             c += (0 if path[st][2] else 5) + (0 if path[end - 1][2] else 5)
-            if dp[st] + c < dp[end]:
-                dp[end], back[end] = dp[st] + c, n
-    if dp[N] == INF or dp[N] >= 1e6:
+            for (odd, last), (cost, _) in dp[st].items():
+                pen = 20 if odd and last != n else 0                 # 2nd of a neighbouring pair, different length
+                key = (1 - odd, n)
+                tot = cost + c + pen
+                if key not in dp[end] or tot < dp[end][key][0]:
+                    dp[end][key] = (tot, (st, (odd, last), n))
+    if not dp[N]:
+        return None
+    key, (best, _) = min(dp[N].items(), key=lambda kv: kv[1][0])
+    if best >= 1e6:
         return None
     sizes, i = [], N
     while i > 0:
-        sizes.append(back[i])
-        i -= back[i]
+        _, (st, prev, n) = dp[i][key]
+        sizes.append(n)
+        i, key = st, prev
     return sizes[::-1]
 
 
@@ -159,13 +170,17 @@ def size_single(st: dict, mod: dict, rates: dict, vmax: float = DC_VD_MAX) -> tu
     return sq, cond, vd_pct(mod['imp'], cond, sq, v), cond * rate(rates, sq)
 
 
-def size_y(m4: float, m6: float, n: int, mod: dict, rates: dict, vmax: float = DC_VD_MAX) -> tuple:
-    """A Y pair: 4 sq mm legs to the joint (one string's current), the home run carries both strings — 6 sq mm
-    up, the smallest whose total drop (leg + home run) is ≤ DC_VD_MAX."""
+def size_y(m4: float, m6: float, n: int, mod: dict, rates: dict, vmax: float = DC_VD_TARGET, vlimit: float = DC_VD_MAX) -> tuple:
+    """A Y pair: 4 sq mm legs to the joint (one string's current), the home run carries both strings. Home run
+    sized for the target drop (6 sq mm up); if that needs more than 6 sq mm but 6 sq mm stays within the limit,
+    6 sq mm is kept (owner: Y connectors wherever possible; 3 % is the limit, < 2 % the aim)."""
     v, i = n * mod['vmp'], mod['imp']
     leg = vd_pct(i, m4 / 2, 4, v)
-    sq = next((q for q in DC_SIZES if q >= 6 and leg + vd_pct(2 * i, m6, q, v) <= vmax), DC_SIZES[-1])
-    return sq, leg + vd_pct(2 * i, m6, sq, v), m4 * rate(rates, 4) + m6 * rate(rates, sq) + rates['ySet']
+    drop = lambda q: leg + vd_pct(2 * i, m6, q, v)
+    sq = next((q for q in DC_SIZES if q >= 6 and drop(q) <= vmax), DC_SIZES[-1])
+    if sq > 6 and drop(6) <= vlimit:
+        sq = 6
+    return sq, drop(sq), m4 * rate(rates, 4) + m6 * rate(rates, sq) + rates['ySet']
 
 
 def _meet_edges(strings: list) -> dict:
@@ -263,6 +278,8 @@ def _y_cost(site, pa, ma, pb, mb, rates):
 def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict:
     lim = limits(mod, inv)
     vmax = float(rates.get('vdTargetDc') or DC_VD_TARGET)   # each run sized for this drop, % — set in the Design Lab (Stringing)
+    vlimit = float(rates.get('vdMaxDc') or DC_VD_MAX)
+    prefer_y = str(rates.get('preferY', 1)) not in ('0', 'False', 'false')   # owner: Y wherever the panels allow
     if lim['nMin'] > lim['nMax']:
         raise RuntimeError(f"No string length works with {inv.get('model')}: needs at least {lim['nMin']} panels for the MPPT range but at most "
                            f"{lim['nMax']} for the voltage limit — check the inverter / module values.")
@@ -303,26 +320,70 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                 if min(d1, d2) > ADJ_M:
                     continue
                 m4, m6, _ = _y_cost(site, a0, a1, bp, bm, rates)
-                hsq, hvd, cy = size_y(m4, m6, A['n'], mod, rates, vmax)
+                hsq, hvd, cy = size_y(m4, m6, A['n'], mod, rates, vmax, vlimit)
                 runs = lambda p_, m_: {'plusM': _run(site, p_.x, p_.y, max(p_.z)), 'minusM': _run(site, m_.x, m_.y, max(m_.z)), 'n': A['n']}
                 cs = size_single(runs(a0, a1), mod, rates, vmax)[3] + size_single(runs(bp, bm), mod, rates, vmax)[3]
-                if cy < cs:
+                if prefer_y or cy < cs:          # owner: Y connectors wherever the panels allow, not only where cheaper
                     cands.append((d1 + d2, i, j, bp, bm, m4, m6, cy, cs, min(d1, d2), max(d1, d2), hsq, hvd))
         # RULES (owner): in a Y pair the RED (+) ends are the ones side by side; and wherever two strings meet the
         # ends are the same colour. Along a row the meetings alternate red-red / black-black, so a Y pair can only
-        # sit at a red meeting: a pair is kept only if every meeting can still be matched.
+        # sit at a red meeting: a pair is kept only if every meeting can still be matched. Several orders are tried
+        # (nearest first, along the row from either end) and the one making the most pairs (then cheapest) is used.
         edges = _meet_edges(strings)
-        fixed, used = {}, set()
-        _, base = _orient(strings, edges, fixed)
-        for d, i, j, bp, bm, m4, m6, cy, cs, near, far, hsq, hvd in sorted(cands, key=lambda c: c[0]):
-            if i in used or j in used:
-                continue
-            fx = _pair_fix(strings, i, j, bp, bm)
-            trial = {**fixed, **fx}
-            if _orient(strings, edges, trial)[1] > base:
-                continue
-            fixed = trial
-            used |= {i, j}
+        _, base = _orient(strings, edges, {})
+
+        def pick(order):
+            fixed, used, got = {}, set(), []
+            for c in order:
+                d, i, j, bp, bm = c[:5]
+                if i in used or j in used:
+                    continue
+                fx = _pair_fix(strings, i, j, bp, bm)
+                if _orient(strings, edges, {**fixed, **fx})[1] > base:
+                    continue
+                fixed = {**fixed, **fx}
+                used |= {i, j}
+                got.append((c, fx))
+            return got
+        orders = [sorted(cands, key=lambda c: c[0]), sorted(cands, key=lambda c: (min(c[1], c[2]), c[0])),
+                  sorted(cands, key=lambda c: (-max(c[1], c[2]), c[0]))]
+        best = max((pick(o_) for o_ in orders), key=lambda g: (len(g), -sum(c[7] for c, _ in g)), default=[])
+        # then search properly for the most pairs (then cheapest) the panels and the colour rules allow
+        by_i = {}
+        for c in cands:
+            by_i.setdefault(c[1], []).append(c)
+        order_i = sorted({c[1] for c in cands} | {c[2] for c in cands})
+        state = {'best': [(c, fx) for c, fx in best], 'nodes': 0}
+
+        def score(g):
+            return (len(g), -sum(c[7] for c, _ in g))
+
+        def rec(k, used, fixed, got):
+            state['nodes'] += 1
+            if state['nodes'] > 60000:
+                return
+            if score(got) > score(state['best']):
+                state['best'] = list(got)
+            rest = [i for i in order_i[k:] if i not in used]
+            if len(got) + len(rest) // 2 <= len(state['best']):
+                return                                      # can't beat the best found
+            if k >= len(order_i):
+                return
+            i = order_i[k]
+            if i not in used:
+                for c in by_i.get(i, []):
+                    j = c[2]
+                    if j in used:
+                        continue
+                    fx = _pair_fix(strings, i, j, c[3], c[4])
+                    trial = {**fixed, **fx}
+                    if _orient(strings, edges, trial)[1] > base:
+                        continue
+                    rec(k + 1, used | {i, j}, trial, got + [(c, fx)])
+            rec(k + 1, used, fixed, got)
+        rec(0, set(), {}, [])
+        best = state['best']
+        for (d, i, j, bp, bm, m4, m6, cy, cs, near, far, hsq, hvd), fx in best:
             pairs.append({'a': i, 'b': j, 'nearM': round(near, 1), 'farM': round(far, 1), 'm4': m4, 'm6': m6, 'homeSq': hsq, 'vdPct': round(hvd, 2),
                           'cost': cy, 'singleCost': cs, '_fix': fx})
     pole_clashes = _apply_poles(site, strings, pairs)
