@@ -8,3 +8,4 @@ shapely>=2.0      # roof outlines, setbacks, obstacles (phase 3)
 playwright>=1.45,<=1.58.0   # 3D pictures + video; 1.58 is the last with Chromium for macOS 13 (Ventura) — v1.7.4
 imageio-ffmpeg>=0.5  # ffmpeg for the video, no Homebrew needed (phase 4)
 nrel-pysam>=5.0     # NREL SAM simulation engine: month-wise expected generation (v1.5)
+pypdf>=4.0          # joins the CEIG sheets into one PDF (v1.8)

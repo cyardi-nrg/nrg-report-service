@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.7.4, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.8.0, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -23,7 +23,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | 5a | Stringing: strings of 20 (roofs filled in whole strings), 5-row landscape groups so + and − land on the walkway side, MPPT voltage / current checks (Voc at 5 °C, Vmp 70 °C → 5 °C), single 4 sq mm runs ×2 vs Y-connector + 6 sq mm ×1 — the cheaper wins; stringing layout + string schedule; DC cable and MC4 sets into the BOM | **done (v1.6)** |
 | 5b | Walkway (between the row groups), cable tray (array → roof edge → down the wall), earthing (3 pits DC / AC / LA, lightning arresters by kW), AC cable to the meter — three drawings, lengths into the BOM | **done (v1.6)** |
 | 5d | v1.7 (owner): Y pairs join where the SAME poles meet (one pole's ends side by side); strings of 18–20 (20 first); a mix of Y pairs and single strings, each pair priced on its own; one string length per MPPT; earth pits 3 m apart | **done (v1.7)** |
-| 5c | SLD, CEIG set — made general from the Jain Granite programs | next |
+| 5c | **SLD** (stage “SLD”): A3 PDF + picture — strings, MPPTs, Y pairs, DCDB, ACDB with one incomer per inverter, breakers and Al cable sizes worked out from the inverter (same ladder that gave Jain 95 sq mm), voltage drops, design checks. **CEIG set** (stage “CEIG drawing set”): 01 SLD, 02 equipment, 03 earthing (with the IS 3043 pit section and details), 04 walkway, 05 cable tray, 06 stringing — A3, NRG title block, plus the whole set as one PDF. Strings are now spread evenly over the inverters | **done (v1.8)** |
 
 A job for a stage the Mac can't do yet simply **waits in the queue** and runs on its own once that phase is installed.
 

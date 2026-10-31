@@ -1,4 +1,4 @@
-# Design Lab worker v1.7.0 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
+# Design Lab worker v1.8.0 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
 # v1.7 (owner): Y pairs join where the SAME poles meet ("+ and + or − and − need to come close
 #   to each other"); strings of 18–20 (19+19, 18+18 are fine); a mix of Y pairs and single strings —
 #   each pair is made only where its Y is cheaper; strings on one MPPT are always the same length.
@@ -214,10 +214,31 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
             warnings.append('Some MPPTs take strings from two roof faces (same string length) — there are not enough MPPTs to keep faces apart.')
     if len(mppts) > len(slots):
         warnings.append(f"Not enough MPPTs: {len(mppts)} needed, {len(slots)} available — add an inverter or pick a bigger one.")
-    for slot, mp in zip(slots, mppts):
-        for k, u in enumerate(mp['units']):
+    # each MPPT group goes to the inverter carrying the fewest strings so far (that still has a free MPPT),
+    # biggest groups first, so all inverters end up about equally loaded (v1.8)
+    n_inv, n_mppt = int(inv.get('count', 1)), int(inv['mppts'])
+    load, used_m = [0] * n_inv, [0] * n_inv
+    order = sorted(range(len(mppts)), key=lambda j: (-mppts[j]['strings'], j))
+    placed = {}
+    for j in order:
+        free = [k for k in range(n_inv) if used_m[k] < n_mppt]
+        if not free:
+            break
+        k = min(free, key=lambda k: (load[k], k))
+        used_m[k] += 1
+        load[k] += mppts[j]['strings']
+        placed[j] = (k + 1, used_m[k])
+    # number each inverter's MPPTs in the order of the roof (original group order), not by size
+    for k in range(n_inv):
+        mine = sorted(j for j, (kk, _) in placed.items() if kk == k + 1)
+        for m, j in enumerate(mine):
+            placed[j] = (k + 1, m + 1)
+    for j, mp in enumerate(mppts):
+        if j not in placed:
+            continue
+        for kin, u in enumerate(mp['units']):
             for i in u['idx']:
-                strings[i]['inverter'], strings[i]['mppt'], strings[i]['input'] = slot[0], slot[1], k + 1
+                strings[i]['inverter'], strings[i]['mppt'], strings[i]['input'] = placed[j][0], placed[j][1], kin + 1
     for i, st in enumerate(strings):
         st.setdefault('mppt', None)
         st['id'] = f'S{i + 1}'

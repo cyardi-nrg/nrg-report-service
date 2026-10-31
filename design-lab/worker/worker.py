@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Design Lab worker v1.7.0 (2026-10-31) — runs on the owner's Mac.
+# Design Lab worker v1.8.0 (2026-10-31) — runs on the owner's Mac.
 #
 # Owner's own asks: "heavy work ... on my Mac"; the video "scheduled for
 # work after 9 PM or 10 PM when my MacBook will be on ... generated

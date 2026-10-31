@@ -1,4 +1,4 @@
-# Design Lab worker v1.7.0 (2026-10-31) — stage 'layouts': walkway, cable tray and
+# Design Lab worker v1.8.0 (2026-10-31) — stage 'layouts': walkway, cable tray and
 # earthing layouts for the chosen panel option, with their lengths written into the
 # BOM's "as per design" column.
 #   Walkways (owner): between the rows — in the gap the layout leaves after each row group,
@@ -129,16 +129,14 @@ def _draw(site, base, arrays, layer: str, items: dict, title: str, lines: list, 
     out.save(out_path, optimize=True)
 
 
-def run(job) -> dict:
-    P = panels.plan(job)
-    opt, _ = views.chosen_option(job, P)
+def compute(job, P: dict, opt: dict) -> dict:
+    """Walkway, cable tray and earthing routes + lengths for the chosen option (site metres).
+    Shared by this stage and the CEIG drawing set (handlers/ceig.py)."""
     site, arrays = P['site'], opt['arrays']
-    base = panels.base_picture(job, P['model'])
     marks = job.design.get('marks') or {}
     sv = job.latest_version('stringing', job.row.get('layout_id'))
     inv = ((sv or {}).get('data') or {}).get('inverter') or {}
     inv_count, inv_kw = int(inv.get('count') or 1), float(inv.get('acKw') or 0)
-
     # walkways
     walkways = [w for a in arrays for w in _walkways(a)]
     walk_m = round(sum(math.dist(*w) for w in walkways), 1)
@@ -175,7 +173,18 @@ def run(job) -> dict:
     meter = site.to_m(marks['meter']) if marks.get('meter') and site.inverter else None
     ac_m = round(inv_count * (abs(meter[0] - site.inverter[0]) + abs(meter[1] - site.inverter[1]) + 5), 1) if meter else None
 
-    items = {'walkways': walkways, 'trays': trays, 'earth': earth, 'la_runs': la_runs, 'la': la_pts, 'pits': pits, 'meter': meter}
+    return {'walkways': walkways, 'trays': trays, 'earth': earth, 'la_runs': la_runs, 'la': la_pts, 'pits': pits, 'meter': meter,
+            'walk_m': walk_m, 'tray_m': tray_m, 'earth_m': earth_m, 'la_m': la_m, 'la_n': la_n, 'ac_m': ac_m, 'total_kw': total_kw,
+            'roof_h': roof_h}
+
+
+def run(job) -> dict:
+    P = panels.plan(job)
+    opt, _ = views.chosen_option(job, P)
+    site, arrays = P['site'], opt['arrays']
+    base = panels.base_picture(job, P['model'])
+    items = compute(job, P, opt)
+    walk_m, tray_m, earth_m, la_m, la_n, ac_m, total_kw = (items[k] for k in ('walk_m', 'tray_m', 'earth_m', 'la_m', 'la_n', 'ac_m', 'total_kw'))
     note = 'Routes are square to the building and approximate — verify on site.'
     for layer, dtype, title, lines in (
         ('walkway', 'walkway_layout_drawing', 'Walkway layout', [f'FRP walkway between the row groups: {walk_m:,} m (0.6 m wide)', 'Grey bands = walkway', note]),
