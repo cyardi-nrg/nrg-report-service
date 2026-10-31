@@ -1,5 +1,6 @@
 #!/bin/bash
-# Design Lab worker v1.7.3 (2026-10-31) — one-time setup on the Mac.
+# Design Lab worker v1.7.4 (2026-10-31) — one-time setup on the Mac.
+# v1.7.4: Playwright pinned to 1.58 (the last with Chromium for macOS 13); a browser failure no longer stops setup.
 # v1.7.3 (owner: "sort it once and for all"): the setup no longer depends on which Python the
 #   Mac has. It brings its own Python 3.12 (via "uv", Astral's free installer — a private copy
 #   inside the worker folder, nothing else on the Mac changes), and it first pulls the latest
@@ -78,7 +79,11 @@ else
   .venv/bin/pip install --quiet --upgrade pip
   .venv/bin/pip install --quiet -r requirements.txt
 fi
-.venv/bin/python3 -m playwright install chromium     # the browser the 3D pictures and video are rendered in (~150 MB, once)
+# the browser the 3D pictures and video are rendered in (~150 MB, once). If it fails, the rest of the
+# worker still works — only the 3D pictures / video wait until this succeeds.
+if ! .venv/bin/python3 -m playwright install chromium; then
+  echo "   !! The 3D browser could not be installed — everything else is set up; 3D pictures and the video will wait. Send Claude this screen."
+fi
 mkdir -p logs
 
 echo "== 2/4  Settings (.env)"
