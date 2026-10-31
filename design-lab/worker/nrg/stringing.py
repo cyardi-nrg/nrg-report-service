@@ -233,9 +233,14 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                 continue
             used |= {i, j}
             A, B = strings[i], strings[j]
-            A['plus'], A['minus'] = A['mods'][0], A['mods'][-1]
-            B['plus'], B['minus'] = bp, bm
-            for st in (B,):
+            a0, a1 = A['mods'][0], A['mods'][-1]
+            # RULE (owner): in a Y pair the RED (+) ends are the ones side by side. Either string can be wired
+            # either way round, so whichever ends meet become +, and the − ends take the longer leg.
+            if _pdist(a0, bp) <= _pdist(a1, bm):
+                A['plus'], A['minus'], B['plus'], B['minus'] = a0, a1, bp, bm
+            else:
+                A['plus'], A['minus'], B['plus'], B['minus'] = a1, a0, bm, bp
+            for st in (A, B):
                 st['plusM'] = round(_run(site, st['plus'].x, st['plus'].y, max(st['plus'].z)), 1)
                 st['minusM'] = round(_run(site, st['minus'].x, st['minus'].y, max(st['minus'].z)), 1)
             pairs.append({'a': i, 'b': j, 'nearM': round(near, 1), 'farM': round(far, 1), 'm4': m4, 'm6': m6, 'homeSq': hsq, 'vdPct': round(hvd, 2),

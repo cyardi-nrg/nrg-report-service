@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.8.1, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.8.2, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -24,7 +24,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | 5b | Walkway (between the row groups), cable tray (array → roof edge → down the wall), earthing (3 pits DC / AC / LA, lightning arresters by kW), AC cable to the meter — three drawings, lengths into the BOM | **done (v1.6)** |
 | 5d | v1.7 (owner): Y pairs join where the SAME poles meet (one pole's ends side by side); strings of 18–20 (20 first); a mix of Y pairs and single strings, each pair priced on its own; one string length per MPPT; earth pits 3 m apart | **done (v1.7)** |
 | 5c | **SLD** (stage “SLD”): A3 PDF + picture — strings, MPPTs, Y pairs, DCDB, ACDB with one incomer per inverter, breakers and Al cable sizes worked out from the inverter (same ladder that gave Jain 95 sq mm), voltage drops, design checks. **CEIG set** (stage “CEIG drawing set”): 01 SLD, 02 equipment, 03 earthing (with the IS 3043 pit section and details), 04 walkway, 05 cable tray, 06 stringing — A3, NRG title block, plus the whole set as one PDF. Strings are now spread evenly over the inverters | **done (v1.8)** |
-| 5e | v1.8.1 (owner's review): strings follow one unbroken snake (no skipped or stray panels), cut into 18–20 with no long jumps; row groups filled with counts that string cleanly; neighbouring strings meet panel-to-panel so a Y joins one pole side by side; the wiring path is drawn and every panel numbered from the + end; every DC run sized by current, length and drop (aim < 2 %, max 3 %), AC cables likewise (fewest runs first) | **done (v1.8.1)** |
+| 5e | v1.8.1 (owner's review): strings follow one unbroken snake (no skipped or stray panels), cut into 18–20 with no long jumps; row groups filled with counts that string cleanly; neighbouring strings meet panel-to-panel so a Y joins one pole side by side; the wiring path is drawn and every panel numbered from the + end; every DC run sized by current, length and drop (aim < 2 %, max 3 %), AC cables likewise (fewest runs first) ; RULE: in every Y pair the + (red) ends of both strings sit side by side (v1.8.2) | **done (v1.8.2)** |
 
 A job for a stage the Mac can't do yet simply **waits in the queue** and runs on its own once that phase is installed.
 
