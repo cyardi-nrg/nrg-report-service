@@ -81,22 +81,32 @@ def usable_area(site: Site, face: Face):
     return area
 
 
-def _rows(area_local, w, d, gap_after_row, group, walk, flat_table=False):
-    """Pack rectangles w × d along x, rows going down +y. Returns [(x0, y0, row)]."""
+def _rows(area_local, w, d, gap_after_row, group, walk, flat_table=False, row_ok=None):
+    """Pack rectangles w × d along x, rows going down +y. Returns [(x0, y0, row)].
+    row_ok(cells) → False drops a whole row (e.g. every panel in it would be in shade) and slides down instead,
+    so it doesn't count as one of a group's rows (owner, v1.8.6: real 5-row groups, mirrored about the walkway)."""
     if area_local.is_empty:
         return []
     P = prep(area_local)
     minx, miny, maxx, maxy = area_local.bounds
     out, y, r = [], miny, 0
     while y + d <= maxy + 1e-6:
-        x, placed = minx, False
+        x, row = minx, []
         while x + w <= maxx + 1e-6:
             if P.contains(box(x + 1e-3, y + 1e-3, x + w - 1e-3, y + d - 1e-3)):   # 1 mm tolerance: an edge exactly on the boundary still fits
-                out.append((x, y, r))
+                row.append((x, y, r))
                 x += w + GAP
-                placed = True
             else:
                 x += 0.1
+        step = 0.1
+        if row and row_ok is not None and not row_ok(row):
+            row, step = [], 0.25          # all in shade: slide in bigger steps (the shade check is the slow part)
+        if not row:
+            # an empty row (roof edge, setback, all in shade) must not count as one of the 5 — otherwise the first
+            # group has only 4 real rows and its strings can't mirror the group across the walkway. Slide down.
+            y += step
+            continue
+        out += row
         r += 1
         y += d + gap_after_row
         if group and r % group == 0:
@@ -119,7 +129,17 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list) -> dict:
         # on the walkway side), groups of 4 as the fallback; portrait in groups of 2; walkways between the groups
         for o, group in (('L', 5), ('L', 4), ('P', 2)):
             w, d = (L, W * math.cos(alpha)) if o == 'L' else (W, L * math.cos(alpha))
-            cells = _rows(loc, w, d, GAP, group, WALK)
+
+            def row_ok(row, w=w, d=d):
+                # keep a row unless EVERY panel in it would be shaded (21 Dec, 9–15 h)
+                xs, ys, zs = [], [], []
+                for x0, y0, _ in row:
+                    for cx, cy in ((x0, y0), (x0 + w, y0), (x0 + w, y0 + d), (x0, y0 + d)):
+                        X, Y = inv(cx, cy)
+                        xs.append(X); ys.append(Y); zs.append(face.height_at(X, Y) + LIFT)
+                hit = shaded(site, np.array(xs), np.array(ys), np.array(zs), sun).reshape(len(row), 4).any(axis=1)
+                return not hit.all()
+            cells = _rows(loc, w, d, GAP, group, WALK, row_ok=row_ok)
             mods = []
             for x0, y0, r in cells:
                 cs = [inv(x0, y0), inv(x0 + w, y0), inv(x0 + w, y0 + d), inv(x0, y0 + d)]
@@ -175,7 +195,8 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list) -> dict:
             # landscape / portrait fits more (owner)
             l5 = next((r for r in results if r[0] == 'L' and r[3] == 5), None)
             l4 = next((r for r in results if r[0] == 'L' and r[3] == 4), None)
-            land = l5 if l5 and (not l4 or len(l4[1]) < 1.05 * len(l5[1])) else l4
+            # owner (v1.8.6): 5 landscape rows is THE preference — 4 only when 5 rows fit far fewer panels (< 80 %)
+            land = l5 if l5 and (not l4 or len(l5[1]) >= 0.8 * len(l4[1])) else l4
             pool = [r for r in results if r[0] == 'P'] + ([land] if land else [])
             pick = max(pool, key=lambda r: len(r[1]))
         best_o, best, best_raw, best_rows = pick

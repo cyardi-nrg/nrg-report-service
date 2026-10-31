@@ -91,6 +91,7 @@ def _take_stringable(p: dict, n: int) -> list:
         bands.setdefault(m.row // g, []).append(m)
     keys = sorted(bands, key=lambda b: mods.index(bands[b][0]))      # bands in the order they are reached
     rank = {b: i for i, b in enumerate(keys)}
+    short = {b: len({m.row for m in bands[b]}) < g for b in keys}         # a part group (fewer rows than g)
     for ok in ((lambda k: k % STRING_UNIT == 0), _stringable):
         # DP over bands: counts per band (0 or stringable, ≤ capacity) summing to n; cost prefers nearer bands
         # filled first and fewer part-filled bands
@@ -104,7 +105,9 @@ def _take_stringable(p: dict, n: int) -> list:
                     t = tot + k
                     if t > n:
                         break
-                    c = cost + k * rank[b] * 0.01 + (1.0 if 0 < k < cap else 0.0)
+                    # full row groups (all g rows) first — a part group at a roof edge only if needed (owner: 5 rows,
+                    # mirrored about the walkway, so top and bottom strings face each other)
+                    c = cost + k * rank[b] * 0.01 + (1.0 if 0 < k < cap else 0.0) + (3.0 if k and short[b] else 0.0)
                     if t not in nxt or c < nxt[t][0]:
                         nxt[t] = (c, picks + [(b, k)])
             best = nxt

@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.5 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
+# Design Lab worker v1.8.6 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
 # v1.7 (owner): Y pairs join where the SAME poles meet ("+ and + or − and − need to come close
 #   to each other"); strings of 18–20 (19+19, 18+18 are fine); a mix of Y pairs and single strings —
 #   each pair is made only where its Y is cheaper; strings on one MPPT are always the same length.
@@ -56,12 +56,10 @@ def _path(face_mods: list, g: int) -> list:
         cols = {}
         for m in groups[gk]:
             cols.setdefault(round(m.u, 1), []).append(m)
+        # every group walked from the same end, each from its walkway row: the group below a walkway is the MIRROR
+        # of the group above, so the string ends face each other across the walkway (+ opposite +, − opposite −)
+        # and a Y between top and bottom strings has both legs short (owner, v1.8.6)
         order = sorted(cols)
-        if last is not None:                                   # start from the end nearer the previous group's last panel
-            first = min(cols[order[0]], key=lambda m: _pdist(m, last))
-            final = min(cols[order[-1]], key=lambda m: _pdist(m, last))
-            if _pdist(final, last) < _pdist(first, last):
-                order = order[::-1]
         for j, c in enumerate(order):
             col = sorted(cols[c], key=lambda m: m.row, reverse=walk_high)      # walkway row first
             seq = col if j % 2 == 0 else col[::-1]
@@ -241,13 +239,21 @@ def _orient(strings: list, edges: dict, fixed: dict) -> tuple[list, int]:
 
 def _pair_fix(strings: list, i: int, j: int, bp, bm) -> dict:
     """The two strings of a Y pair, wired so their + (red) ends are the ones side by side (owner's rule)."""
+    return _pair_fixes(strings, i, j, bp, bm)[0]
+
+
+def _pair_fixes(strings: list, i: int, j: int, bp, bm) -> list:
+    """Ways to wire a Y pair with the red ends side by side. A mirror pair across a walkway has BOTH ends side by
+    side, so either end may be the red one — whichever the red-red / black-black alternation along the row needs."""
     A, B = strings[i], strings[j]
     a0, a1 = A['mods'][0], A['mods'][-1]
-    if _pdist(a0, bp) <= _pdist(a1, bm):
-        pa, pb = a0, bp
-    else:
-        pa, pb = a1, bm
-    return {i: 0 if pa is a0 else 1, j: 0 if pb is B['mods'][0] else 1}
+    b_first = B['mods'][0]
+    opt0 = {i: 0, j: 0 if bp is b_first else 1}           # + at a0 / bp
+    opt1 = {i: 1, j: 1 if bp is b_first else 0}           # + at a1 / bm
+    d0, d1 = _pdist(a0, bp), _pdist(a1, bm)
+    if d0 <= ADJ_M and d1 <= ADJ_M:
+        return [opt0, opt1] if d0 <= d1 else [opt1, opt0]
+    return [opt0] if d0 <= d1 else [opt1]
 
 
 def _apply_poles(site, strings: list, pairs: list) -> int:
@@ -338,8 +344,8 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                 d, i, j, bp, bm = c[:5]
                 if i in used or j in used:
                     continue
-                fx = _pair_fix(strings, i, j, bp, bm)
-                if _orient(strings, edges, {**fixed, **fx})[1] > base:
+                fx = next((f for f in _pair_fixes(strings, i, j, bp, bm) if _orient(strings, edges, {**fixed, **f})[1] <= base), None)
+                if fx is None:
                     continue
                 fixed = {**fixed, **fx}
                 used |= {i, j}
@@ -350,7 +356,7 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
         best = max((pick(o_) for o_ in orders), key=lambda g: (len(g), -sum(c[7] for c, _ in g)), default=[])
         # then search properly for the most pairs (then cheapest) the panels and the colour rules allow
         by_i = {}
-        for c in cands:
+        for c in sorted(cands, key=lambda c: c[7]):          # cheapest partner first: mirror pairs across the walkway
             by_i.setdefault(c[1], []).append(c)
         order_i = sorted({c[1] for c in cands} | {c[2] for c in cands})
         state = {'best': [(c, fx) for c, fx in best], 'nodes': 0}
@@ -375,11 +381,12 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                     j = c[2]
                     if j in used:
                         continue
-                    fx = _pair_fix(strings, i, j, c[3], c[4])
-                    trial = {**fixed, **fx}
-                    if _orient(strings, edges, trial)[1] > base:
-                        continue
-                    rec(k + 1, used | {i, j}, trial, got + [(c, fx)])
+                    for fx in _pair_fixes(strings, i, j, c[3], c[4]):
+                        trial = {**fixed, **fx}
+                        if _orient(strings, edges, trial)[1] > base:
+                            continue
+                        rec(k + 1, used | {i, j}, trial, got + [(c, fx)])
+                        break
             rec(k + 1, used, fixed, got)
         rec(0, set(), {}, [])
         best = state['best']
