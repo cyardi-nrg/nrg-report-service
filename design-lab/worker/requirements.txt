@@ -7,3 +7,4 @@ numpy>=1.26       # height map + shade check (phase 3)
 shapely>=2.0      # roof outlines, setbacks, obstacles (phase 3)
 playwright>=1.45   # headless browser for 3D pictures + video (phase 4); install.sh fetches its Chromium
 imageio-ffmpeg>=0.5  # ffmpeg for the video, no Homebrew needed (phase 4)
+nrel-pysam>=5.0     # NREL SAM simulation engine: month-wise expected generation (v1.5)
