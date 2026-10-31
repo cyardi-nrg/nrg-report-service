@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.0 (2026-10-31) — the single line diagram (SLD), made general from the
+# Design Lab worker v1.8.1 (2026-10-31) — the single line diagram (SLD), made general from the
 # owner-approved Jain Granite SLD (stringing/ceig/generate_ceig_drawings.py v7, sheet 01).
 #
 # Everything on the sheet comes from the design:
@@ -10,7 +10,9 @@
 #   * breaker ≥ 1.25 × current (next standard rating); contactor = breaker
 #   * AC cable: Al XLPE armoured 3.5C, catalogue rating in air × 0.8 (grouping / ambient) ≥ 1.25 × current
 #     — the same ladder that gave Jain its 95 sq mm for an 80 kW inverter
-#   * DC: 4 sq mm per string; a Y pair's home run 6 sq mm; string fuses only when > 2 strings share an MPPT
+#   * v1.8.1 (owner): cable size = current, length AND voltage drop — AC cables are made bigger (or doubled)
+#     until inverter → LT panel drop ≤ the allowed AC drop; DC runs come sized from the Stringing stage
+#   * string fuses only when > 2 strings share an MPPT
 import math
 
 from nrg.ceigkit import (T, TL, R, L, C, table, sym_module, sym_inverter, sym_earth, sym_breaker, sym_contactor, sym_spd,
@@ -20,6 +22,7 @@ AL_3_5C = [(25, 99), (35, 120), (50, 145), (70, 178), (95, 216), (120, 248), (15
 BREAKERS = [16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3200]
 DC_MCB = [16, 20, 25, 32, 40, 50, 63]
 FUSES = [10, 12, 15, 16, 20, 25, 30, 32]
+DC_AMPS = {4: 55, 6: 70, 10: 98, 16: 132}   # EN 50618 solar cable, in air (catalogue)
 DERATE = 0.8
 RHO_AL, RHO_CU = 0.034, 0.0216      # Ω·mm²/m at operating temperature
 RED = '#d62828'
@@ -45,31 +48,44 @@ def sizing(d: dict) -> dict:
     i_inv = float(inv.get('iacMax') or 0) or inv['acKw'] * 1000 / (math.sqrt(3) * 400)
     i_inv_est = not inv.get('iacMax')
     br_inv = _next(BREAKERS, 1.25 * i_inv)
-    run_i, sq_i, amp_i = ac_cable(1.25 * i_inv)
     i_tot = n_inv * i_inv
     br_main = _next(BREAKERS, 1.25 * i_tot)
-    run_m, sq_m, amp_m = ac_cable(1.25 * i_tot)
     l_inv_acdb = 3.0
     l_feeder = float(d.get('acCableM') or 0) / max(1, n_inv) or 20.0
     vd = lambda i, l, a, runs: math.sqrt(3) * i * l * RHO_AL / (a * runs) / 415 * 100
-    vd_ac = vd(i_inv, l_inv_acdb, sq_i, run_i) + vd(i_tot, l_feeder, sq_m, run_m)
-    # DC: per string (single) or per pair (Y)
-    vmp_stc = lambda n: n * mod['vmp']
-    drops = []
-    by_id = {s['id']: s for s in strings}
-    paired = set()
-    for p in d.get('pairs', []):
-        a = strings[p['a']] if isinstance(p.get('a'), int) and p['a'] < len(strings) else None
-        if not a:
-            continue
-        paired |= {p['a'], p['b']}
-        v = mod['imp'] * RHO_CU * (p['m4'] / 2) / 4 + 2 * mod['imp'] * RHO_CU * p['m6'] / 6
-        drops.append(v / vmp_stc(a['n']) * 100)
-    for i, s in enumerate(strings):
-        if i in paired:
-            continue
-        v = mod['imp'] * RHO_CU * (s['plusM'] + s['minusM']) / 4
-        drops.append(v / vmp_stc(s['n']) * 100)
+    vmax_ac = float((d.get('rates') or {}).get('vdTargetAc') or 2.0)      # size for < 2 %, 3 % the limit (owner)
+    # sized by current first (1.25 × I, catalogue × 0.8), then made bigger until the drop from the inverter to
+    # the LT panel is ≤ the allowed AC drop — cheapest (least copper-equivalent) combination wins (owner: current,
+    # length AND voltage drop decide the size). Fewest parallel runs first (each run is glands, lugs, labour),
+    # then the smallest size
+    def options(design_a):
+        out = []
+        for runs in range(1, 7):
+            for sq, amps in AL_3_5C:
+                if amps * DERATE * runs >= design_a:
+                    out.append((runs, sq, amps))
+        return out
+    best = None
+    for ri, si, ai in options(1.25 * i_inv):
+        for rm, sm, am in options(1.25 * i_tot):
+            drop = vd(i_inv, l_inv_acdb, si, ri) + vd(i_tot, l_feeder, sm, rm)
+            if drop > vmax_ac:
+                continue
+            cost = (rm + ri, rm, ri, sm, si)          # fewest parallel runs first, then the smallest size
+            if best is None or cost < best[0]:
+                best = (cost, ri, si, ai, rm, sm, am, drop)
+    if best is None:
+        run_i, sq_i, amp_i = ac_cable(1.25 * i_inv)
+        run_m, sq_m, amp_m = ac_cable(1.25 * i_tot)
+        vd_ac = vd(i_inv, l_inv_acdb, sq_i, run_i) + vd(i_tot, l_feeder, sq_m, run_m)
+    else:
+        _, run_i, sq_i, amp_i, run_m, sq_m, amp_m, vd_ac = best
+    by_current = ac_cable(1.25 * i_tot)
+    upsized = (run_m, sq_m) != by_current[:2]
+    # DC: each run already sized by the Stringing stage for current, length and drop (vdPct per string)
+    drops = [float(s_.get('vdPct') or 0) for s_ in strings]
+    dc_sizes = sorted({int(s_.get('sq') or 4) for s_ in strings if not s_.get('pair')})
+    y_sizes = sorted({int(p.get('homeSq') or 6) for p in d.get('pairs', [])})
     per_mppt = {}
     for s in strings:
         if s.get('mppt'):
@@ -80,7 +96,10 @@ def sizing(d: dict) -> dict:
             'i_tot': i_tot, 'br_main': br_main, 'main_kind': 'ACB' if br_main > 630 else 'MCCB', 'run_m': run_m, 'sq_m': sq_m, 'amp_m': amp_m,
             'l_inv_acdb': l_inv_acdb, 'l_feeder': l_feeder, 'feeder_est': not d.get('acCableM'), 'vd_ac': vd_ac,
             'vd_dc': (min(drops, default=0), max(drops, default=0)), 'max_par': max_par, 'fuse': fuse,
-            'mcb_single': _next(DC_MCB, 1.25 * mod['isc']), 'mcb_y': _next(DC_MCB, 2 * 1.25 * mod['isc'])}
+            'mcb_single': _next(DC_MCB, 1.25 * mod['isc']), 'mcb_y': _next(DC_MCB, 2 * 1.25 * mod['isc']),
+            'vmax_ac': vmax_ac, 'ac_upsized': upsized, 'dc_sizes': dc_sizes or [4], 'y_sizes': y_sizes,
+            'vmax_dc': float((d.get('rates') or {}).get('vdTargetDc') or 2.0), 'lim_dc': float((d.get('rates') or {}).get('vdMaxDc') or 3.0),
+            'lim_ac': float((d.get('rates') or {}).get('vdMaxAc') or 3.0)}
 
 
 def _cable_txt(runs, sq):
@@ -233,9 +252,11 @@ def sheet_sld(d: dict) -> str:
     rows = [(['CABLE SIZE'], ['CURRENT', 'RATING'], ['CABLE', 'CONNECTION'], ['CABLE TYPE']),
             ([f"1.1 KV, {z['run_i']}R X 3.5C", f"X {z['sq_i']} SQ MM"], [f"{z['amp_i']} A **"], ['INVERTER TO', 'ACDB'], ['AL. XLPE INSULATED', 'ARMOURED CABLE']),
             ([f"1.1 KV, {z['run_m']}R X 3.5C", f"X {z['sq_m']} SQ MM"], [f"{z['amp_m']} A **" + (' / RUN' if z['run_m'] > 1 else '')], ['ACDB TO CLIENT', 'LT PANEL'], ['AL. XLPE INSULATED', 'ARMOURED CABLE']),
-            (['1R X 1C X 4 SQ MM'], ['55 A **'], ['MODULE TO', 'DCDB / INVERTER'], ['XLPO UV Cu. CABLE', 'FOR +VE & –VE'])]
+            ([f"1R X 1C X {' / '.join(map(str, z['dc_sizes']))} SQ MM"], [' / '.join(f'{DC_AMPS.get(q, 0)} A' for q in z['dc_sizes']) + ' **'],
+             ['STRING TO', 'DCDB / INVERTER'], ['XLPO UV Cu. CABLE', 'FOR +VE & –VE'])]
     if d.get('pairs'):
-        rows.append((['1R X 1C X 6 SQ MM'], ['70 A **'], ['Y-CONNECTOR TO', 'DCDB / INVERTER'], ['XLPO UV Cu. CABLE', 'FOR +VE & –VE']))
+        rows.append((['1R X 1C X 4 SQ MM (LEGS)', f"+ {' / '.join(map(str, z['y_sizes']))} SQ MM (HOME RUN)"], [f"55 / {' / '.join(f'{DC_AMPS.get(q, 0)}' for q in z['y_sizes'])} A **"],
+                     ['Y-CONNECTOR TO', 'DCDB / INVERTER'], ['XLPO UV Cu. CABLE', 'FOR +VE & –VE']))
     rows += [(['1R X 1C X 16 SQ MM'], ['—'], ['PV STRUCTURE', 'TO EP-1'], ['Cu EARTH CABLE']),
              (['1R X 1C X 25 SQ MM'], ['—'], ['INVERTER / ACDB', 'TO EP-2'], ['Cu EARTH CABLE']),
              (['1R X 1C X 50 SQ MM'], ['—'], ['LA TO EP-3'], ['Cu EARTH CABLE'])]
@@ -252,8 +273,8 @@ def sheet_sld(d: dict) -> str:
             + ('✓' if nmin * lim.get('vmpHot', 0) >= inv['mpptMin'] and nmax * lim.get('vmpCold', 0) <= inv['mpptMax'] else '✗')),
            ('CURRENT PER MPPT (Imp / Isc)', f"{z['max_par'] * mod['imp']:.1f} A ≤ {inv['imaxPerMppt']} A  /  {z['max_par'] * mod['isc']:.1f} A ≤ {inv.get('iscMaxPerMppt', '—')} A "
             + ('✓' if z['max_par'] * mod['imp'] <= inv['imaxPerMppt'] else '✗')),
-           ('DC VOLTAGE DROP', f"{z['vd_dc'][0]:.2f} % – {z['vd_dc'][1]:.2f} % *"),
-           (f"AC VOLTAGE DROP (INV. TO LT PANEL)", f"≈ {z['vd_ac']:.2f} % *"),
+           ('DC VOLTAGE DROP (EACH RUN SIZED FOR IT)', f"{z['vd_dc'][0]:.2f} – {z['vd_dc'][1]:.2f} % (AIM < {z['vmax_dc']:g} %, MAX {z['lim_dc']:g} %) " + ('✓' if z['vd_dc'][1] <= z['lim_dc'] else '✗') + ' *'),
+           (f"AC VOLTAGE DROP (INV. TO LT PANEL)", f"≈ {z['vd_ac']:.2f} % (AIM < {z['vmax_ac']:g} %, MAX {z['lim_ac']:g} %)" + (' — UPSIZED FOR DROP' if z['ac_upsized'] else '') + ' *'),
            ('STRING FUSE', f"REQUIRED, {z['fuse']} A gPV (> 2 STRINGS / MPPT)" if z['fuse'] else 'NOT REQUIRED (≤ 2 STRINGS / MPPT)'),
            ('DC / AC RATIO', f"{d['kwp'] / (n_inv * inv['acKw']):.2f}" if inv.get('acKw') else '—')]
     tb, y2 = table(44, y + 30, [190, 210], chk, rh=14, size=7, head='DESIGN CHECK')

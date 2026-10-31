@@ -1,9 +1,10 @@
-# Design Lab worker v1.7.0 (2026-10-31) — stage 'stringing' (per quote / layout).
+# Design Lab worker v1.8.1 (2026-10-31) — stage 'stringing' (per quote / layout).
 # The inverter (and the module's electrical values, and cable rates) are picked in the
 # Design Lab's Stringing stage — the owner chooses the inverter per design. This works out
 # the strings for the chosen panel option, which MPPT each goes to, every + / − run to
 # the inverter, single 4 sq mm runs vs Y-connectors with 6 sq mm runs (the cheaper wins),
 # draws it, and writes the DC cable / MC4 figures into the BOM's "as per design" column.
+import math
 import os
 
 from PIL import ImageDraw
@@ -11,7 +12,7 @@ from PIL import ImageDraw
 from handlers import panels, views
 from nrg import render, stringing as S
 
-DEFAULT_RATES = {'dc4': 40.0, 'dc6': 60.0, 'ySet': 400.0}   # ₹ per metre of conductor / per pair of Y-connectors — editable in the Design Lab
+DEFAULT_RATES = {'dc4': 40.0, 'dc6': 60.0, 'dc10': 95.0, 'dc16': 150.0, 'ySet': 400.0, 'vdTargetDc': 2.0, 'vdMaxDc': 3.0, 'vdTargetAc': 2.0, 'vdMaxAc': 3.0}   # % — size for < 2 %, 3 % the limit (owner)   # ₹ per metre of conductor / per pair of Y-connectors — editable in the Design Lab
 
 
 def inputs(job) -> dict:
@@ -22,6 +23,10 @@ def inputs(job) -> dict:
         raise RuntimeError('Pick the inverter first — Design Lab → Stringing → “Inverter for this design” → Save, then run on the Mac.')
     rates = {**DEFAULT_RATES, **{k: float(v) for k, v in (d.get('rates') or {}).items() if v not in (None, '')}}
     return {'inverter': inv, 'module': {**S.DEFAULT_MODULE, **(d.get('module') or {})}, 'rates': rates}
+
+
+def _sizes_txt(by: dict) -> str:
+    return ' + '.join(f"{float(m):,.0f} m of {k} sq mm" for k, m in by.items() if m)
 
 
 def draw(site, base, res: dict, opt: dict, inv: dict, out_path: str):
@@ -35,6 +40,19 @@ def draw(site, base, res: dict, opt: dict, inv: dict, out_path: str):
         c = hexc(st['color'])
         for m in st['mods']:
             d.polygon([P(x, y) for x, y in m.corners], fill=c + (215,), outline=(255, 255, 255))
+        # the wiring snake: panel to panel in connection order, numbered from the + end (owner: so the
+        # electricians don't have to guess where a string turns at the end of a column)
+        chain = list(st['mods'])
+        if st.get('plus') is chain[-1]:
+            chain = chain[::-1]
+        pts = [P(m.x, m.y) for m in chain]
+        d.line(pts, fill=(255, 255, 255, 230), width=5, joint='curve')
+        d.line(pts, fill=(17, 17, 17, 255), width=2, joint='curve')
+        pw = math.dist(P(*chain[0].corners[0]), P(*chain[0].corners[1]))
+        if pw >= 18:
+            for kk, (px, py) in enumerate(pts):
+                d.text((px + 3, py - 3), str(kk + 1), fill=(17, 17, 17), font=render.font(11 if pw < 34 else 13, True), anchor='ls',
+                       stroke_width=2, stroke_fill='white')
         mid = st['mods'][len(st['mods']) // 2]
         x, y = P(mid.x, mid.y)
         d.rounded_rectangle([x - 44, y - 13, x + 44, y + 13], 6, fill=(255, 255, 255, 230))
@@ -51,7 +69,8 @@ def draw(site, base, res: dict, opt: dict, inv: dict, out_path: str):
         for pole, col in (('plus', (220, 38, 38)), ('minus', (17, 17, 17))):
             (ax, ay), (bx, by) = P(A[pole].x, A[pole].y), P(B[pole].x, B[pole].y)
             jx, jy = (ax + bx) / 2, (ay + by) / 2
-            d.line([(ax, ay), (jx, jy), (bx, by)], fill=col + (255,), width=4)
+            d.line([(ax, ay), (jx, ay), (jx, jy)], fill=col + (255,), width=4)     # legs follow the rows, not across the panels
+            d.line([(bx, by), (jx, by), (jx, jy)], fill=col + (255,), width=4)
             if site.inverter:
                 ix, iy = P(*site.inverter)
                 d.line([(jx, jy), (ix, jy), (ix, iy)], fill=col + (150,), width=3)
@@ -65,9 +84,9 @@ def draw(site, base, res: dict, opt: dict, inv: dict, out_path: str):
     c = res['compare']
     lines = [f"{len(res['strings'])} strings ({', '.join(sorted({str(s['n']) for s in res['strings']}))} panels each) on {inv.get('count', 1)} × {inv.get('model')} "
              f"({inv['mppts']} MPPT, up to {res['stringsPerMppt']} strings per MPPT)",
-             f"DC cable — all single runs: {c['single']['m4']:,} m of 4 sq mm (₹{c['single']['cost']:,})  ·  chosen: {c['choice']} — {c['y']['m4']:,} m of 4 sq mm + "
-             f"{c['y']['m6']:,} m of 6 sq mm + {c['y']['ySets']} Y pairs (₹{c['y']['cost']:,})",
-             'Y pairs (purple Y1, Y2 …): the two strings' + "'" + ' + ends meet at one Y and the − ends at the other, then one 6 sq mm run each to the inverter',
+             f"DC cable, every run sized for < {c['vdMax']:g} % drop (limit {c.get('vdLimit', 3):g} %) — all single runs: {_sizes_txt(c['single']['bySize'])} (₹{c['single']['cost']:,})  ·  chosen: {c['choice']} — "
+             f"{_sizes_txt(c['y']['bySize'])} + {c['y']['ySets']} Y pairs (₹{c['y']['cost']:,})",
+             'Black line = wiring path, numbers = each panel’s place in its string from the + end.  Y pairs (purple Y1, Y2 …): the two strings' + "'" + ' + ends meet at one Y and the − ends at the other, then one 6 sq mm run each to the inverter',
              '   '.join(res['checks'].values()),
              '● red = + end   ● black = − end   (cable lengths: along the roof square to the building, down the wall, to the inverter; verify on site)']
     lines += res['warnings'][:3]
@@ -95,7 +114,7 @@ def run(job) -> dict:
     draw(P['site'], base, res, opt, ins['inverter'], pic)
     job.file_output(pic, 'wiring_layout_drawing', title='Stringing layout')
     pr_of = {res['strings'][i]['id']: q for q in res.get('pairs', []) for i in (q['a'], q['b'])}
-    rows = [[s['id'], (f"{s['pair']} (ends {pr_of[s['id']]['nearM']:g} m / {pr_of[s['id']]['farM']:g} m apart)" if s.get('pair') else 'single'), f"{s.get('inverter', '—')}/{s.get('mppt', '—')}/{s.get('input', '—')}", s['n'], s['faceName'],
+    rows = [[s['id'], (f"{s['pair']} (ends {pr_of[s['id']]['nearM']:g} m / {pr_of[s['id']]['farM']:g} m apart)" if s.get('pair') else 'single') + f" · {s.get('sq', 4)} sq mm, {s.get('vdPct', 0):.2f} %", f"{s.get('inverter', '—')}/{s.get('mppt', '—')}/{s.get('input', '—')}", s['n'], s['faceName'],
              f"{s['plusM']:,}", f"{s['minusM']:,}"] for s in res['strings']]
     sched = os.path.join(job.workdir, 'String schedule.png')
     c = res['compare']
@@ -107,13 +126,14 @@ def run(job) -> dict:
     # BOM "as per design": DC cable per colour (the main run's size) and MC4 connectors
     # every conductor of the chosen plan (4 sq mm runs + Y legs, and 6 sq mm runs from the Y joints), per colour
     per_colour = round(((c['y']['m4'] + c['y']['m6']) if res['useY'] else c['single']['m4']) / 2)
+    by = c['y']['bySize'] if res['useY'] else c['single']['bySize']
     bom = {**((job.layout or {}).get('bom_required') or {}), 'dcCableM': per_colour, 'mc4Sets': 2 * len(res['strings'])}
     job.db.update('design_layouts', {'layout_id': f"eq.{job.row['layout_id']}"}, {'bom_required': bom})
 
     strings_out = [{k: v for k, v in s.items() if k not in ('mods', 'plus', 'minus')} for s in res['strings']]
     return {'summary': f"{len(res['strings'])} strings on {ins['inverter'].get('count', 1)} × {ins['inverter'].get('model')}; {c['choice']} "
                        f"(₹{(c['y']['cost'] if res['useY'] else c['single']['cost']):,} of DC cable). BOM: DC cable {per_colour:,} m per colour"
-                       + (f" ({round(c['y']['m6'] / 2):,} m of it 6 sq mm)" if res['useY'] else '') + '.'
+                       + ' (' + ', '.join(f"{float(m) / 2:,.0f} m of {k} sq mm" for k, m in by.items() if m) + f"; every run sized for < {c['vdMax']:g} % drop)." 
                        + (f" Warnings: {'; '.join(res['warnings'])}" if res['warnings'] else ''),
             'inverter': ins['inverter'], 'module': ins['module'], 'rates': ins['rates'], 'strings': strings_out,
             'compare': c, 'pairs': [{k: v for k, v in q.items()} for q in res.get('pairs', [])], 'checks': res['checks'], 'warnings': res['warnings'], 'option': opt['name']}

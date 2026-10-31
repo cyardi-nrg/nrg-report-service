@@ -1,4 +1,4 @@
-# Design Lab worker v1.7.0 (2026-10-31) — stage 'panels' (per quote / layout):
+# Design Lab worker v1.8.1 (2026-10-31) — stage 'panels' (per quote / layout):
 # fit this quote's panels onto the drawn roofs, three ways, and draw them.
 #
 #   Option A  Best generation first  — south faces, then east / west, then north
@@ -77,6 +77,44 @@ def _stringable(n: int) -> bool:
     return n == 0 or (n >= STRING_MIN and math.ceil(n / STRING_UNIT) * STRING_MIN <= n)
 
 
+def _take_stringable(p: dict, n: int) -> list:
+    """Which n panels of a roof to use. Nearest the inverter first (p['modules'] is already in that order),
+    but each row group gets a count that strings cleanly — whole strings of 20, else strings of 18–20 — so no
+    string has to jump from one row group to another or leave stray panels behind (v1.8.1, owner's review of
+    the Pluga stringing). Falls back to plain nearest-first if no such split exists."""
+    mods = p['modules']
+    if n >= len(mods):
+        return list(mods)
+    g = max(1, p.get('group_rows') or 1)
+    bands = {}
+    for m in mods:                                   # keeps the nearest-first order inside each band
+        bands.setdefault(m.row // g, []).append(m)
+    keys = sorted(bands, key=lambda b: mods.index(bands[b][0]))      # bands in the order they are reached
+    rank = {b: i for i, b in enumerate(keys)}
+    for ok in ((lambda k: k % STRING_UNIT == 0), _stringable):
+        # DP over bands: counts per band (0 or stringable, ≤ capacity) summing to n; cost prefers nearer bands
+        # filled first and fewer part-filled bands
+        best = {0: (0.0, [])}
+        for b in keys:
+            cap = len(bands[b])
+            opts = [0] + [k for k in range(STRING_MIN, cap + 1) if ok(k)]
+            nxt = {}
+            for tot, (cost, picks) in best.items():
+                for k in opts:
+                    t = tot + k
+                    if t > n:
+                        break
+                    c = cost + k * rank[b] * 0.01 + (1.0 if 0 < k < cap else 0.0)
+                    if t not in nxt or c < nxt[t][0]:
+                        nxt[t] = (c, picks + [(b, k)])
+            best = nxt
+        if n in best:
+            want = dict(best[n][1])
+            take = [m for b in keys for m in bands[b][:want.get(b, 0)]]
+            return take
+    return list(mods[:n])
+
+
 def option_arrays(P: dict, order: list, whole_strings: bool = True) -> tuple[list, list]:
     """Fill the quote's panels roof by roof in this order (whole columns from the inverter end). A roof that
     can't take all that is left takes whole strings of 20 — or, if 20s can't reach the quote's total, as many
@@ -110,7 +148,7 @@ def option_arrays(P: dict, order: list, whole_strings: bool = True) -> tuple[lis
         n = counts.get(id(p), 0) if counts is not None else left
         if n <= 0:
             continue
-        take = p['modules'][:min(n, left)]
+        take = _take_stringable(p, min(n, left))
         left -= len(take)
         mods_all += take
         arrays.append({'face': p['key'], 'name': p['name'], 'facing': p['facing'], 'tilt': p['tilt_deg'], 'orient': p['orient'],

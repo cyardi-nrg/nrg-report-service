@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.0 (2026-10-31) — CEIG plan sheets 02–06, made general from the
+# Design Lab worker v1.8.1 (2026-10-31) — CEIG plan sheets 02–06, made general from the
 # owner-approved Jain Granite set (equipment, earthing, walkway, cable tray, stringing layouts).
 # Jain's sheets drew one known roof by hand; here each sheet is drawn from the design itself:
 # the drawn roofs (site metres, north up), the chosen panel option, the Stringing result and the
@@ -245,6 +245,26 @@ def sheet_tray(d) -> str:
     return page(''.join(o), f"{d['info']['file']}_05_Cable-Tray-Layout")
 
 
+def _snake(P: Plan, s: dict) -> str:
+    """The wiring path of one string, panel to panel in connection order, numbered from the + end, so the
+    electricians see where each string turns at the end of a column (owner: "create the snake in the strings").
+    Each number is the panel's place in the string; + and − are at the two ends."""
+    chain = list(s['mods'])
+    if s.get('plus') is chain[-1]:
+        chain = chain[::-1]
+    pts = [P(m.x, m.y) for m in chain]
+    line = ' '.join(f'{x:.1f},{y:.1f}' for x, y in pts)
+    o = [f'<polyline points="{line}" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linejoin="round" opacity="0.9"/>',
+         f'<polyline points="{line}" stroke="#111" stroke-width="0.9" fill="none" stroke-linejoin="round"/>']
+    w = abs(P(chain[0].corners[1][0], chain[0].corners[1][1])[0] - P(chain[0].corners[0][0], chain[0].corners[0][1])[0]) + \
+        abs(P(chain[0].corners[1][0], chain[0].corners[1][1])[1] - P(chain[0].corners[0][0], chain[0].corners[0][1])[1])
+    if w >= 10:                                          # big enough on the sheet to print the panel numbers
+        fs = 5.2 if w < 22 else 6.2
+        for k, (x, y) in enumerate(pts):
+            o.append(T(x + 2.5, y - 2, str(k + 1), fs, 'start', 'bold', '#111'))
+    return ''.join(o)
+
+
 # ---------------------------------------------------------------- 06 stringing layout
 def sheet_stringing(d) -> str:
     P = Plan(_bounds(d), (60, 80, 1240, 985))
@@ -254,6 +274,7 @@ def sheet_stringing(d) -> str:
         col = STR_COLS[i % len(STR_COLS)]
         for m in s['mods']:
             o.append(P.poly(m.corners, '#fff', 0.4, col))
+        o.append(_snake(P, s))
         mid = s['mods'][len(s['mods']) // 2]
         mx, my = P(mid.x, mid.y)
         lab = s['id'] + (f" · {s['inverter']}-M{s['mppt']}" if s.get('mppt') else '')
@@ -266,7 +287,9 @@ def sheet_stringing(d) -> str:
         for pole, c in (('plus', '#dc2626'), ('minus', '#111')):
             a, b = P(A[pole].x, A[pole].y), P(B[pole].x, B[pole].y)
             j = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            o.append(L(*a, *j, c, 1.4) + L(*b, *j, c, 1.4))
+            # legs follow the rows (along, then across) rather than cutting over the panels
+            o.append(f'<polyline points="{a[0]:.1f},{a[1]:.1f} {j[0]:.1f},{a[1]:.1f} {j[0]:.1f},{j[1]:.1f}" stroke="{c}" stroke-width="1.4" fill="none"/>'
+                     f'<polyline points="{b[0]:.1f},{b[1]:.1f} {j[0]:.1f},{b[1]:.1f} {j[0]:.1f},{j[1]:.1f}" stroke="{c}" stroke-width="1.4" fill="none"/>')
             if pole == 'plus':
                 o.append(T(j[0], j[1] - 5, q['id'], 6.5, 'middle', 'bold', '#7c3aed'))
     o += _equipment(P, d)
@@ -284,7 +307,7 @@ def sheet_stringing(d) -> str:
             o.append(tb)
     if len(srows) > per_col * cols:
         o.append(T(60, 996, f"STRINGS {per_col * cols + 1}–{len(srows)}: SEE THE STRING SCHEDULE / SLD", 6.5, fill='#b45309'))
-    o.append(T(48, 1150, f"● RED = +VE END, ● BLACK = –VE END.  Y PAIRS (PURPLE): SAME POLES JOINED AT A Y-CONNECTOR, ONE 6 SQ.MM RUN TO THE INVERTER.  "
+    o.append(T(48, 1150, f"BLACK LINE = WIRING PATH, NUMBERS = PANEL ORDER FROM THE +VE END.  ● RED = +VE END, ● BLACK = –VE END.  Y PAIRS (PURPLE): SAME POLES JOINED AT A Y-CONNECTOR, ONE 6 SQ.MM RUN TO THE INVERTER.  "
                          f"{res['compare']['choice'].upper()}.  VERIFY ON SITE.", 7, fill='#555'))
     rows = [(lambda x, y: R(x - 11, y - 6, 22, 12, '#fff', 0.5, STR_COLS[0]), 'STRING (ONE COLOUR EACH)'),
             (lambda x, y: C(x - 8, y, 3.2, '#fff', 0.6, '#dc2626') + C(x + 8, y, 3.2, '#fff', 0.6, '#111'), '+VE / –VE STRING END'),

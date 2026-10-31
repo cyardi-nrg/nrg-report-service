@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.0 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
+# Design Lab worker v1.8.1 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
 # v1.7 (owner): Y pairs join where the SAME poles meet ("+ and + or − and − need to come close
 #   to each other"); strings of 18–20 (19+19, 18+18 are fine); a mix of Y pairs and single strings —
 #   each pair is made only where its Y is cheaper; strings on one MPPT are always the same length.
@@ -21,7 +21,7 @@ DEFAULT_MODULE = {'name': 'Adani 625 Wp N-TOPCon (typical — check the datashee
 T_COLD, T_HOT = 5.0, 70.0          # °C: coldest morning, hot cell
 TAIL_ARRAY, TAIL_INV = 1.0, 1.5    # m per conductor: slack at the array end / dressing into the inverter (Jain sheet)
 COLORS = ['#e6194b', '#f58231', '#3cb44b', '#008080', '#4363d8', '#911eb4', '#f032e6', '#9a6324', '#800000', '#808000', '#000075', '#469990',
-          '#dcbeff', '#aaffc3', '#ffd8b1', '#fabed4']
+          '#c026d3', '#0e7490', '#b45309', '#4d7c0f', '#be123c', '#1d4ed8', '#7c2d12', '#15803d', '#6d28d9', '#a16207', '#0f766e', '#9f1239']
 
 
 def limits(mod: dict, inv: dict) -> dict:
@@ -41,62 +41,87 @@ BAND = (18, 20)   # owner: "not necessary that the string should be 20 + 20 only
 ADJ_M = 2.5       # m: a Y pair needs at least one pole's two ends this close ("ideally next to each other")
 
 
-def _segments(face_mods: list, g: int) -> list:
-    """One path over the face: row group by row group (a walkway between each), each walked column by column
-    from its walkway row, alternate groups walked back the other way so the path turns at the roof end instead
-    of jumping across the roof. Returns [[column, ...]] — columns ordered from the walkway row outwards."""
+def _path(face_mods: list, g: int) -> list:
+    """One unbroken snake over a face: row group by row group, column by column, up one column and down the
+    next (never restarting), so every panel touches the next one. Each group starts on its walkway row; the
+    next group is walked from whichever end is nearer to where the last one finished. Returns
+    [(module, group_no, on_walkway_row)] in path order. (v1.8.1 — owner: no skipped panels, no stray panels.)"""
     groups = {}
     for m in face_mods:
         groups.setdefault(m.row // g, []).append(m)
     keys = sorted(groups)
-    path = []
-    for i, gk in enumerate(keys):
-        # groups 0|1, 2|3 ... face the walkway between them: the ends go to that side
-        walk_high = i % 2 == 0 and i + 1 < len(keys)
+    path, last = [], None
+    for gi, gk in enumerate(keys):
+        walk_high = gi % 2 == 0 and gi + 1 < len(keys)      # 0|1, 2|3 … face the walkway between them
         cols = {}
         for m in groups[gk]:
             cols.setdefault(round(m.u, 1), []).append(m)
-        order = sorted(cols, reverse=bool(i % 2))
-        path += [sorted(cols[c], key=lambda m: m.row, reverse=walk_high) for c in order]
-    return [path]
+        order = sorted(cols)
+        if last is not None:                                   # start from the end nearer the previous group's last panel
+            first = min(cols[order[0]], key=lambda m: _pdist(m, last))
+            final = min(cols[order[-1]], key=lambda m: _pdist(m, last))
+            if _pdist(final, last) < _pdist(first, last):
+                order = order[::-1]
+        for j, c in enumerate(order):
+            col = sorted(cols[c], key=lambda m: m.row, reverse=walk_high)      # walkway row first
+            seq = col if j % 2 == 0 else col[::-1]
+            for k, m in enumerate(seq):
+                path.append((m, gi, m is col[0]))
+        last = path[-1][0]
+    return path
 
 
-def _walk(cols: list, sizes: list) -> list:
-    """Cut a segment into strings. Each string starts at the walkway end of what is left of its column and
-    snakes column by column (out to the far row, back to the walkway row), so its ends land near the walkway."""
-    left = [list(c) for c in cols]
-    ci, out = 0, []
-    for n in sizes:
-        chain, at_walk = [], True
-        while len(chain) < n and ci < len(left):
-            col = left[ci]
-            take = min(n - len(chain), len(col))
-            if at_walk:                       # walkway side → outwards
-                chain += col[:take]; del col[:take]
-            else:                             # far side → back to the walkway
-                chain += col[::-1][:take]; del col[len(col) - take:]
-            if not col:                       # column finished: we are now at its other end
-                ci += 1
-                at_walk = not at_walk
-        out.append(chain)
-    return out
-
-
-def _sizes(total: int, lim: dict) -> list | None:
-    """String lengths for `total` panels: 18–20 each (fewest strings, as even as possible); outside that,
-    whatever the inverter's voltage limits allow."""
-    lo_e, hi_e = lim['nMin'], lim['nMax']
-    if total < lo_e:
-        return None
-    p_hi = min(BAND[1], hi_e)
-    p_lo = max(min(BAND[0], p_hi), lo_e)
-    tries = [(p_lo, p_hi), (lo_e, hi_e)]
-    for lo, hi in tries:
-        k = math.ceil(total / hi)
-        if k >= 1 and total >= k * lo:
-            base, extra = divmod(total, k)
-            return [base + 1] * extra + [base] * (k - extra)
+def _cut(path: list, lim: dict) -> list | None:
+    """Where to cut the snake into strings (lengths in order). Best cuts by cost: fewest strings, 20 panels
+    each (18–19 allowed, outside 18–20 only if the inverter's limits force it), ends on the walkway row, and
+    never a gap inside a string — a string may cross into the next row group only where the two meet."""
+    N = len(path)
+    p_hi = min(BAND[1], lim['nMax'])
+    p_lo = max(min(BAND[0], p_hi), lim['nMin'])
+    # strings of 18–20 only; the inverter's wider range only if 18–20 can't cover this roof
+    for lo_e, hi_e in ((p_lo, p_hi), (lim['nMin'], lim['nMax'])):
+        sizes = _cut_range(path, N, lo_e, hi_e, p_lo, p_hi)
+        if sizes:
+            return sizes
     return None
+
+
+def _cut_range(path, N, lo_e, hi_e, p_lo, p_hi):
+    if N < lo_e:
+        return None
+    step = [0.0] + [_pdist(path[i][0], path[i - 1][0]) for i in range(1, N)]
+    adj = 2.7      # m: next panel along a row (landscape ≈ 2.4 m) or a column — anything further is a gap
+    gap_pen = [0.0] * N
+    for i in range(1, N):
+        if step[i] > 25:
+            gap_pen[i] = 1e6                                   # never: a 25 m+ jump inside a string
+        elif step[i] > 8:
+            gap_pen[i] = 400 + 20 * step[i]                    # only if nothing else works
+        elif step[i] > adj:
+            gap_pen[i] = 30 + 20 * (step[i] - adj) + (25 if path[i][1] != path[i - 1][1] else 0)
+    cum = [0.0]
+    for i in range(N):
+        cum.append(cum[-1] + gap_pen[i])
+    INF = float('inf')
+    dp, back = [0.0] + [INF] * N, [0] * (N + 1)
+    for end in range(lo_e, N + 1):
+        for n in range(lo_e, min(hi_e, end) + 1):
+            st = end - n
+            if dp[st] == INF:
+                continue
+            c = 100.0
+            c += 0 if n == p_hi else (6 * (p_hi - n) if p_lo <= n < p_hi else 60 + 12 * min(abs(n - p_lo), abs(n - p_hi)))
+            c += cum[end] - cum[st + 1]                              # gaps inside the string (not the one before it)
+            c += (0 if path[st][2] else 5) + (0 if path[end - 1][2] else 5)
+            if dp[st] + c < dp[end]:
+                dp[end], back[end] = dp[st] + c, n
+    if dp[N] == INF or dp[N] >= 1e6:
+        return None
+    sizes, i = [], N
+    while i > 0:
+        sizes.append(back[i])
+        i -= back[i]
+    return sizes[::-1]
 
 
 def _pdist(a, b) -> float:
@@ -109,6 +134,38 @@ def _run(site, x, y, z) -> float:
     if not site.inverter:
         return 0.0
     return abs(x - site.inverter[0]) + abs(y - site.inverter[1]) + max(0.0, z) + TAIL_ARRAY + TAIL_INV
+
+
+DC_SIZES = [4, 6, 10, 16]     # sq mm, solar DC cable (EN 50618)
+DC_VD_MAX = 3.0                # % — acceptance limit (owner: "DC cable 3% loss is ok")
+DC_VD_TARGET = 2.0             # % — what each run is sized for (owner: "ideal would be below 2%") — each string's DC voltage drop, string end to inverter (owner: size by current, length AND drop)
+RHO_CU = 0.0216                # Ω·mm²/m, copper at operating temperature
+
+
+def rate(rates: dict, sq: int) -> float:
+    """₹ per metre of conductor for a size (rates from the Design Lab; bigger sizes default ~ in proportion)."""
+    return float(rates.get(f'dc{sq}') or {4: 40, 6: 60, 10: 95, 16: 150}.get(sq, 10 * sq))
+
+
+def vd_pct(i: float, cond_m: float, sq: float, v: float) -> float:
+    return i * RHO_CU * cond_m / sq / v * 100 if v else 0.0
+
+
+def size_single(st: dict, mod: dict, rates: dict, vmax: float = DC_VD_MAX) -> tuple:
+    """A string's own + and − runs: the smallest size (4 sq mm up) whose voltage drop is ≤ DC_VD_MAX."""
+    cond = st['plusM'] + st['minusM']
+    v = st['n'] * mod['vmp']
+    sq = next((q for q in DC_SIZES if vd_pct(mod['imp'], cond, q, v) <= vmax), DC_SIZES[-1])
+    return sq, cond, vd_pct(mod['imp'], cond, sq, v), cond * rate(rates, sq)
+
+
+def size_y(m4: float, m6: float, n: int, mod: dict, rates: dict, vmax: float = DC_VD_MAX) -> tuple:
+    """A Y pair: 4 sq mm legs to the joint (one string's current), the home run carries both strings — 6 sq mm
+    up, the smallest whose total drop (leg + home run) is ≤ DC_VD_MAX."""
+    v, i = n * mod['vmp'], mod['imp']
+    leg = vd_pct(i, m4 / 2, 4, v)
+    sq = next((q for q in DC_SIZES if q >= 6 and leg + vd_pct(2 * i, m6, q, v) <= vmax), DC_SIZES[-1])
+    return sq, leg + vd_pct(2 * i, m6, sq, v), m4 * rate(rates, 4) + m6 * rate(rates, sq) + rates['ySet']
 
 
 def _y_cost(site, pa, ma, pb, mb, rates):
@@ -124,20 +181,24 @@ def _y_cost(site, pa, ma, pb, mb, rates):
 
 def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict:
     lim = limits(mod, inv)
+    vmax = float(rates.get('vdTargetDc') or DC_VD_TARGET)   # each run sized for this drop, % — set in the Design Lab (Stringing)
     if lim['nMin'] > lim['nMax']:
         raise RuntimeError(f"No string length works with {inv.get('model')}: needs at least {lim['nMin']} panels for the MPPT range but at most "
                            f"{lim['nMax']} for the voltage limit — check the inverter / module values.")
     strings, warnings = [], []
     for a in option_arrays:
         g = a['_pack'].get('group_rows') or (5 if a['orient'] == 'L' else 2)
-        for seg in _segments(a['_mods'], g):
-            total = sum(len(c) for c in seg)
-            sizes = _sizes(total, lim)
-            if not sizes:
-                warnings.append(f"{a['name']}: {total} panels can't make a string of {lim['nMin']}–{lim['nMax']} — move them to another roof or leave them out.")
-                continue
-            for chain in _walk(seg, sizes):
-                strings.append({'face': a['face'], 'faceName': a['name'], 'n': len(chain), 'mods': chain, 'plus': chain[0], 'minus': chain[-1], 'pair': None})
+        path = _path(a['_mods'], g)
+        sizes = _cut(path, lim)
+        if not sizes:
+            warnings.append(f"{a['name']}: {len(path)} panels can't make a string of {lim['nMin']}–{lim['nMax']} — move them to another roof or leave them out.")
+            continue
+        i = 0
+        for n in sizes:
+            chain = [m for m, _, _ in path[i:i + n]]
+            i += n
+            strings.append({'face': a['face'], 'faceName': a['name'], 'n': n, 'mods': chain, 'plus': chain[0], 'minus': chain[-1], 'pair': None,
+                            'maxStepM': round(max((_pdist(p, q) for p, q in zip(chain, chain[1:])), default=0), 2)})
     for st in strings:
         st['plusM'] = round(_run(site, st['plus'].x, st['plus'].y, max(st['plus'].z)), 1)
         st['minusM'] = round(_run(site, st['minus'].x, st['minus'].y, max(st['minus'].z)), 1)
@@ -160,15 +221,14 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                 (bp, bm), d1, d2 = min(opts, key=lambda o: (min(o[1], o[2]) > ADJ_M, o[1] + o[2]))
                 if min(d1, d2) > ADJ_M:
                     continue
-                m4, m6, cy = _y_cost(site, a0, a1, bp, bm, rates)
-                single = 0.0
-                for e in (a0, a1, bp, bm):
-                    single += _run(site, e.x, e.y, max(e.z))
-                cs = single * rates['dc4']
+                m4, m6, _ = _y_cost(site, a0, a1, bp, bm, rates)
+                hsq, hvd, cy = size_y(m4, m6, A['n'], mod, rates, vmax)
+                runs = lambda p_, m_: {'plusM': _run(site, p_.x, p_.y, max(p_.z)), 'minusM': _run(site, m_.x, m_.y, max(m_.z)), 'n': A['n']}
+                cs = size_single(runs(a0, a1), mod, rates, vmax)[3] + size_single(runs(bp, bm), mod, rates, vmax)[3]
                 if cy < cs:
-                    cands.append((d1 + d2, i, j, bp, bm, m4, m6, cy, cs, min(d1, d2), max(d1, d2)))
+                    cands.append((d1 + d2, i, j, bp, bm, m4, m6, cy, cs, min(d1, d2), max(d1, d2), hsq, hvd))
         used = set()
-        for d, i, j, bp, bm, m4, m6, cy, cs, near, far in sorted(cands, key=lambda c: c[0]):
+        for d, i, j, bp, bm, m4, m6, cy, cs, near, far, hsq, hvd in sorted(cands, key=lambda c: c[0]):
             if i in used or j in used:
                 continue
             used |= {i, j}
@@ -178,7 +238,8 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
             for st in (B,):
                 st['plusM'] = round(_run(site, st['plus'].x, st['plus'].y, max(st['plus'].z)), 1)
                 st['minusM'] = round(_run(site, st['minus'].x, st['minus'].y, max(st['minus'].z)), 1)
-            pairs.append({'a': i, 'b': j, 'nearM': round(near, 1), 'farM': round(far, 1), 'm4': m4, 'm6': m6, 'cost': cy, 'singleCost': cs})
+            pairs.append({'a': i, 'b': j, 'nearM': round(near, 1), 'farM': round(far, 1), 'm4': m4, 'm6': m6, 'homeSq': hsq, 'vdPct': round(hvd, 2),
+                          'cost': cy, 'singleCost': cs})
     for k, pr in enumerate(sorted(pairs, key=lambda q: min(q['a'], q['b']))):
         pr['id'] = f'Y{k + 1}'
         strings[pr['a']]['pair'] = strings[pr['b']]['pair'] = pr['id']
@@ -245,12 +306,28 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
         st['color'] = COLORS[i % len(COLORS)]
 
     # cable: everything as single runs vs the chosen mix (Y pairs where they pay, single runs for the rest)
-    single_4 = sum(st['plusM'] + st['minusM'] for st in strings)
+    # every run sized by current AND voltage drop (≤ DC_VD_MAX), so the comparison uses the sizes really needed
     paired = {i for q in pairs for i in (q['a'], q['b'])}
-    plan_4 = sum(strings[i]['plusM'] + strings[i]['minusM'] for i in range(len(strings)) if i not in paired) + sum(q['m4'] for q in pairs)
-    plan_6 = sum(q['m6'] for q in pairs)
-    cost_single = single_4 * rates['dc4']
-    cost_plan = plan_4 * rates['dc4'] + plan_6 * rates['dc6'] + len(pairs) * rates['ySet']
+    all_single, plan = {}, {}
+    cost_single = cost_plan = 0.0
+    for i, st in enumerate(strings):
+        sq, cond, vd, c = size_single(st, mod, rates, vmax)
+        all_single[sq] = all_single.get(sq, 0) + cond
+        cost_single += c
+        if i in paired:
+            continue
+        st['sq'], st['vdPct'] = sq, round(vd, 2)
+        plan[sq] = plan.get(sq, 0) + cond
+        cost_plan += c
+    for q in pairs:
+        for i in (q['a'], q['b']):
+            strings[i]['sq'], strings[i]['vdPct'] = q['homeSq'], q['vdPct']
+        plan[4] = plan.get(4, 0) + q['m4']
+        plan[q['homeSq']] = plan.get(q['homeSq'], 0) + q['m6']
+        cost_plan += q['cost']
+    single_4 = sum(all_single.values())
+    plan_4 = plan.get(4, 0)
+    plan_6 = sum(v for k, v in plan.items() if k > 4)
     n_single = len(strings) - len(paired)
     lens = [s['n'] for s in strings]
     checks = {
@@ -263,8 +340,10 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
     return {
         'strings': strings, 'pairs': [{k: v for k, v in q.items()} for q in pairs], 'limits': lim, 'checks': checks, 'warnings': warnings,
         'stringsPerMppt': per,
-        'compare': {'single': {'m4': round(single_4), 'cost': round(cost_single)},
-                    'y': {'m4': round(plan_4), 'm6': round(plan_6), 'ySets': len(pairs), 'singles': n_single, 'cost': round(cost_plan)},
+        'compare': {'single': {'m4': round(single_4), 'bySize': {str(k): round(v) for k, v in sorted(all_single.items())}, 'cost': round(cost_single)},
+                    'y': {'m4': round(plan_4), 'm6': round(plan_6), 'bySize': {str(k): round(v) for k, v in sorted(plan.items())},
+                          'ySets': len(pairs), 'singles': n_single, 'cost': round(cost_plan)},
+                    'vdMax': vmax, 'vdLimit': float(rates.get('vdMaxDc') or DC_VD_MAX),
                     'rates': rates, 'choice': choice},
         'useY': bool(pairs),
     }

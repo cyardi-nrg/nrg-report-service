@@ -48,7 +48,7 @@ def build(job) -> dict:
               ('INVERTER CAPACITY', f"{inv.get('acKw', 0):g} kW ({inv.get('model', '')}) {n_inv} No."),
               ('AZIMUTH / TILT', ', '.join(f'{f} {t}°' for f, t in faces)[:38] or '—')]
     return {'info': info, 'system': system, 'site': site, 'arrays': arrays, 'items': items, 'stringing': res,
-            'inverter': inv, 'module': mod, 'strings': res['strings'], 'pairs': res.get('pairs', []), 'limits': res['limits'],
+            'inverter': inv, 'module': mod, 'rates': ins['rates'], 'strings': res['strings'], 'pairs': res.get('pairs', []), 'limits': res['limits'],
             'kwp': kwp, 'modules': n_mod, 'wp': wp, 'acCableM': items.get('ac_m'), 'option': opt['name'],
             'dc': ((res['compare']['y']['m4'] + res['compare']['y']['m6']) if res['useY'] else res['compare']['single']['m4']) / 2}
 
