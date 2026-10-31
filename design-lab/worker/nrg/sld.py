@@ -208,7 +208,7 @@ def sheet_sld(d: dict) -> str:
             o.append(R(sx, iy1, sec, 16, sw=0.7) + T(sx + sec / 2, iy1 + 11, f'MPPT {m+1}' if sec > 46 else f'M{m+1}', 7 if sec > 46 else 6, 'middle', 'bold'))
             ins = dict(inputs.get((k + 1, m + 1), []))
             if compact:
-                txt = [(' + '.join(s['id'] for s in ins[i]) + (' (Y)' if len(ins[i]) > 1 else '')) for i in sorted(ins)]
+                txt = [(f"{ins[i][0]['pair']} (A+B)" if len(ins[i]) > 1 else ins[i][0]['id']) for i in sorted(ins)]
                 o.append(TL(sx + 3, iy1 + 30, txt or ['—'], 6.2, lh=8))
                 continue
             for i in range(per_in):
@@ -286,7 +286,7 @@ def sheet_sld(d: dict) -> str:
             cells = [f'INV-{k+1}' if g0 == 0 else '']
             for m in range(g0, min(g0 + 4, mppts)):
                 ins = inputs.get((k + 1, m + 1), [])
-                cells.append([('+'.join(s['id'] for s in grp) + (f" ({grp[0]['pair']})" if len(grp) > 1 else '')) for _, grp in ins][:3] or ['—'])
+                cells.append([(f"{grp[0]['pair']} (A+B)" if len(grp) > 1 else grp[0]['id']) for _, grp in ins][:3] or ['—'])
             while len(cells) < 5:
                 cells.append('')
             srows.append(tuple(cells))
@@ -296,7 +296,7 @@ def sheet_sld(d: dict) -> str:
     o.append(tb)
     o.append(TL(46, y3 + 12, [f"DCDB, PER INPUT: DC SPD 1200 V, 40 kA, TYPE 2 + DC MCB {z['mcb_single']} A (SINGLE STRING)",
                             f"/ {z['mcb_y']} A (Y PAIR), 1200 V DC, 2P.  Y = TWO STRINGS JOINED BY A Y-CONNECTOR",
-                            'ON THE ROOF, THEN ONE 6 SQ.MM RUN (+VE AND –VE) TO THE INPUT.'], 6.8, fill='#333'))
+                            'ON THE ROOF, THEN ONE HOME RUN (+VE AND –VE, 6 SQ.MM OR BIGGER) TO THE INPUT.'], 6.8, fill='#333'))
 
     # ---- inverter + module legends
     lx = 1030

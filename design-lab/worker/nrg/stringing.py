@@ -390,7 +390,13 @@ def design(site, option_arrays: list, inv: dict, mod: dict, rates: dict) -> dict
                 strings[i]['inverter'], strings[i]['mppt'], strings[i]['input'] = placed[j][0], placed[j][1], kin + 1
     for i, st in enumerate(strings):
         st.setdefault('mppt', None)
-        st['id'] = f'S{i + 1}'
+        # names (owner): single strings S1, S2 …; the two strings of a Y pair Y1-A, Y1-B … — so a glance tells which is which
+        if st.get('pair'):
+            pq = next(q for q in pairs if q['id'] == st['pair'])
+            st['id'] = f"{st['pair']}-{'A' if i == pq['a'] else 'B'}"
+        else:
+            singles_seen = sum(1 for t in strings[:i] if not t.get('pair')) + 1
+            st['id'] = f'S{singles_seen}'
         st['color'] = COLORS[i % len(COLORS)]
 
     # cable: everything as single runs vs the chosen mix (Y pairs where they pay, single runs for the rest)

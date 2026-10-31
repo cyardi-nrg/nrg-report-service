@@ -297,7 +297,7 @@ def sheet_stringing(d) -> str:
     o.append(compass(1200, 110))
     srows = []
     for s in res['strings']:
-        srows.append((s['id'], s.get('pair') or 'SINGLE', f"{s.get('inverter', '—')}/{s.get('mppt', '—')}/{s.get('input', '—')}", str(s['n']), s['faceName'][:22]))
+        srows.append((s['id'], f"Y-PAIR {s['pair']}" if s.get('pair') else 'SINGLE', f"{s.get('inverter', '—')}/{s.get('mppt', '—')}/{s.get('input', '—')}", str(s['n']), s['faceName'][:22]))
     per_col, cols = 8, 3
     hdr = ('STRING', 'Y PAIR', 'INV/MPPT/IN', 'MODS', 'ROOF')
     for c in range(cols):
@@ -307,7 +307,7 @@ def sheet_stringing(d) -> str:
             o.append(tb)
     if len(srows) > per_col * cols:
         o.append(T(60, 996, f"STRINGS {per_col * cols + 1}–{len(srows)}: SEE THE STRING SCHEDULE / SLD", 6.5, fill='#b45309'))
-    o.append(T(48, 1150, f"BLACK LINE = WIRING PATH, NUMBERS = PANEL ORDER FROM THE +VE END.  ● RED = +VE END, ● BLACK = –VE END.  Y PAIRS (PURPLE): SAME POLES JOINED AT A Y-CONNECTOR, ONE 6 SQ.MM RUN TO THE INVERTER.  "
+    o.append(T(48, 1150, f"S = SINGLE STRING, Y1-A / Y1-B = THE TWO STRINGS OF Y PAIR Y1.  BLACK LINE = WIRING PATH, NUMBERS = PANEL ORDER FROM THE +VE END.  ● RED = +VE END, ● BLACK = –VE END.  Y PAIRS (PURPLE): SAME POLES JOINED AT A Y-CONNECTOR, ONE HOME RUN TO THE INVERTER (6 SQ.MM, BIGGER WHERE THE DROP NEEDS IT).  "
                          f"{res['compare']['choice'].upper()}.  VERIFY ON SITE.", 7, fill='#555'))
     rows = [(lambda x, y: R(x - 11, y - 6, 22, 12, '#fff', 0.5, STR_COLS[0]), 'STRING (ONE COLOUR EACH)'),
             (lambda x, y: C(x - 8, y, 3.2, '#fff', 0.6, '#dc2626') + C(x + 8, y, 3.2, '#fff', 0.6, '#111'), '+VE / –VE STRING END'),

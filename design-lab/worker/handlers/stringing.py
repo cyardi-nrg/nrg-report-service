@@ -86,7 +86,7 @@ def draw(site, base, res: dict, opt: dict, inv: dict, out_path: str):
              f"({inv['mppts']} MPPT, up to {res['stringsPerMppt']} strings per MPPT)",
              f"DC cable, every run sized for < {c['vdMax']:g} % drop (limit {c.get('vdLimit', 3):g} %) — all single runs: {_sizes_txt(c['single']['bySize'])} (₹{c['single']['cost']:,})  ·  chosen: {c['choice']} — "
              f"{_sizes_txt(c['y']['bySize'])} + {c['y']['ySets']} Y pairs (₹{c['y']['cost']:,})",
-             'Black line = wiring path, numbers = each panel’s place in its string from the + end.  Y pairs (purple Y1, Y2 …): the two strings' + "'" + ' + ends meet at one Y and the − ends at the other, then one 6 sq mm run each to the inverter',
+             'S = single string, Y1-A / Y1-B = the two strings of Y pair Y1.  Black line = wiring path, numbers = each panel’s place in its string from the + end.  Y pairs (purple Y1, Y2 …): the two strings' + "'" + ' + ends meet at one Y and the − ends at the other, then one home run each to the inverter (6 sq mm, bigger where the drop needs it)',
              '   '.join(res['checks'].values()),
              '● red = + end   ● black = − end   (cable lengths: along the roof square to the building, down the wall, to the inverter; verify on site)']
     lines += res['warnings'][:3]
