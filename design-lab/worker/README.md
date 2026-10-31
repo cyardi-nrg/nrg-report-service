@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.1.0, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.2.0, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -16,7 +16,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 |---|---|---|
 | 1 | The worker itself: queue, night window, Drive filing, versions, "Mac online" in the Design Lab | **done (this version)** |
 | 2 | AutoCAD DWG / DXF → plan picture with its scale + suggested roof outlines (roofs are drawn in the Design Lab) | **done (v1.1)** |
-| 3 | Panel layout engine (options, shade check, generation), structure drawings | |
+| 3 | Roof & shade report; panel layout engine — 3 options per quote (best generation / nearest the inverter / biggest roofs), shade check, units a year, DC cable, drawings + comparison | **done (v1.2)** — structure drawings follow |
 | 4 | 3D views and the overnight walk-around video | |
 | 5 | Stringing, walkway, earthing, cable tray, SLD, CEIG set — made general from the Jain Granite programs | |
 
