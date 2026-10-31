@@ -1,5 +1,6 @@
 #!/bin/bash
-# Design Lab worker v1.7.0 (2026-10-31) — one-time setup on the Mac.
+# Design Lab worker v1.7.2 (2026-10-31) — one-time setup on the Mac.
+# v1.7.2: uses Python 3.10–3.13 only — NREL SAM (the month-wise generation) has no build for 3.14 yet.
 # v1.7: finds Python 3.10+ wherever it is installed (python.org, Homebrew) — the Mac's own python3
 #       is 3.9; the old advice (xcode-select) never gives 3.10.
 # Run from Terminal:   bash design-lab/worker/mac/install.sh
@@ -11,19 +12,21 @@ echo "== Design Lab worker setup in $DIR"
 # The Mac's own python3 (/usr/bin/python3, from Apple's command-line tools) is 3.9 — too old.
 # Look for a newer one: python.org installs, Homebrew, then anything on the PATH.
 PY=""
-for c in /Library/Frameworks/Python.framework/Versions/3.1[0-9]/bin/python3 \
-         /opt/homebrew/bin/python3.1[0-9] /usr/local/bin/python3.1[0-9] /opt/homebrew/bin/python3 /usr/local/bin/python3 \
-         "$(command -v python3.13 2>/dev/null)" "$(command -v python3.12 2>/dev/null)" "$(command -v python3.11 2>/dev/null)" \
-         "$(command -v python3.10 2>/dev/null)" "$(command -v python3 2>/dev/null)"; do
-  if [ -n "$c" ] && [ -x "$c" ] && "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
-    PY="$c"; break
-  fi
+OK_RANGE='import sys; sys.exit(0 if (3, 10) <= sys.version_info[:2] <= (3, 13) else 1)'
+for v in 3.13 3.12 3.11 3.10; do
+  for c in "/Library/Frameworks/Python.framework/Versions/$v/bin/python3" "/opt/homebrew/bin/python$v" "/usr/local/bin/python$v" "$(command -v python$v 2>/dev/null)"; do
+    if [ -n "$c" ] && [ -x "$c" ] && "$c" -c "$OK_RANGE" 2>/dev/null; then PY="$c"; break 2; fi
+  done
 done
+if [ -z "$PY" ] && command -v python3 >/dev/null 2>&1 && python3 -c "$OK_RANGE" 2>/dev/null; then PY="$(command -v python3)"; fi
 if [ -z "$PY" ]; then
+  HAVE="$(ls /Library/Frameworks/Python.framework/Versions/ 2>/dev/null | grep -v Current | tr '\n' ' ')"
   cat <<MSG
-Python 3.10 or newer is needed (this Mac only has $(python3 --version 2>/dev/null || echo 'no Python')).
-  1. Open https://www.python.org/downloads/macos/ and download the latest "macOS 64-bit universal2 installer" (Python 3.12 or 3.13).
-  2. Open the downloaded .pkg and click Continue / Install (asks for your Mac password).
+Python 3.13 is needed (3.10–3.13 work). This Mac has: $(python3 --version 2>/dev/null || echo 'no Python')${HAVE:+ · from python.org: $HAVE}
+  (3.14 is too new — NREL SAM, which works out the month-wise generation, has no version for it yet.
+   Keeping 3.14 is fine; the two sit side by side.)
+  1. Open https://www.python.org/downloads/macos/ and find "Python 3.13.x" (the newest 3.13 in the list).
+  2. Under it click "Download macOS 64-bit universal2 installer", open the .pkg and click Continue / Install.
   3. Then run this again:   bash "$DIR/mac/install.sh"
 MSG
   exit 1
