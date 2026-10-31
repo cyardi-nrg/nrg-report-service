@@ -1,12 +1,12 @@
-// Version: v6 (2026-10-31) — builds the single-file 3D viewer for site-google-01 (roofs identified from a Google Maps screenshot).
+// Version: v7 (2026-11-01) — builds the single-file 3D viewer for site-google-01 (roofs identified from a Google Maps screenshot).
 // Inlines three.js r158 (MIT) and the NRG logo — both shared with ../jain-granite/src — into
 // src/viewer.template.html so the output opens offline.
-//   node build.mjs            -> output/Site-Google-01_3D-Viewer_v6.html
+//   node build.mjs            -> output/Site-Google-01_3D-Viewer_v7.html
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const VERSION = 'v6';
+export const VERSION = 'v7';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, 'output');
 mkdirSync(out, { recursive: true });

@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Site from Google Maps screenshot (site-google-01) — step 1: roofs identified (no new solar yet) — 3D viewer
-  Version: v6 (2026-10-31) · NRG Technologists — v6: layout v4: roof 3 gable; its south half + roof 5 = one south slope; roof 3 north half not used; new-building skylights kept free
+  Version: v7 (2026-11-01) · NRG Technologists — v7: layout v5 with 3 options (buttons / ?opt=N), shade-checked, skylights on all roofs, per-module orientation
   Geometry: Google Maps satellite screenshot (north up, scale bar 20 m = 215 px) -> src/roofs.json. Heights assumed.
   Framework shared with ../jain-granite, ../sejal-parikh, ../architect-residence. build.mjs inlines three.js + logo.
 -->
@@ -85,13 +85,16 @@
     </g>
     <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
   </svg>
-  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights partly assumed — verify on site · v6</div>
+  <div id="note">Concept visualisation · roof outlines scaled from the satellite screenshot; heights partly assumed — verify on site · v7</div>
 </div>
 
 <div id="ui">
   <button class="play" id="play">▶ Walk-around</button>
   <button data-view="aerial">Aerial SE</button>
   <button data-view="aerialnw">Aerial NW</button>
+  <button data-opt="1">Option 1</button>
+  <button data-opt="2">Option 2</button>
+  <button data-opt="3">Option 3</button>
   <button data-view="plan">Top view</button>
   <button data-view="southelev">South</button>
   <button data-view="westelev">West</button>
@@ -104,7 +107,7 @@
 <script>
 (function () {
 'use strict';
-var VERSION = 'v6';
+var VERSION = 'v7';
 var Q = new URLSearchParams(location.search);
 var CAPTURE = Q.has('capture');
 if (CAPTURE) document.body.classList.add('capture');
@@ -434,32 +437,43 @@ var NEW_ARRAYS = [];
   if (!LAYOUT) return;
   var byId = {}; ROOFS.forEach(function (R) { byId[R.id] = R; });
   function surface(key, x, z) {                     // roof height + tilt (about X) at a plan point, for the side the array is on
-    var id = { '1S': 1, '1N': 1, '35S': 5, '7S': 7 }[key], R = byId[id];
+    var id = { '1S': 1, '1N': 1, '35S': 5, '7S': 7, '7N': 8, '3N': 3 }[key], R = byId[id];
     if (R.type === 'gable') {
       var I = ROOF_INFO[id];
       return key.slice(-1) === 'N' ? { y: I.ridge - (I.zr - z) * Math.tan(I.aN), rx: -I.aN } : { y: I.ridge - (z - I.zr) * Math.tan(I.aS), rx: I.aS };
     }
-    var a = P(R.x[0], R.y[0]), b = P(R.x[1], R.y[1]), ang = Math.atan2(R.high - R.low, b.z - a.z);   // mono, falls south
-    return { y: R.high - (z - a.z) * Math.tan(ang), rx: ang };
+    var a = P(R.x[0], R.y[0]), b = P(R.x[1], R.y[1]), ang = Math.atan2(R.high - R.low, b.z - a.z);
+    return R.down === 'N' ? { y: R.high - (b.z - z) * Math.tan(ang), rx: -ang } : { y: R.high - (z - a.z) * Math.tan(ang), rx: ang };
   }
+  // v7: three layout options; each option is one group of instanced meshes, switched by setOption()
   var mL = LAYOUT.module.L, mW = LAYOUT.module.W;
   var tex = M.glass.map.clone(); tex.needsUpdate = true; tex.center.set(0.5, 0.5); tex.rotation = Math.PI / 2;
   var glassL = M.glass.clone(); glassL.map = tex;
-  var geo = new THREE.BoxGeometry(mL, MOD_T, mW), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1);
-  LAYOUT.arrays.forEach(function (A) {
-    var mods = new THREE.InstancedMesh(geo, [M.frame, M.frame, glassL, M.back, M.frame, M.frame], A.mods_px.length), sx = 0, sz = 0, top = 0;
-    A.mods_px.forEach(function (pp, i) {
-      var p = P(pp[0], pp[1]), sf = surface(A.roof, p.x, p.z);
-      m4.compose(new THREE.Vector3(p.x, sf.y + 0.14, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(sf.rx, 0, 0)), one); mods.setMatrixAt(i, m4);
-      sx += p.x; sz += p.z; top = Math.max(top, sf.y);
+  var geoL = new THREE.BoxGeometry(mL, MOD_T, mW), geoP = new THREE.BoxGeometry(mW, MOD_T, mL), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1);
+  LAYOUT.options.forEach(function (O) {
+    var grp = new THREE.Group(), info = [];
+    O.arrays.forEach(function (A) {
+      ['L', 'P'].forEach(function (o) {
+        var list = A.mods_px.filter(function (pp) { return pp[2] === o; });
+        if (!list.length) return;
+        var mesh = new THREE.InstancedMesh(o === 'L' ? geoL : geoP, [M.frame, M.frame, o === 'L' ? glassL : M.glass, M.back, M.frame, M.frame], list.length);
+        list.forEach(function (pp, i) {
+          var p = P(pp[0], pp[1]), sf = surface(A.key, p.x, p.z);
+          m4.compose(new THREE.Vector3(p.x, sf.y + 0.14, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(sf.rx, 0, 0)), one); mesh.setMatrixAt(i, m4);
+        });
+        mesh.castShadow = mesh.receiveShadow = true; grp.add(mesh);
+      });
+      var sx = 0, sz = 0, top = 0;
+      A.mods_px.forEach(function (pp) { var p = P(pp[0], pp[1]); sx += p.x; sz += p.z; top = Math.max(top, surface(A.key, p.x, p.z).y); });
+      info.push({ key: A.key, name: A.name, n: A.modules, kwp: A.kwp, faces: A.faces, c: new THREE.Vector3(sx / A.mods_px.length, top + 1.6, sz / A.mods_px.length) });
     });
-    mods.castShadow = mods.receiveShadow = true; site.add(mods);
-    NEW_ARRAYS.push({ key: A.roof, name: A.name, n: A.modules, kwp: A.kwp, faces: A.faces, c: new THREE.Vector3(sx / A.mods_px.length, top + 1.6, sz / A.mods_px.length) });
+    grp.visible = false; site.add(grp);
+    NEW_ARRAYS.push({ opt: O, grp: grp, info: info });
   });
-  // new-building polycarbonate skylights (drawing R3 roof plan) — kept free (owner)
+  // skylights kept free (new building: drawing R3 roof plan; roofs 3 + 5: strips read off the satellite image)
   var skyM = new THREE.MeshStandardMaterial({ color: '#cfe3ef', roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.85 });
-  (LAYOUT.skylights_px || []).forEach(function (r) {
-    var a = P(r[0], r[2]), b = P(r[1], r[3]), cz = (a.z + b.z) / 2, sf = surface('7S', (a.x + b.x) / 2, cz);
+  (LAYOUT.skylights || []).forEach(function (k) {
+    var r = k.px, a = P(r[0], r[2]), b = P(r[1], r[3]), cz = (a.z + b.z) / 2, sf = surface(k.roof, (a.x + b.x) / 2, cz);
     var sk = box(b.x - a.x, 0.03, (b.z - a.z) / Math.cos(sf.rx), skyM, false, true); sk.rotation.x = sf.rx; sk.position.set((a.x + b.x) / 2, sf.y + 0.04, cz); site.add(sk);
   });
   // turbo ventilators on roofs 3 + 5 (kept clear of panels — owner)
@@ -506,12 +520,27 @@ ROOFS.forEach(function (R) {
   LABELS['r' + R.id] = { p: ROOF_INFO[R.id].label, t: (R.newb ? '' : 'Roof ' + R.id + ' · ') + R.name, s: kind };
 });
 LABELS.vents = { p: new THREE.Vector3(P(560, 0).x, ROOF_INFO[1].ridge + 1.6, ROOF_INFO[1].zr), t: 'Ridge + turbo ventilators', s: 'As in the north-side photo' };
-NEW_ARRAYS.forEach(function (A) { LABELS['n' + A.key] = { p: A.c, t: 'NEW · ' + A.name.replace(' (balance)', ''), s: A.n + ' × 625 Wp = ' + A.kwp.toFixed(1) + ' kWp · faces ' + A.faces }; });
+['1S', '7S', '35S', '7N', '1N'].forEach(function (k) { LABELS['n' + k] = { p: new THREE.Vector3(), t: '', s: '', off: true }; });
+var OPT = 1;
+function setOption(n) {                            // v7: show layout option n (1-3): meshes, labels, spec box, buttons
+  OPT = n;
+  NEW_ARRAYS.forEach(function (E) { E.grp.visible = E.opt.id === n; });
+  var E = NEW_ARRAYS.filter(function (e) { return e.opt.id === n; })[0];
+  ['1S', '7S', '35S', '7N', '1N'].forEach(function (k) {
+    var L = LABELS['n' + k], A = E && E.info.filter(function (a) { return a.key === k; })[0];
+    L.off = !A;
+    if (A) { L.p.copy(A.c); L.t = 'NEW · ' + A.name; L.s = A.n + ' × 625 Wp = ' + A.kwp.toFixed(2) + ' kWp · faces ' + A.faces;
+             if (L.el) L.el.innerHTML = L.t + '<small>' + L.s + '</small>'; }
+  });
+  var sp = document.getElementById('spec'), O = E.opt;
+  sp.innerHTML = '<b>Pluga Pumps &amp; Motors · Savli</b><br>Option ' + n + ': 480 × 625 Wp = 300 kWp<br>South ' + O.kwp_south.toFixed(2) + ' · North ' + O.kwp_north.toFixed(2) + ' kWp<br>≈ ' + (O.kwh_year / 1e5).toFixed(2) + ' lakh kWh/yr<br>+ existing ≈ 90–95 kWp';
+  document.querySelectorAll('[data-opt]').forEach(function (b) { b.classList.toggle('on', +b.dataset.opt === n); });
+}
 if (LAYOUT) {
   LABELS.inv = { p: P(LAYOUT.inverter.px[0], LAYOUT.inverter.px[1], 3.6), t: 'Inverters + ACDB', s: 'Roof 1, south-east corner' };
   LABELS.trf = { p: P(LAYOUT.transformer.px[0] + 13, LAYOUT.transformer.px[1], 3.0), t: 'Transformer', s: 'Next to the inverters' };
 }
-if (LAYOUT && LAYOUT.skylights_px) { var s0 = LAYOUT.skylights_px[0]; LABELS.sky = { p: P((s0[0] + s0[1]) / 2, s0[2], 13.6), t: 'Skylights kept free', s: 'New building · 3 m × 1 m polycarbonate' }; }
+if (LAYOUT && LAYOUT.skylights) { var s0 = LAYOUT.skylights[0].px; LABELS.sky = { p: P((s0[0] + s0[1]) / 2, s0[2], 13.6), t: 'Skylights kept free', s: 'New building · 3 m × 1 m polycarbonate' }; }
 LABELS.ex = { p: P(955, 575, ROOF_INFO[1].ridge + 0.6), t: 'Existing solar (approx.)', s: '≈ ' + existingCount + ' modules drawn — count to confirm' };
 var labelBox = document.getElementById('labels');
 Object.keys(LABELS).forEach(function (k) {
@@ -524,7 +553,7 @@ var tmpV = new THREE.Vector3();
 function updateLabels() {
   var w = canvas.clientWidth, h = canvas.clientHeight;
   Object.keys(LABELS).forEach(function (k) {
-    var L = LABELS[k], show = labelsOn && (!visibleLabels || visibleLabels.indexOf(k) >= 0);
+    var L = LABELS[k], show = labelsOn && !L.off && (!visibleLabels || visibleLabels.indexOf(k) >= 0);
     if (show) {
       tmpV.copy(L.p).project(camera);
       var dist = camera.position.distanceTo(L.p);
@@ -553,17 +582,17 @@ function setCaption(t, s) { capT.textContent = t || ''; capS.textContent = s || 
 // ======================================================================= views (stills + buttons)
 var ALLR = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'];
 var VIEWS = {
-  aerial:    { p: [62, 62, 98],    t: [-10, 4, 3],    cap: ['300 kWp — south-facing first', 'Aerial view from the south-east'], lab: ['n1S', 'n7S', 'n35S', 'n1N'].concat(['ex', 'inv']) },
+  aerial:    { p: [62, 62, 98],    t: [-10, 4, 3],    cap: ['300 kWp — new arrays', 'Aerial view from the south-east'], lab: ['n1S', 'n7S', 'n35S', 'n7N', 'n1N'].concat(['ex', 'inv']) },
   aerialnw:  { p: [-95, 60, -70],  t: [-10, 4, 3],    cap: ['Site — roofs identified', 'Aerial view from the north-west'], lab: ALLR.concat(['vents']) },
-  plan:      { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', '480 × 625 Wp = 300 kWp new · layout v4'], lab: ['n1S', 'n7S', 'n35S', 'n1N'].concat(['ex', 'inv']) },
-  aerialsw:  { p: [-95, 58, 95],   t: [-10, 4, 3],    cap: ['300 kWp — south-facing roofs', 'Aerial view from the south-west'], lab: ['n7S', 'n35S', 'n1S', 'r3'] },
-  aerialne:  { p: [80, 52, -60],   t: [0, 4, 3],    cap: ['300 kWp — roof 1 north slope (balance)', 'Aerial view from the north-east'], lab: ['n1N', 'vents'] },
+  plan:      { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', '480 × 625 Wp = 300 kWp new · layout v5'], lab: ['n1S', 'n7S', 'n35S', 'n7N', 'n1N'].concat(['ex', 'inv']) },
+  aerialsw:  { p: [-95, 58, 95],   t: [-10, 4, 3],    cap: ['300 kWp — new arrays', 'Aerial view from the south-west'], lab: ['n7S', 'n35S', 'n7N', 'n1S'] },
+  aerialne:  { p: [80, 52, -60],   t: [0, 4, 3],    cap: ['300 kWp — north-facing roofs', 'Aerial view from the north-east'], lab: ['n1N', 'n7N', 'vents'] },
   southelev: { p: [0, 14, 160],    t: [0, 5, 0], fov: 22, notrees: true, cap: ['South elevation', 'Roof heights assumed — to be confirmed'], lab: ALLR },
   westelev:  { p: [-160, 14, 5],   t: [0, 5, 3], fov: 18, notrees: true, cap: ['West elevation', 'Gable of roof 1 behind roofs 2–5'], lab: ['r1', 'r2', 'r3', 'r4', 'r5'] },
   northphoto:{ p: [-1, 9.5, -42], t: [-1, 7.2, 0], fov: 42, notrees: true, cap: ['From the north (like the site photo)', 'Roof 6 lean-to in front, roof 1 north slope rising to the ridge ventilators'], lab: ['r6', 'r1', 'vents'] },
-  newbldg:   { p: [-95, 42, 82], t: [-18, 6, 8], cap: ['New building + roofs 3 and 5', 'New building: skylights kept free · roof 3 south half + roof 5 as one slope, ventilators kept clear'], lab: ['n7S', 'n35S', 'r3', 'sky'] },
+  newbldg:   { p: [-95, 42, 82], t: [-18, 6, 8], cap: ['New building + roofs 3 and 5', 'Skylights + ventilators kept free · no panels in the new building\'s winter shadow'], lab: ['n7S', 'n35S', 'n7N', 'sky'] },
   inverter:  { p: [64, 7, 36],     t: [50, 2.5, 20], cap: ['Inverters + transformer', 'At the south-east corner of roof 1, DC tray down the east wall'], lab: ['inv', 'trf'] },
-  planclean: { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', '300 kWp layout v4'], lab: [] },
+  planclean: { p: [-8, 130, 10],   t: [-8, 6, -0.5], fov: 40, cap: ['Top view · north ↑', '300 kWp layout v5'], lab: [] },
 };
 
 // ======================================================================= in-viewer tour (no video for this step)
@@ -676,7 +705,10 @@ function applyTime(t) {
 }
 
 // capture hooks (render.mjs)
+setOption(Math.min(3, Math.max(1, +(Q.get('opt') || 1))));
+document.querySelectorAll('[data-opt]').forEach(function (b) { b.addEventListener('click', function () { setOption(+b.dataset.opt); }); });
 window.__nrg3d = {
+  option: function (n) { setOption(n); renderNow(); return true; },
   version: VERSION, duration: DURATION, views: Object.keys(VIEWS),
   time: function (t) { applyTime(t); renderNow(); return true; },
   view: function (name) { var v = VIEWS[name]; setFov(v.fov || 42); showTrees(!v.notrees); setCam(new THREE.Vector3().fromArray(v.p), new THREE.Vector3().fromArray(v.t)); setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || []; renderNow(); return true; },

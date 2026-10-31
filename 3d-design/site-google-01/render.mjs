@@ -1,4 +1,4 @@
-// Version: v6 (2026-10-31) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
+// Version: v7 (2026-11-01) — renders the stills (PNG) and the walk-around video (MP4, H.264) for
 // site-google-01 from the built viewer, using headless Chromium (Playwright) + ffmpeg.
 // Same script as ../jain-granite/render.mjs, with this project's file names.
 //   node build.mjs && node render.mjs                 -> stills + 1080p video
@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 let playwright;
 try { playwright = require('playwright'); } catch { playwright = require('/opt/node22/lib/node_modules/playwright'); }
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, 'output');
 mkdirSync(join(out, 'stills'), { recursive: true });
@@ -29,8 +29,9 @@ const fps = Number(opt('--fps', 30));
 const [W, H] = opt('--size', '1920x1080').split('x').map(Number);
 const only = opt('--only', null);          // e.g. --only 10,20,35  -> test frames at those seconds
 const rebrand = opt('--rebrand', null);    // older video to re-brand
+const OPTN = opt('--opt', null);         // v7: layout option (1-3) -> ?opt=N, file names get -optN
 
-const url = pathToFileURL(join(out, `Site-Google-01_3D-Viewer_${VERSION}.html`)).href + '?capture=1';
+const url = pathToFileURL(join(out, `Site-Google-01_3D-Viewer_${VERSION}.html`)).href + '?capture=1' + (OPTN ? '&opt=' + OPTN : '');
 const browser = await playwright.chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => console.error('PAGE ERROR', e.message));
@@ -72,7 +73,7 @@ if (rebrand) {
 if (doStills) {
   for (const [i, v] of info.v.entries()) {
     await page.evaluate((v) => window.__nrg3d.view(v), v);
-    const f = join(out, 'stills', `Site-Google-01_3D_${String(i + 1).padStart(2, '0')}-${v}_${VERSION}.png`);
+    const f = join(out, 'stills', `Site-Google-01_3D_${String(i + 1).padStart(2, '0')}-${v}${OPTN ? '-opt' + OPTN : ''}_${VERSION}.png`);
     await page.screenshot({ path: f });
     console.log('still', f);
   }

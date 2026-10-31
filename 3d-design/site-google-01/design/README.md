@@ -1,36 +1,40 @@
-# Pluga Pumps & Motors — 300 kWp layout (design v5 / drawing v4 / 3D v6, 2026-10-31)
+# Pluga Pumps & Motors — 300 kWp layout: 3 options (layout v6 · drawings v5 · 3D v7, 2026-11-01)
 
-- `layout.py` (v5): computes the panel fit and writes `layout.json`, which feeds the drawing and the 3D (v6).
-- `draw_layout.py` (v4): draws `../Pluga-Pumps_300kWp_Layout_v4.png`.
+- `layout.py` (v6): calculates the panel fit for every roof and the 3 options, and writes `layout.json`. Runs in about 1 minute, mostly the shade check.
+- `draw_layout.py` (v5): draws `../Pluga-Pumps_300kWp_Option-{1,2,3}_v5.png` and `../Pluga-Pumps_300kWp_Options-Compared_v5.png`.
+- 3D: `../output/Site-Google-01_3D-Viewer_v7.html` (Option 1 / 2 / 3 buttons, or `?opt=N`). Stills are `..._<view>-optN_v7.png`.
 
-**Owner brief:**
-- 300 kW total.
-- South-facing roofs first; roof 1 north slope only for the balance.
-- Inverters at roof 1's south-east corner, with the transformer next to them.
-- Roofs 2, 4 and 6 are not used.
-- Roofs 3 and 5 are single slopes; keep panels clear of their turbo ventilators.
-- The new building's ventilators will be removed, so its full south roof can be used.
+## Owner brief (cumulative)
 
-| Array | Modules | kWp | Faces |
+- **System:** 300 kW (480 × 625 Wp).
+- **Equipment:** inverters at roof 1's south-east corner, with the transformer next to them.
+- **Roofs not used:** 2, 4 and 6.
+- **Roof 3 and roof 5:**
+  - Roof 3 is a gable. Its south half and all of roof 5 form one south slope; its north half faces north (not used).
+  - Skylights on roofs 3 and 5 are kept free: three strips running down the slope, read off the satellite image.
+  - Turbo ventilators are kept clear, at their measured positions (they are **not** in one line).
+- **New building:**
+  - Turbovents removed; skylights (drawing R3) kept free.
+  - Panels are placed upright or sideways, band by band, whichever fits more.
+- **Shade:** panels in the new building's winter shadow are removed. Check: 21 Dec, 9 am – 3 pm solar time, every 30 min, all 4 corners of each panel.
+
+## Capacity per roof (shade-checked)
+
+Roof 1 south 112 · roof 1 north 392 · new building south 74 · new building north 171 · roof 3 south half + roof 5: 43.
+
+## Options
+
+| | Option 1 | Option 2 | Option 3 |
 |---|---|---|---|
-| Roof 1 south (west of existing) | 112 | 70.0 | S |
-| New building south roof (skylights kept free, turbovents removed) | 54 | 33.75 | S |
-| Roof 3 south half + roof 5 (one slope, 9 vents clear) | 88 | 55.0 | S |
-| Roof 1 north (balance, from the east end) | 226 | 141.25 | N |
-| **Total** | **480** | **300.0** | |
+| Fill order | south-facing → new bldg north → roof 1 north | south-facing → roof 1 north | roof 1 S + N → new bldg S → roof 3/5 |
+| Roof 1 south | 112 | 112 | 112 |
+| New building south | 74 | 74 | — |
+| Roof 3 S half + roof 5 | 43 | 43 | — |
+| New building north | 171 | — | — |
+| Roof 1 north | 80 | 251 | 368 |
+| South / north kWp | 143.1 / 156.9 | 143.1 / 156.9 | 70.0 / 230.0 |
+| Energy (kWh/yr, est.) | 439,818 | 439,818 | 435,050 |
+| DC string cable (est.) | ≈ 5,160 m | ≈ 3,860 m | ≈ 3,640 m |
+| Depends on the new building | yes (both roofs) | yes (south roof) | no |
 
-Owner corrections:
-- **Roof 3 is a gable.** Its south half and all of roof 5 form one south slope. Its north half faces north and is not used (reserve of about 48 modules).
-- **New building:** skylights kept free.
-
-**Assumed / to verify:**
-- **Module:** 625 Wp, 2382 × 1134 mm, landscape, flush on the sheet.
-- **Roof 3 heights:** ridge 8 m, north eave about 6.65 m, roof 5 south edge about 5.86 m (1:10 slope).
-- **Skylight positions:** from drawing R3; the 7 × 4 block grid loses some modules around them.
-- **Ventilator positions:** read from the satellite image.
-- **Existing array:** about 90–95 kWp, estimated from the October bill's generation meter.
-- **AC capacity:** the AC limit against the 225 kVA contract demand needs checking with MGVCL.
-
-```bash
-python3 design/layout.py && python3 design/draw_layout.py && node build.mjs && node render.mjs --stills
-```
+Yield assumed: 1,500 kWh/kWp for south and 1,435 for north, both at a 1:10 roof slope. Cable estimate: each string's + and − run, measured along the eaves to the inverters.
