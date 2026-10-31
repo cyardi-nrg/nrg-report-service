@@ -1,4 +1,4 @@
-# Design Lab worker v1.3.0 (2026-10-31) — fit panels on each roof face.
+# Design Lab worker v1.6.0 (2026-10-31) — fit panels on each roof face.
 #
 # Rules carried over from the owner-approved Pluga layout, made general:
 #  * rows run along the building's own lines, across the slope (a rotated
@@ -115,14 +115,16 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list) -> dict:
     candidates = []
     if face.kind == 'sheet':
         alpha = math.atan(face.pitch)
-        for o in 'LP':
+        # landscape in groups of 5 rows (owner: a 20-panel string = 4 columns × 5 rows, so + and − both land
+        # on the walkway side), groups of 4 as the fallback; portrait in groups of 2; walkways between the groups
+        for o, group in (('L', 5), ('L', 4), ('P', 2)):
             w, d = (L, W * math.cos(alpha)) if o == 'L' else (W, L * math.cos(alpha))
-            cells = _rows(loc, w, d, GAP, 4 if o == 'L' else 2, WALK)
+            cells = _rows(loc, w, d, GAP, group, WALK)
             mods = []
             for x0, y0, r in cells:
                 cs = [inv(x0, y0), inv(x0 + w, y0), inv(x0 + w, y0 + d), inv(x0, y0 + d)]
                 mods.append(Module(face.key, *inv(x0 + w / 2, y0 + d / 2), cs, [face.height_at(*c) + LIFT for c in cs], o, r, x0 + w / 2))
-            candidates.append((o, mods, 0))
+            candidates.append((o, mods, group))
         tilt = math.degrees(alpha)
     else:
         # flat roof: try several table shapes and keep whichever fits most after the shade check —
@@ -169,10 +171,18 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list) -> dict:
             # fits clearly more panels (LANDSCAPE_MARGIN).
             pick = l_best if len(l_best[1]) >= (1 + LANDSCAPE_MARGIN) * len(p_best[1]) and len(l_best[1]) > len(p_best[1]) else p_best
         else:
-            pick = max(results, key=lambda r: len(r[1]))   # sheet roofs: whichever fits more (owner)
+            # sheet roofs: landscape groups of 5 preferred over 4 unless 4 fits 5 %+ more; then whichever of
+            # landscape / portrait fits more (owner)
+            l5 = next((r for r in results if r[0] == 'L' and r[3] == 5), None)
+            l4 = next((r for r in results if r[0] == 'L' and r[3] == 4), None)
+            land = l5 if l5 and (not l4 or len(l4[1]) < 1.05 * len(l5[1])) else l4
+            pool = [r for r in results if r[0] == 'P'] + ([land] if land else [])
+            pick = max(pool, key=lambda r: len(r[1]))
         best_o, best, best_raw, best_rows = pick
     return {
         'key': face.key, 'roof_no': face.roof_no, 'name': face.name, 'kind': face.kind, 'facing': face.facing,
-        'tilt_deg': round(tilt, 1), 'orient': best_o, 'table_rows': best_rows, 'modules': best, 'shaded_out': best_raw - len(best),
+        'tilt_deg': round(tilt, 1), 'orient': best_o, 'table_rows': best_rows if face.kind == 'flat' else 0,
+        'group_rows': best_rows,   # rows per group (sheet) / per table (flat)
+        'modules': best, 'shaded_out': best_raw - len(best),
         'yield': kwh_per_kwp(tilt, face.down), 'usable_m2': round(area.area, 1),
     }

@@ -1,4 +1,4 @@
-# Design Lab worker v1.4.0 (2026-10-31) — what the Mac can do, stage by stage.
+# Design Lab worker v1.6.0 (2026-10-31) — what the Mac can do, stage by stage.
 #
 # Each handler gets a Job (nrg/jobs.py), files its drawings with
 # job.file_output(...) and returns {'summary': '...', ...data}. The data
@@ -10,7 +10,7 @@
 # pretending — the Design Lab shows it on the stage.
 from nrg.jobs import Job, NotBuiltYet
 
-from handlers import cad as _cad, roofs as _roofs, panels as _panels, views as _views, video as _video, structure as _structure
+from handlers import cad as _cad, roofs as _roofs, panels as _panels, views as _views, video as _video, structure as _structure, stringing as _stringing, layouts as _layouts
 
 HANDLERS: dict = {
     'cad': _cad.run,        # phase 2: AutoCAD → plan picture with scale + roof suggestions
@@ -19,6 +19,8 @@ HANDLERS: dict = {
     'views': _views.run,    # phase 4: interactive 3D + still pictures of the chosen option
     'video': _video.run,    # phase 4: walk-around video (queued for tonight by the Design Lab)
     'structure': _structure.run,  # structure drawing sheets for the saved structure
+    'stringing': _stringing.run,  # phase 5: strings, MPPTs, single vs Y-connector runs, DC cable into the BOM
+    'layouts': _layouts.run,      # phase 5: walkway, cable tray, earthing layouts + lengths into the BOM
 }
 
 PHASE = {

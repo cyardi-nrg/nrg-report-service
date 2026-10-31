@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.5.0, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.6.0, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -20,7 +20,9 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | 4 | 3D: an interactive 3D file (opens offline in any browser — send it to the client) + 5 pictures; the 40-second walk-around video (1080p + a WhatsApp copy under 16 MB), queued for tonight | **done (v1.3)** |
 | 4b | Structure drawings: an A3 sheet per panel table (side elevation, plan, member schedule, member checks — a failing override is drawn and marked FAILS); sheet roofs get the aluminium-piece sheet | **done (v1.4)** |
 | 4c | Expected generation month by month — NREL SAM (PySAM, PVWatts v8) hour by hour on a PVGIS typical year for the site, each roof face simulated on its own; a chart per option; SAM's yearly units used everywhere | **done (v1.5)** |
-| 5 | Stringing, walkway, earthing, cable tray, SLD, CEIG set — made general from the Jain Granite programs | |
+| 5a | Stringing: strings of 20 (roofs filled in whole strings), 5-row landscape groups so + and − land on the walkway side, MPPT voltage / current checks (Voc at 5 °C, Vmp 70 °C → 5 °C), single 4 sq mm runs ×2 vs Y-connector + 6 sq mm ×1 — the cheaper wins; stringing layout + string schedule; DC cable and MC4 sets into the BOM | **done (v1.6)** |
+| 5b | Walkway (between the row groups), cable tray (array → roof edge → down the wall), earthing (3 pits DC / AC / LA, lightning arresters by kW), AC cable to the meter — three drawings, lengths into the BOM | **done (v1.6)** |
+| 5c | SLD, CEIG set — made general from the Jain Granite programs | next |
 
 A job for a stage the Mac can't do yet simply **waits in the queue** and runs on its own once that phase is installed.
 

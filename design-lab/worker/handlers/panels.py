@@ -1,4 +1,4 @@
-# Design Lab worker v1.5.0 (2026-10-31) — stage 'panels' (per quote / layout):
+# Design Lab worker v1.6.0 (2026-10-31) — stage 'panels' (per quote / layout):
 # fit this quote's panels onto the drawn roofs, three ways, and draw them.
 #
 #   Option A  Best generation first  — south faces, then east / west, then north
@@ -68,13 +68,36 @@ def plan(job) -> dict:
     return {'model': model, 'roof_v': roof_v, 'spec': spec, 'site': site, 'sun': sun, 'packs': packs, 'capacity': capacity}
 
 
-def option_arrays(P: dict, order: list) -> tuple[list, list]:
-    """Fill the quote's panels roof by roof in this order (whole columns from the inverter end)."""
-    left, arrays, mods_all = P['spec']['target'], [], []
+STRING_UNIT = 20    # owner: strings of 20 — a roof that is filled before moving on takes whole strings
+
+
+def option_arrays(P: dict, order: list, whole_strings: bool = True) -> tuple[list, list]:
+    """Fill the quote's panels roof by roof in this order (whole columns from the inverter end). A roof that
+    can't take all that is left takes whole strings of 20 so every roof strings cleanly; if that can't reach
+    the quote's total, every panel is used instead."""
+    target = P['spec']['target']
+    if whole_strings and target >= STRING_UNIT:
+        left, plan_counts = target, []
+        for p in order:
+            if left <= 0:
+                break
+            cap = len(p['modules'])
+            n = left if cap >= left else (cap // STRING_UNIT) * STRING_UNIT
+            plan_counts.append((p, n))
+            left -= n
+        if left > 0:          # whole strings don't reach the total — use every panel instead
+            return option_arrays(P, order, whole_strings=False)
+        counts = {id(p): n for p, n in plan_counts}
+    else:
+        counts = None
+    left, arrays, mods_all = target, [], []
     for p in order:
         if left <= 0:
             break
-        take = p['modules'][:left]
+        n = counts.get(id(p), 0) if counts is not None else left
+        if n <= 0:
+            continue
+        take = p['modules'][:min(n, left)]
         left -= len(take)
         mods_all += take
         arrays.append({'face': p['key'], 'name': p['name'], 'facing': p['facing'], 'tilt': p['tilt_deg'], 'orient': p['orient'],
