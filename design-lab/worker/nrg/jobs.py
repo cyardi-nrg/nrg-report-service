@@ -1,4 +1,4 @@
-# Design Lab worker v1.0.0 (2026-10-31) — one job: everything a stage needs
+# Design Lab worker v1.1.0 (2026-10-31) — one job: everything a stage needs
 # to read (design, layout, project, inputs), and everything it hands back
 # (files filed into Drive + documents rows, a new stage version, the
 # job's summary). Mirrors the SolarConnect app's own rules:
@@ -22,7 +22,7 @@ LABELS = {
     'panel_layout_drawing': 'Panel Layout Drawing', 'structural_drawing': 'Structural Drawing', 'walkway_layout_drawing': 'Walkway Layout',
     'cable_tray_layout_drawing': 'Cable Tray Layout', 'design_3d_view': '3D View', 'design_video': 'Walk-around Video', 'design_report': 'Design Report',
     'single_line_diagram': 'Single Line Diagram', 'equipment_layout_drawing': 'Equipment Layout', 'earthing_layout_drawing': 'Earthing Details',
-    'wiring_layout_drawing': 'Wiring Layout',
+    'wiring_layout_drawing': 'Wiring Layout', 'cad_plan': 'AutoCAD Plan',
 }
 INPUT_TYPES = ['google_maps_screenshot', 'site_sketch', 'survey_photo', 'autocad_drawing', 'site_drawing', 'electricity_bill']
 
@@ -85,7 +85,7 @@ class Job:
 
     drive_root = ''  # set by the worker
 
-    def file_output(self, path: str, document_type: str, title: str | None = None) -> str:
+    def file_output(self, path: str, document_type: str, title: str | None = None, extra: dict | None = None) -> str:
         """Uploads one output into the project's Drive folder and records it as a document of this design / layout / stage."""
         ext = os.path.splitext(path)[1].lstrip('.').lower() or 'bin'
         mime = mimetypes.guess_type(path)[0] or {'glb': 'model/gltf-binary', 'dxf': 'image/vnd.dxf', 'dwg': 'image/vnd.dwg'}.get(ext, 'application/octet-stream')
@@ -100,7 +100,7 @@ class Job:
             'project_id': self.design['project_id'], 'google_drive_file_id': file_id, 'document_type': document_type,
             'uploaded_by': None, 'ai_status': 'confirmed', 'ai_confidence': 1,
             'extracted_data': {'design_id': self.design['design_id'], 'layout_id': self.row.get('layout_id'), 'stage': self.stage,
-                               'job_id': self.job_id, 'original_name': filename, 'mime_type': mime, 'title': title, 'source': 'design_lab_worker'},
+                               'job_id': self.job_id, 'original_name': filename, 'mime_type': mime, 'title': title, 'source': 'design_lab_worker', **(extra or {})},
         })[0]
         self.document_ids.append(row['document_id'])
         return row['document_id']

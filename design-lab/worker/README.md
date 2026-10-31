@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.0.0, 31 Oct 2026)
+# Design Lab worker — on your Mac  (v1.1.0, 31 Oct 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -15,7 +15,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | Phase | What | Status |
 |---|---|---|
 | 1 | The worker itself: queue, night window, Drive filing, versions, "Mac online" in the Design Lab | **done (this version)** |
-| 2 | Roof model (roofs, slopes, heights, ventilators, skylights, cabins) from your marks, AutoCAD DXF/DWG and photos | next |
+| 2 | AutoCAD DWG / DXF → plan picture with its scale + suggested roof outlines (roofs are drawn in the Design Lab) | **done (v1.1)** |
 | 3 | Panel layout engine (options, shade check, generation), structure drawings | |
 | 4 | 3D views and the overnight walk-around video | |
 | 5 | Stringing, walkway, earthing, cable tray, SLD, CEIG set — made general from the Jain Granite programs | |
@@ -37,7 +37,9 @@ A job for a stage the Mac can't do yet simply **waits in the queue** and runs on
    - It installs what it needs inside that folder only.
    - It opens a settings file in TextEdit: paste the values, save, close TextEdit, press Return in Terminal.
    - It checks the connection (✓ Supabase, ✓ Google Drive, ✓ Heartbeat) and starts the worker.
-4. **Nightly wake** (asks for your Mac password once):
+4. **For AutoCAD DWG files** (DXF works without this): install the free **ODA File Converter** from
+   opendesign.com/guestfiles/oda_file_converter (drag it into Applications). Or, if you use Homebrew: `brew install libredwg`.
+5. **Nightly wake** (asks for your Mac password once):
    ```
    sudo pmset repeat wakeorpoweron MTWRFSU 20:55:00
    ```

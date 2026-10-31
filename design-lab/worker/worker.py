@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Design Lab worker v1.0.0 (2026-10-31) — runs on the owner's Mac.
+# Design Lab worker v1.1.0 (2026-10-31) — runs on the owner's Mac.
 #
 # Owner's own asks: "heavy work ... on my Mac"; the video "scheduled for
 # work after 9 PM or 10 PM when my MacBook will be on ... generated
@@ -151,7 +151,8 @@ class Worker:
             job.drive_root = self.cfg.drive_root
             result = handlers.run(job) or {}
             summary = result.get('summary') or 'Done.'
-            job.save_version(result)
+            if not result.get('no_version'):
+                job.save_version(result)
             self.db.update('design_jobs', {'job_id': f"eq.{row['job_id']}"}, {
                 'status': 'done', 'finished_at': now_iso(), 'output': {'summary': summary, 'document_ids': job.document_ids}})
             log.info(f"Job {row['job_id'][:8]} · done in {time.time() - started:.0f} s · {len(job.document_ids)} file(s)")

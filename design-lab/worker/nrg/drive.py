@@ -21,7 +21,7 @@ CATEGORY_FOLDER_LABELS = {
     'design': 'Design', 'site_photos': 'Site Photos', 'bom': 'BOM', 'other': 'Other',
 }
 # Which category a Design Lab output files under (lib/document-types.ts DOCUMENT_GROUPS).
-DESIGN_TYPES = {'google_maps_screenshot', 'site_sketch', 'survey_photo', 'autocad_drawing', 'site_drawing', 'panel_layout_drawing',
+DESIGN_TYPES = {'google_maps_screenshot', 'site_sketch', 'cad_plan', 'survey_photo', 'autocad_drawing', 'site_drawing', 'panel_layout_drawing',
                 'structural_drawing', 'walkway_layout_drawing', 'cable_tray_layout_drawing', 'design_3d_view', 'design_video', 'design_report'}
 CEIG_TYPES = {'single_line_diagram', 'earthing_layout_drawing', 'equipment_layout_drawing', 'wiring_layout_drawing'}
 
