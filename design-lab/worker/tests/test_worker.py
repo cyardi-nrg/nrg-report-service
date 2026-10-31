@@ -59,7 +59,7 @@ def job(stage, run_after=None, mins=0, status='queued', worker=None):
     T['design_jobs'].append(j); return j
 j_tonight=job('views', (now+dt.timedelta(hours=5)).isoformat(), 0)
 j_now=job('views', None, 1)
-j_cant=job('video', None, 2)
+j_cant=job('sld', None, 2)
 j_stale=job('views', None, 3, status='running', worker='TestMac')
 j_boom=job('panels', None, 4)
 
