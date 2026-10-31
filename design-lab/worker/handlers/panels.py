@@ -1,4 +1,4 @@
-# Design Lab worker v1.2.0 (2026-10-31) — stage 'panels' (per quote / layout):
+# Design Lab worker v1.5.0 (2026-10-31) — stage 'panels' (per quote / layout):
 # fit this quote's panels onto the drawn roofs, three ways, and draw them.
 #
 #   Option A  Best generation first  — south faces, then east / west, then north
@@ -15,6 +15,7 @@ from nrg import sun as sunmod
 from nrg import packer
 from nrg import render
 from nrg.inputs import roof_model, base_picture, panel_spec
+from nrg import generation as gen
 
 STRING = 20          # panels per string for the DC cable estimate (as at Pluga)
 
@@ -93,7 +94,7 @@ def orders(packs: list) -> dict:
 def run(job) -> dict:
     P = plan(job)
     model, roof_v, spec, site, packs, capacity = P['model'], P['roof_v'], P['spec'], P['site'], P['packs'], P['capacity']
-    options, seen = [], {}
+    options, seen, drawq = [], {}, []
     base = base_picture(job, model)
     for k, (title, order) in orders(packs).items():
         arrays, mods_all = option_arrays(P, order)
@@ -112,14 +113,29 @@ def run(job) -> dict:
             opt['note'] = ((opt['note'] or '') + f" Same panels as {seen[sig]}.").strip()
         seen.setdefault(sig, opt['name'].split(' · ')[0])
         options.append(opt)
+        drawq.append((k, opt, mods_all))
 
-        lines = [f"{a['face']}|{a['name']} — {a['modules']} panels ({a['orient'] == 'P' and 'portrait' or 'landscape'}, {a['tilt']}°), {a['kwp']} kWp, {a['kwh']:,} units/yr" for a in arrays]
-        lines.append(f"Total {n} × {spec['wp']} Wp = {opt['kwp']} kWp · about {opt['annualKwh']:,} units a year"
-                     + (f" · DC cable about {int(opt['dcCableM']):,} m" if opt['dcCableM'] else ''))
-        lines.append('Shade check: 21 Dec, 9 am – 3 pm; a panel is left out if any corner is shaded.' + (f" {opt['note']}" if opt['note'] else ''))
-        out = os.path.join(job.workdir, f'Option-{k}.png')
-        render.draw_layout(site, base, [a['face'] for a in arrays], mods_all, f"{opt['name']} — {opt['kwp']} kWp", lines, out)
-        job.file_output(out, 'panel_layout_drawing', title=f'Option {k}')
+    # Expected generation, month by month — NREL SAM (PySAM) on a PVGIS typical year for the site.
+    # Each roof face of each option is its own array (kWp, tilt, direction, flush or on tables).
+    # If the weather can't be fetched (no internet), the options keep the simple per-kWp estimate.
+    gen_note = None
+    try:
+        lat, lon, where = gen.site_location(job.project, job.design.get('marks'))
+        resource = gen.tmy(lat, lon)
+        for o in options:
+            arrays_in = [{'name': a['name'], 'kwp': a['kwp'], 'tilt': a['tilt'], 'facing': a['facing'],
+                          'mount': 'rack' if any(p['key'] == a['face'] and p['kind'] == 'flat' for p in packs) else 'roof'}
+                         for a in o['arrays']]
+            g = gen.simulate(arrays_in, resource)
+            g['weather'] = f'PVGIS typical year at {lat:.3f}, {lon:.3f} ({where})'
+            o['estimateKwh'] = o['annualKwh']
+            o['annualKwh'], o['monthlyKwh'], o['kwhPerKwp'], o['pr'] = g['annualKwh'], g['monthlyKwh'], g['kwhPerKwp'], g['pr']
+            o['generation'] = g
+            for a, ga in zip(o['arrays'], g['arrays']):
+                a['kwh'] = ga['annualKwh']
+        gen_note = f"Units a year: NREL SAM (PVWatts v8) hour by hour on a PVGIS typical year — {where}."
+    except Exception as e:  # keep going with the estimate; say so on the drawings
+        gen_note = f"Units a year are estimates (SAM generation not run: {str(e)[:120]})."
 
     # Recommend the most units a year — unless another option gives almost as much (within 1.5 %) for
     # clearly less DC cable (15 % or more): the owner chose "closer to the inverters" at Pluga for that reason.
@@ -135,10 +151,27 @@ def run(job) -> dict:
     rows = [[o['name'].split(' · ')[0], o['name'].split(' · ')[1], o['modules'], o['kwp'], f"{o['annualKwh']:,}", f"{int(o['dcCableM']):,} m" if o['dcCableM'] else '—',
              ' + '.join(f"{a['face']} {a['modules']}" for a in o['arrays'])] for o in options]
     notes = [f"Recommended: {best['name']}" + (f" — {best['why']}." if best.get('why') else ' — most units a year.'), f"Room on the roofs for {capacity} panels of {spec['wp']} Wp ({round(capacity * spec['wp'] / 1000, 1)} kWp) after setbacks, obstacles and shade.",
-             'Units a year are estimates for Vadodara (south 1:10 sheet ≈ 1,500, north ≈ 1,435 per kWp).',
+             gen_note,
              f"Roofs from Roof design v{roof_v['version']}{' (approved)' if roof_v.get('status') == 'approved' else ' (not yet approved)'}."]
     if not site.inverter:
         notes.append('Inverter not marked in Site & marks — DC cable not estimated.')
+    for k, opt, mods_all in drawq:   # option drawings — after SAM, so they carry its units
+        n = opt['modules']
+        lines = [f"{a['face']}|{a['name']} — {a['modules']} panels ({a['orient'] == 'P' and 'portrait' or 'landscape'}, {a['tilt']}°), {a['kwp']} kWp, {a['kwh']:,} units/yr" for a in opt['arrays']]
+        lines.append(f"Total {n} × {spec['wp']} Wp = {opt['kwp']} kWp · about {opt['annualKwh']:,} units a year"
+                     + (f" · DC cable about {int(opt['dcCableM']):,} m" if opt['dcCableM'] else ''))
+        lines.append('Shade check: 21 Dec, 9 am – 3 pm; a panel is left out if any corner is shaded.' + (f" {opt['note']}" if opt['note'] else ''))
+        out = os.path.join(job.workdir, f'Option-{k}.png')
+        render.draw_layout(site, base, [a['face'] for a in opt['arrays']], mods_all, f"{opt['name']} — {opt['kwp']} kWp", lines, out)
+        job.file_output(out, 'panel_layout_drawing', title=f'Option {k}')
+
+    for o in options:   # month-wise generation chart for each option
+        if o.get('generation'):
+            k = o['name'].split(' · ')[0]
+            cp = os.path.join(job.workdir, f'{k} generation.png')
+            gen.chart(o['generation'], f"{job.customer} — {o['kwp']} kWp: expected generation month by month",
+                      f"{o['name']} · {o['modules']} × {spec['wp']} Wp", cp)
+            job.file_output(cp, 'design_report', title=f'{k} — expected generation (month-wise)')
     out = os.path.join(job.workdir, 'Options-compared.png')
     render.draw_table(f"{job.customer} — {spec['target']} × {spec['wp']} Wp: options compared", ['', 'Option', 'Panels', 'kWp', 'Units / yr', 'DC cable', 'Panels per roof'], rows, notes, out)
     job.file_output(out, 'panel_layout_drawing', title='Options compared')

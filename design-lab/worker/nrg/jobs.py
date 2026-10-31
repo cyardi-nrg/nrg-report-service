@@ -39,7 +39,7 @@ class Job:
         if not self.design:
             raise RuntimeError('The design for this job no longer exists.')
         self.layout = db.one('design_layouts', {'layout_id': f"eq.{row['layout_id']}", 'select': '*'}) if row.get('layout_id') else None
-        self.project = db.one('projects', {'project_id': f"eq.{self.design['project_id']}", 'select': 'project_id,site_address,google_drive_folder_id,category_folder_ids,customers(name)'})
+        self.project = db.one('projects', {'project_id': f"eq.{self.design['project_id']}", 'select': 'project_id,site_address,google_maps_url,google_drive_folder_id,category_folder_ids,customers(name)'})
         self.customer = ((self.project or {}).get('customers') or {}).get('name') or self.design['name']
         self.workdir = tempfile.mkdtemp(prefix=f'designlab-{self.stage}-')
         self.document_ids: list[str] = []
