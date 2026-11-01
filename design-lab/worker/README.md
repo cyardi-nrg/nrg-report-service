@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.10.0, 1 Nov 2026)
+# Design Lab worker — on your Mac  (v1.11.0, 1 Nov 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -27,6 +27,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | 5e | v1.8.1 (owner's review): strings follow one unbroken snake (no skipped or stray panels), cut into 18–20 with no long jumps; row groups filled with counts that string cleanly; neighbouring strings meet panel-to-panel so a Y joins one pole side by side; the wiring path is drawn and every panel numbered from the + end; every DC run sized by current, length and drop (aim < 2 %, max 3 %), AC cables likewise (fewest runs first) ; RULE: in every Y pair the + (red) ends of both strings sit side by side (v1.8.2); RULE: wherever two strings meet the ends are the same colour, never red next to black — Y pairs only at red meetings; any unavoidable spot is flagged (v1.8.3); names: S1, S2 … single strings, Y1-A / Y1-B the two strings of Y pair Y1 (v1.8.4); Y connectors wherever the panels allow (most pairs found by search, neighbouring strings cut to equal lengths, Y home run may stay 6 sq mm within the 3 % limit) (v1.8.5); 5 landscape rows the preference (4 only if 5 fits < 80 %), empty or all-shaded rows don’t count, row groups mirrored about the walkway so top and bottom strings face each other and Y-pair across it with both ends side by side (v1.8.6) | **done (v1.8.6)** |
 | 5f | SLD: grid voltage, LT panel main breaker, fault level and the DG set (kVA, manual / ATS changeover, solar off on DG or a DG-PV controller) from the Design Lab's SLD form — drawn on the SLD and listed in the CEIG set | **done (v1.9)** |
 | 3b | Panel placement: GI tables always portrait; Site questions → "Elevated structure" gives raised portrait tables of 3 + 2 rows with a walkway between, columns in line, above the parapet's shadow | **done (v1.10)** |
+| 2b | Roof design: the roofs in 3D (interactive file + pictures) from the roof check, to approve before Panel placement; a roof's height can be given above another roof; each roof's own structure height (≥ 1.8 m = raised walk-under tables, less = low tables with that front leg); inverter / meter floors set the DC and AC cable drops | **done (v1.11)** |
 
 A job for a stage the Mac can't do yet simply **waits in the queue** and runs on its own once that phase is installed.
 

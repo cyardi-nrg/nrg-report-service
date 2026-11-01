@@ -1,4 +1,9 @@
-# Design Lab worker v1.2.0 (2026-10-31) — the drawn roof model in metres.
+# Design Lab worker v1.11.0 (2026-11-01) — the drawn roof model in metres.
+#
+# v1.11.0 (owner): a roof may stand on another roof — its height is then given ABOVE that roof (onRoofId +
+#   heightAboveM; e.g. the staircase cabin 3 m above Roof 1); each roof may carry its own structure height
+#   (structureM: the panels' low edge above that roof — e.g. Roof 1 at 2 m elevated, the cabin at 0.5 m);
+#   the inverter's and the meter's floor give inverter_z / meter_z for the cable drops (nrg/inputs.placement).
 #
 # Reads the RoofModel the owner draws in the Design Lab (lib/design-lab.ts:
 # points in % of the base picture, pxPerM, imageW / imageH) and turns it
@@ -39,6 +44,7 @@ class Face:
     setback: float
     facing: str            # N / S / E / W (nearest)
     parapet: float = 0.0
+    structure: float | None = None   # owner's structure height above this roof (panels' low edge), m — None = by the rules
 
 
 @dataclass
@@ -51,6 +57,8 @@ class Site:
     obstacles: list = field(default_factory=list)   # (kind, Polygon, clearance)
     roofs: list = field(default_factory=list)       # raw roof dicts with 'poly'
     inverter: tuple | None = None
+    inverter_z: float | None = None   # height of the inverter (same datum as the roof heights), m — from Site questions
+    meter_z: float | None = None      # height of the meter (normally the ground floor), m
     grid: np.ndarray | None = None
     gx0: float = 0.0
     gy0: float = 0.0
@@ -101,7 +109,17 @@ def build(model: dict, marks: dict | None) -> Site:
         if len(pts) >= 3:
             s.obstacles.append((o['kind'], Polygon(pts).buffer(0), float(o.get('heightM') or 0), OBSTACLE_CLEAR.get(o['kind'], 0.3)))
 
+    # a roof standing on another roof: height = that roof's height + the height above it (resolved in order)
+    by_id = {r.get('id'): r for r in model.get('roofs', [])}
+
+    def abs_h(r, depth=0):
+        base = by_id.get(r.get('onRoofId')) if r.get('onRoofId') else None
+        if base is not None and base is not r and depth < 8 and r.get('heightAboveM') is not None:
+            return abs_h(base, depth + 1) + float(r.get('heightAboveM') or 0)
+        return float(r.get('heightM') or 0)
+
     for r in model.get('roofs', []):
+        r = {**r, 'heightM': abs_h(r)}
         pts = [s.to_m(p) for p in r['points']]
         if len(pts) < 3:
             continue
@@ -111,7 +129,9 @@ def build(model: dict, marks: dict | None) -> Site:
         hgt, pitch, setback = float(r.get('heightM') or 0), float(r.get('pitch') or 0.1), float(r.get('setbackM') if r.get('setbackM') is not None else 0.5)
         name = r.get('name') or f"Roof {r['no']}"
         if r['kind'] in ('flat_rcc', 'other'):
-            f = Face(f"{r['no']}", r['no'], name, 'flat', poly, DIRS['S'], 0.0, (lambda x, y, hh=hgt: hh), setback, 'S', float(r.get('parapetM') or 0))
+            st = r.get('structureM')
+            f = Face(f"{r['no']}", r['no'], name, 'flat', poly, DIRS['S'], 0.0, (lambda x, y, hh=hgt: hh), setback, 'S', float(r.get('parapetM') or 0),
+                     float(st) if st not in (None, '') else None)
             r['faces'] = [f]
         elif r['kind'] == 'sheet_mono':
             d = DIRS.get(r.get('downhill') or 'S')

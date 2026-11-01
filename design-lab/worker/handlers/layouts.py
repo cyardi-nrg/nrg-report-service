@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.0 (2026-10-31) — stage 'layouts': walkway, cable tray and
+# Design Lab worker v1.11.0 (2026-11-01) — stage 'layouts': walkway, cable tray and
 # earthing layouts for the chosen panel option, with their lengths written into the
 # BOM's "as per design" column.
 #   Walkways (owner): between the rows — in the gap the layout leaves after each row group,
@@ -8,7 +8,7 @@
 #   Earthing (owner): 3 pits — DC, AC (beside the inverter) and LA, 3 m apart (owner: at least 2 m, 3 m if possible); lightning arresters on
 #     the highest roof, how many by inverter kW (the app's own LA bands, Rates → BOM
 #     Components). Earthing runs from each array to the DC pit, LA down-conductor to the LA pit.
-#   AC cable: inverter to the meter mark (per inverter).
+#   AC cable: inverter to the meter mark (per inverter), + the drop between their floors (v1.11.0).
 # Routes are square to the building and approximate — "verify on site" is on every sheet.
 import math
 import os
@@ -171,7 +171,9 @@ def compute(job, P: dict, opt: dict) -> dict:
     la_m = round(sum(_len(r) for r in la_runs) + (roof_h[hi_arr['face']] + 3) * len(la_runs), 1) if hi_arr else 0.0
     # AC cable: inverter to the meter mark, per inverter
     meter = site.to_m(marks['meter']) if marks.get('meter') and site.inverter else None
-    ac_m = round(inv_count * (abs(meter[0] - site.inverter[0]) + abs(meter[1] - site.inverter[1]) + 5), 1) if meter else None
+    # + the drop between the inverter's floor and the meter's (normally the ground floor) — Site questions (v1.11.0)
+    vert = abs(site.inverter_z - site.meter_z) if getattr(site, 'inverter_z', None) is not None and getattr(site, 'meter_z', None) is not None else 0.0
+    ac_m = round(inv_count * (abs(meter[0] - site.inverter[0]) + abs(meter[1] - site.inverter[1]) + vert + 5), 1) if meter else None
 
     return {'walkways': walkways, 'trays': trays, 'earth': earth, 'la_runs': la_runs, 'la': la_pts, 'pits': pits, 'meter': meter,
             'walk_m': walk_m, 'tray_m': tray_m, 'earth_m': earth_m, 'la_m': la_m, 'la_n': la_n, 'ac_m': ac_m, 'total_kw': total_kw,

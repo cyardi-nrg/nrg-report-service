@@ -1,4 +1,9 @@
-# Design Lab worker v1.10.0 (2026-11-01) — fit panels on each roof face.
+# Design Lab worker v1.11.0 (2026-11-01) — fit panels on each roof face.
+#
+# v1.11.0 (owner: "allow diff structure to be at diff heights … roof 1 at 2 mtr … staircase cabin at 0.5"):
+#   a roof's own structure height (Roof design) decides it — ELEV_MIN or more = raised walk-under tables (3 + 2
+#   rows) with their low edge at that height; less = low tables with that front leg. Not given: Site questions
+#   (Elevated → ELEV_CLEAR) as in v1.10.
 #
 # v1.10.0 (owner, Keystone Skymont): GI tables are ALWAYS PORTRAIT — landscape needs more purlin, already
 #   settled; it is no longer tried on flat roofs at all. And the Site question "Mounting: Elevated structure"
@@ -39,7 +44,8 @@ WALK = 0.6           # walkway between row groups on sheet roofs, m
 TILT_FLAT = 10.0     # table tilt on flat roofs, degrees
 FRONT_LEG = 0.6      # minimum front leg on flat roofs, m
 LIFT = 0.15          # panel above the sheet, m
-ELEV_CLEAR = 2.1     # elevated: low edge of the panels above the slab (walk-under), m
+ELEV_CLEAR = 2.1     # elevated: low edge of the panels above the slab (walk-under), m — when the roof has no height of its own
+ELEV_MIN = 1.8       # a roof's structure height from this up is laid out as raised walk-under tables, m
 ELEV_WALK = 0.6      # elevated: walkway between tables, m
 ELEV_OVERHANG = 0.3  # elevated: the panels may run past the roof edge / setback by this much (posts stay on the roof), m
 ELEV_TABLES = (3, 2) # elevated: rows per table — the owner's 2- and 3-row frames
@@ -156,8 +162,9 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list, elevated: b
                 mods.append(Module(face.key, *inv(x0 + w / 2, y0 + d / 2), cs, [face.height_at(*c) + LIFT for c in cs], o, r, x0 + w / 2))
             candidates.append((o, mods, group))
         tilt = math.degrees(alpha)
-    elif elevated:
-        mods, tables = _elevated(site, face, area, ang, origin, inv, L, W)
+    elif (face.structure is not None and face.structure >= ELEV_MIN) or (face.structure is None and elevated):
+        clear = face.structure if face.structure is not None else ELEV_CLEAR
+        mods, tables = _elevated(site, face, area, ang, origin, inv, L, W, clear)
         candidates.append(('P', mods, max(tables) if tables else 3))
         tilt = TILT_FLAT
     else:
@@ -165,7 +172,7 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list, elevated: b
         # PORTRAIT tables of 1, 2 or 3 rows only (owner, v1.10.0: GI structures are always portrait)
         t = math.radians(TILT_FLAT)
         slab = face.height_at(0, 0)
-        front = max(FRONT_LEG, face.parapet)
+        front = face.structure if face.structure is not None else max(FRONT_LEG, face.parapet)   # owner's height, else above the parapet
         for o, n_rows in (('P', 2), ('P', 1), ('P', 3)):
             up, across = (L, W) if o == 'P' else (W, L)          # panel side up the tilt / along the table
             d1 = up * math.cos(t)
@@ -213,17 +220,21 @@ def pack_face(site: Site, face: Face, L: float, W: float, sun: list, elevated: b
             pool = [r for r in results if r[0] == 'P'] + ([land] if land else [])
             pick = max(pool, key=lambda r: len(r[1]))
         best_o, best, best_raw, best_rows = pick
+    is_elev = face.kind == 'flat' and ((face.structure is not None and face.structure >= ELEV_MIN) or (face.structure is None and elevated))
+    front_leg = (face.structure if face.structure is not None else ELEV_CLEAR) if is_elev else \
+        (face.structure if face.structure is not None else max(FRONT_LEG, face.parapet))
     return {
         'key': face.key, 'roof_no': face.roof_no, 'name': face.name, 'kind': face.kind, 'facing': face.facing,
         'tilt_deg': round(tilt, 1), 'orient': best_o, 'table_rows': best_rows if face.kind == 'flat' else 0,
         'group_rows': best_rows,   # rows per group (sheet) / per table (flat)
         'modules': best, 'shaded_out': best_raw - len(best),
         'yield': kwh_per_kwp(tilt, face.down), 'usable_m2': round(area.area, 1),
-        'mounting': 'elevated' if (elevated and face.kind == 'flat') else ('flush' if face.kind == 'sheet' else 'tables'),
+        'mounting': ('flush' if face.kind == 'sheet' else 'elevated' if is_elev else 'tables'),
+        'front_leg': (None if face.kind == 'sheet' else round(front_leg, 2)),   # front leg / low edge above the roof, m (Structure)
     }
 
 
-def _elevated(site: Site, face: Face, area, ang, origin, inv, L: float, W: float) -> tuple[list, list]:
+def _elevated(site: Site, face: Face, area, ang, origin, inv, L: float, W: float, clear: float = ELEV_CLEAR) -> tuple[list, list]:
     """Elevated GI on a flat roof (owner, Keystone Skymont): portrait tables of 3 and 2 rows at 10°, one after
     another down the roof with only a walkway between them, low edge ELEV_CLEAR above the slab. Which mix of
     3- and 2-row tables (and where they start) is chosen to fit the most panels; ties go to 3-row tables first.
@@ -235,7 +246,7 @@ def _elevated(site: Site, face: Face, area, ang, origin, inv, L: float, W: float
     # the frame may overhang the edge a little, but never into a taller roof / cabin next to it
     zone = area.buffer(ELEV_OVERHANG, join_style=2)
     for f in site.faces:
-        if f is not face and f.poly.intersects(zone) and f.height_at(f.poly.centroid.x, f.poly.centroid.y) + f.parapet > slab + ELEV_CLEAR - 0.3:
+        if f is not face and f.poly.intersects(zone) and f.height_at(f.poly.centroid.x, f.poly.centroid.y) + f.parapet > slab + clear - 0.3:
             zone = zone.difference(f.poly)
     loc = affinity.rotate(zone, ang, origin=origin, use_radians=False)
     if loc.is_empty:
@@ -305,7 +316,7 @@ def _elevated(site: Site, face: Face, area, ang, origin, inv, L: float, W: float
     for ti, (y0, n, xs) in enumerate(plan):
         tables.append(n)
         dT = n * d1 + (n - 1) * GAP
-        zf = lambda v, y0=y0, dT=dT: slab + ELEV_CLEAR + (y0 + dT - v) * math.tan(t)   # south (front) edge lowest
+        zf = lambda v, y0=y0, dT=dT: slab + clear + (y0 + dT - v) * math.tan(t)   # south (front) edge lowest
         for x0 in xs:
             for k in range(n):
                 yy = y0 + k * (d1 + GAP)

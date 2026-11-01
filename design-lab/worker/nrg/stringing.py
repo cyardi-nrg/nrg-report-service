@@ -1,4 +1,5 @@
-# Design Lab worker v1.8.6 (2026-10-31) — stringing: strings, MPPTs, DC cable runs.
+# Design Lab worker v1.11.0 (2026-11-01) — stringing: strings, MPPTs, DC cable runs.
+# v1.11.0: each run drops to the inverter's floor (Site questions), not to the ground.
 # v1.7 (owner): Y pairs join where the SAME poles meet ("+ and + or − and − need to come close
 #   to each other"); strings of 18–20 (19+19, 18+18 are fine); a mix of Y pairs and single strings —
 #   each pair is made only where its Y is cheaper; strings on one MPPT are always the same length.
@@ -138,11 +139,13 @@ def _pdist(a, b) -> float:
 
 
 def _run(site, x, y, z) -> float:
-    """One conductor from a string end to the inverter: along the roof (square to the building), down the wall,
-    along the ground, plus the tails."""
+    """One conductor from a string end to the inverter: along the roof (square to the building), down the wall to the
+    inverter's floor, plus the tails."""
     if not site.inverter:
         return 0.0
-    return abs(x - site.inverter[0]) + abs(y - site.inverter[1]) + max(0.0, z) + TAIL_ARRAY + TAIL_INV
+    # down (or up) to the inverter's floor (Site questions, v1.11.0); not known = the ground, as before
+    drop = abs(z - site.inverter_z) if getattr(site, 'inverter_z', None) is not None else max(0.0, z)
+    return abs(x - site.inverter[0]) + abs(y - site.inverter[1]) + drop + TAIL_ARRAY + TAIL_INV
 
 
 DC_SIZES = [4, 6, 10, 16]     # sq mm, solar DC cable (EN 50618)

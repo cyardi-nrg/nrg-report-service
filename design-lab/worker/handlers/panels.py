@@ -1,4 +1,6 @@
-# Design Lab worker v1.10.0 (2026-11-01) — stage 'panels' (per quote / layout):
+# Design Lab worker v1.11.0 (2026-11-01) — stage 'panels' (per quote / layout):
+# v1.11.0: DC cable estimate drops to the inverter's floor (Site questions), not a flat 8 m; each table carries
+#   its front leg / low-edge height (the roof's structure height) for the Structure stage.
 # v1.10.0: reads Site questions → Mounting. "Elevated structure" puts flat roofs on raised portrait tables of
 #   3 + 2 rows (nrg/packer.py); GI tables are portrait only. Best generation breaks a tie in favour of the
 #   bigger roof (fewer arrays) before distance, so equal roofs don't split the plant needlessly.
@@ -17,7 +19,7 @@ from nrg import site as sitemod
 from nrg import sun as sunmod
 from nrg import packer
 from nrg import render
-from nrg.inputs import roof_model, base_picture, panel_spec
+from nrg.inputs import roof_model, base_picture, panel_spec, placement
 from nrg import generation as gen
 
 STRING = 20          # panels per string for the DC cable estimate (as at Pluga)
@@ -26,7 +28,10 @@ STRING = 20          # panels per string for the DC cable estimate (as at Pluga)
 def _dist(site, m) -> float:
     if not site.inverter:
         return 0.0
-    return abs(m.x - site.inverter[0]) + abs(m.y - site.inverter[1]) + 8.0   # along the roof + ~8 m down the wall
+    if site.inverter_z is None:
+        return abs(m.x - site.inverter[0]) + abs(m.y - site.inverter[1]) + 8.0   # along the roof + ~8 m down the wall
+    # along the roof, then down (or up) to the inverter's floor, + 2 m to dress in (v1.11.0)
+    return abs(m.x - site.inverter[0]) + abs(m.y - site.inverter[1]) + abs(min(m.z) - site.inverter_z) + 2.0
 
 
 def _blocks(face_pack: dict, mods: list) -> list:
@@ -41,7 +46,9 @@ def _blocks(face_pack: dict, mods: list) -> list:
         tables = {}
         for r, n in rows.items():
             tables.setdefault(r // tr, []).append(n)
-        return [{'name': f"{face_pack['name']} · table row {t + 1}", 'rows': len(ns), 'cols': max(ns)} for t, ns in sorted(tables.items())]
+        fl = face_pack.get('front_leg')
+        return [{'name': f"{face_pack['name']} · table row {t + 1}", 'rows': len(ns), 'cols': max(ns), **({'frontLegM': fl} if fl is not None else {})}
+                for t, ns in sorted(tables.items())]
     n_rows = len(rows)
     return [{'name': face_pack['name'], 'rows': n_rows, 'cols': math.ceil(len(mods) / n_rows)}]
 
@@ -53,6 +60,7 @@ def plan(job) -> dict:
     if not spec['target']:
         raise RuntimeError('This quote / option has no kWp or panel count.')
     site = sitemod.build(model, job.design.get('marks'))
+    placement(job, site)                     # inverter / meter heights from their floors (Site questions)
     sun = sunmod.winter_sun()
     qv = job.latest_version('questions', None)
     mounting = (((qv or {}).get('data') or {}).get('mounting') or '').lower()

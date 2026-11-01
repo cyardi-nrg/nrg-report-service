@@ -1,5 +1,7 @@
-# Design Lab worker v1.3.0 (2026-10-31) — the 3D scene for viewer/viewer.template.html,
+# Design Lab worker v1.11.0 (2026-11-01) — the 3D scene for viewer/viewer.template.html,
 # built from the drawn roofs (nrg/site.py) and the chosen panel option.
+# v1.11.0 (owner: "first show me the 3d views of the roof so i can approve that before panel placement"):
+#   option=None builds the roofs alone (Roof design stage).
 import base64
 import io
 import json
@@ -21,7 +23,10 @@ def _roof_z(site, x, y) -> float:
     return best
 
 
-def build_scene(site, option: dict, mods: list, spec: dict, customer: str, base_path: str | None, note: str) -> dict:
+def build_scene(site, option: dict | None, mods: list, spec: dict, customer: str, base_path: str | None, note: str) -> dict:
+    roofs_only = option is None
+    if roofs_only:
+        option = {'name': 'Roofs as drawn', 'kwp': 0, 'modules': 0, 'arrays': [], 'annualKwh': 0}
     used = {f.key for f in site.faces}
     faces = []
     for r in site.roofs:
@@ -60,7 +65,7 @@ def build_scene(site, option: dict, mods: list, spec: dict, customer: str, base_
         corners = [site.to_m({'x': x, 'y': y}) for x, y in ((0, 0), (100, 0), (100, 100), (0, 100))]
         ground = {'img': 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode(), 'corners': [[round(a, 3), round(b, 3)] for a, b in corners]}
 
-    labels, timeline = [], [{'at': 0, 't': customer, 's': f"{option['kwp']} kWp · {option['modules']} × {spec['wp']} Wp{' ' + spec['make'] if spec.get('make') else ''}"}]
+    labels, timeline = [], [{'at': 0, 't': customer, 's': 'Roofs as drawn — heights, parapets, cabins and marks' if roofs_only else f"{option['kwp']} kWp · {option['modules']} × {spec['wp']} Wp{' ' + spec['make'] if spec.get('make') else ''}"}]
     t = 6.0
     for a in option['arrays']:
         ms = a['_mods']
@@ -69,21 +74,30 @@ def build_scene(site, option: dict, mods: list, spec: dict, customer: str, base_
         labels.append({'x': mx, 'y': my, 'z': top, 't': a['name'], 's': f"{a['modules']} panels · {a['kwp']} kWp"})
         timeline.append({'at': round(t, 1), 't': a['name'], 's': f"{a['modules']} panels ({'portrait' if a['orient'] == 'P' else 'landscape'}, {a['tilt']}°) · {a['kwp']} kWp · ≈ {a['kwh']:,} units a year"})
         t += min(8.0, 24.0 / max(1, len(option['arrays'])))
-    timeline.append({'at': 32, 't': f"{option['kwp']} kWp in all", 's': f"≈ {option['annualKwh']:,} units a year · panels kept clear of shade, vents and skylights"})
+    if roofs_only:
+        for r in site.roofs:
+            c = r['poly'].centroid
+            labels.append({'x': c.x, 'y': c.y, 'z': float(r.get('heightM') or 0) + 1.5, 't': r.get('name') or f"Roof {r.get('no')}",
+                           's': f"{float(r.get('heightM') or 0):g} m{' · not for solar' if not r.get('use', True) else ''}"
+                                + (f" · structure {float(r['structureM']):g} m" if r.get('structureM') not in (None, '') else '')})
+        timeline.append({'at': 32, 't': 'Roofs as drawn', 's': 'Check the heights, the cabins and what is marked — then approve Roof design'})
+    else:
+        timeline.append({'at': 32, 't': f"{option['kwp']} kWp in all", 's': f"≈ {option['annualKwh']:,} units a year · panels kept clear of shade, vents and skylights"})
     if site.inverter:
         labels.append({'x': site.inverter[0], 'y': site.inverter[1], 'z': 2.2, 't': 'Inverter', 's': ''})
 
     return {
-        'title': f'{customer} — {option["kwp"]} kWp solar (3D)',
-        'spec': [customer, f"NEW {option['kwp']} kWp · {option['modules']} × {spec['wp']} Wp{' ' + spec['make'] if spec.get('make') else ''}",
-                 option['name'], f"≈ {option['annualKwh']:,} units a year"],
+        'title': f'{customer} — roofs as drawn (3D)' if roofs_only else f'{customer} — {option["kwp"]} kWp solar (3D)',
+        'spec': ([customer, 'Roofs as drawn', f"{len(site.roofs)} roofs · heights as entered", 'Approve Roof design before Panel placement'] if roofs_only else
+                 [customer, f"NEW {option['kwp']} kWp · {option['modules']} × {spec['wp']} Wp{' ' + spec['make'] if spec.get('make') else ''}",
+                  option['name'], f"≈ {option['annualKwh']:,} units a year"]),
         'note': note,
         'center': [round(cx, 3), round(cy, 3)], 'extent': round(extent, 2), 'focus': [round(v, 3) for v in focus], 'roofMid': round(roof_mid, 2),
         'ground': ground, 'faces': faces, 'obstacles': obstacles, 'modules': modules,
         'inverter': [round(v, 3) for v in site.inverter] if site.inverter else None,
         'labels': labels, 'timeline': timeline, 'duration': 40,
-        'capAll': f"{option['kwp']} kWp on {len(option['arrays'])} roof face{'s' if len(option['arrays']) != 1 else ''}",
-        'capClose': 'Panels kept clear of edges, vents and skylights',
+        'capAll': 'Roofs as drawn' if roofs_only else f"{option['kwp']} kWp on {len(option['arrays'])} roof face{'s' if len(option['arrays']) != 1 else ''}",
+        'capClose': 'Roof heights and marks as entered' if roofs_only else 'Panels kept clear of edges, vents and skylights',
     }
 
 
