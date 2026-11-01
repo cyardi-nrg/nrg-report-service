@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.0 (2026-10-31) — stage 'ceig' (per quote / layout): the CEIG drawing set,
+# Design Lab worker v1.9.0 (2026-11-01) — stage 'ceig' (per quote / layout): the CEIG drawing set,
 # made general from the owner-approved Jain Granite set (NRG's own CEIG submission format):
 #   01 Single line diagram   02 Equipment layout   03 Earthing layout
 #   04 Walkway layout        05 Cable tray layout  06 Stringing layout
@@ -47,7 +47,12 @@ def build(job) -> dict:
               ('TOTAL PV MODULES', f'{n_mod} Nos.'),
               ('INVERTER CAPACITY', f"{inv.get('acKw', 0):g} kW ({inv.get('model', '')}) {n_inv} No."),
               ('AZIMUTH / TILT', ', '.join(f'{f} {t}°' for f, t in faces)[:38] or '—')]
-    return {'info': info, 'system': system, 'site': site, 'arrays': arrays, 'items': items, 'stringing': res,
+    # LT panel / DG details saved in the Design Lab's SLD form (carried forward in every SLD version)
+    sv = job.latest_version('sld', job.row.get('layout_id'))
+    lt = ((sv or {}).get('data') or {}).get('lt') or {}
+    if lt.get('dg'):
+        system.append(('DG SET', f"{lt.get('dgKva') or '—'} kVA, {'ATS' if lt.get('changeover') == 'ats' else 'manual'} changeover"))
+    return {'lt': lt, 'info': info, 'system': system, 'site': site, 'arrays': arrays, 'items': items, 'stringing': res,
             'inverter': inv, 'module': mod, 'rates': ins['rates'], 'strings': res['strings'], 'pairs': res.get('pairs', []), 'limits': res['limits'],
             'kwp': kwp, 'modules': n_mod, 'wp': wp, 'acCableM': items.get('ac_m'), 'option': opt['name'],
             'dc': ((res['compare']['y']['m4'] + res['compare']['y']['m6']) if res['useY'] else res['compare']['single']['m4']) / 2}

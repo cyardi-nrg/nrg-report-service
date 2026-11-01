@@ -1,4 +1,4 @@
-# Design Lab worker v1.8.1 (2026-10-31) — the single line diagram (SLD), made general from the
+# Design Lab worker v1.9.0 (2026-11-01) — the single line diagram (SLD), made general from the
 # owner-approved Jain Granite SLD (stringing/ceig/generate_ceig_drawings.py v7, sheet 01).
 #
 # Everything on the sheet comes from the design:
@@ -13,6 +13,8 @@
 #   * v1.8.1 (owner): cable size = current, length AND voltage drop — AC cables are made bigger (or doubled)
 #     until inverter → LT panel drop ≤ the allowed AC drop; DC runs come sized from the Stringing stage
 #   * string fuses only when > 2 strings share an MPPT
+#   * v1.9 (owner): grid voltage, LT panel main breaker, fault level and the DG set (kVA, manual / ATS changeover,
+#     solar off on DG or a DG-PV controller) come from the Design Lab's SLD form and are drawn
 import math
 
 from nrg.ceigkit import (T, TL, R, L, C, table, sym_module, sym_inverter, sym_earth, sym_breaker, sym_contactor, sym_spd,
@@ -125,25 +127,49 @@ def sheet_sld(d: dict) -> str:
     o = []
     cx, gx = 720, 920
 
-    # ---- grid / net meter / client LT panel
-    o.append(L(gx, 62, gx, 200, RED, 1.6))
+    # ---- grid / net meter / client LT panel (+ DG set and changeover) — details from the Design Lab's SLD form
+    lt = d.get('lt') or {}
+    V = int(lt.get('gridV') or 415)
+    dg = bool(lt.get('dg'))
+    BUS = 214 if dg else 200
+    o.append(L(gx, 62, gx, BUS, RED, 1.6))
     o.append(f'<polygon points="{gx},52 {gx-6},64 {gx+6},64" fill="{RED}"/>')
-    o.append(T(gx, 46, 'TO GRID (DISCOM, 415 V, 3Ø, 50 Hz)', 9, 'middle', 'bold'))
+    o.append(T(gx, 46, f'TO GRID (DISCOM, {V} V, 3Ø, 50 Hz)', 9, 'middle', 'bold'))
     o.append(R(gx - 16, 88, 32, 32, fill='#fff', sw=1.2) + C(gx, 104, 11, sw=1.2))
     o.append(TL(gx - 22, 100, ['NET METER', '(BI-DIRECTIONAL, BY DISCOM)'], 7.5, anchor='end'))
-    o.append(R(470, 140, 520, 190, dash='6,4', sw=1))
+    o.append(R(470, 140, 520, 190 + (BUS - 200), dash='6,4', sw=1))
     o.append(T(476, 153, 'CLIENT LT PANEL (EXISTING)', 8.5, 'start', 'bold'))
     o.append(sym_breaker(gx, 170, box=True))
-    o.append(TL(gx + 16, 166, ['EXISTING MAIN', 'BREAKER'], 7))
-    o.append(L(510, 200, 960, 200, '#000', 4))
-    o.append(T(512, 194, '415 V, TPN BUS BAR (EXISTING)', 7.5))
+    main_txt = (['EXISTING MAIN', f"{lt['mainA']:g} A {lt.get('mainType') or 'ACB'}"] if lt.get('mainA') else ['EXISTING MAIN', 'BREAKER *'])
+    o.append(TL(gx - 16, 166, main_txt, 7, anchor='end'))
+    if dg:
+        # DG set → its breaker → changeover with the grid incomer → bus
+        kva = lt.get('dgKva')
+        co = 'ATS (AUTO)' if lt.get('changeover') == 'ats' else 'MANUAL C/O'
+        dx = 992
+        o.append(C(dx, 100, 15, sw=1.4) + T(dx, 99, 'G', 9, 'middle', 'bold') + T(dx, 109, '~', 9, 'middle'))
+        o.append(T(dx, 78, f"DG SET {kva:g} kVA" if kva else 'DG SET *', 7.5, 'middle', 'bold'))
+        o.append(L(dx, 115, dx, 196, RED, 1.4) + sym_breaker(dx, 150) + L(dx, 196, gx + 22, 196, RED, 1.4))
+        o.append(R(gx - 22, 188, 44, 16, sw=1.2, fill='#fff') + T(gx, 199, 'C/O', 7.5, 'middle', 'bold'))
+        o.append(T(gx + 26, 210, co, 6.5))
+    o.append(L(510, BUS, 960, BUS, '#000', 4))
+    o.append(T(512, BUS - 6, f'{V} V, TPN BUS BAR (EXISTING)', 7.5))
     for lx in (540, 600):
-        o.append(L(lx, 200, lx, 296, RED, 1.2) + sym_breaker(lx, 240) + f'<polygon points="{lx},306 {lx-5},296 {lx+5},296" fill="#000"/>')
+        o.append(L(lx, BUS, lx, 296, RED, 1.2) + sym_breaker(lx, 248) + f'<polygon points="{lx},306 {lx-5},296 {lx+5},296" fill="#000"/>')
         o.append(T(lx, 320, 'LOAD', 7.5, 'middle'))
     o.append(T(570, 275, 'EXISTING', 6.5, 'middle') + T(570, 284, 'LOADS', 6.5, 'middle'))
-    o.append(L(cx, 200, cx, 380, RED, 1.6))
-    o.append(sym_breaker(cx, 252, box=True))
-    o.append(TL(cx + 18, 242, [f"{z['br_main']} A, 415 V, 4P {z['main_kind']}", 'O/C, S/C  (SOLAR FEEDER – NEW)', 'Icu ≥ FAULT LEVEL AT LT PANEL *'], 7.5))
+    o.append(L(cx, BUS, cx, 380, RED, 1.6))
+    o.append(sym_breaker(cx, 256, box=True))
+    icu = f"Icu ≥ {lt['faultKa']:g} kA (FAULT LEVEL AT LT PANEL)" if lt.get('faultKa') else 'Icu ≥ FAULT LEVEL AT LT PANEL *'
+    o.append(TL(cx + 18, 246, [f"{z['br_main']} A, {V} V, 4P {z['main_kind']}", 'O/C, S/C  (SOLAR FEEDER – NEW)', icu], 7.5))
+    if dg:
+        # owner's choice of DG protection: inverters off on DG, or a DG-PV controller keeping a minimum load on the DG
+        if lt.get('dgMode') == 'controller':
+            msg = ['DG–PV CONTROLLER (ZERO EXPORT TO DG):', 'LIMITS SOLAR SO THE DG STAYS ≥ 30 % LOADED;', 'C/O AUX. CONTACT TELLS IT WHEN ON DG']
+        else:
+            msg = ['DG INTERLOCK: C/O AUX. CONTACT TRIPS THE', 'SOLAR CONTACTOR / NVR IN THE ACDB —', 'SOLAR OFF WHENEVER THE DG RUNS']
+        o.append(R(cx + 90, 600, 210, 42, stroke='#b45309', sw=1, fill='#fffbeb') + TL(cx + 96, 612, msg, 6.6, fill='#92400e'))
+        o.append(L(gx - 22, 196, gx - 60, 196, '#b45309', 0.8, dash='3,2') + L(gx - 60, 196, gx - 60, 600, '#b45309', 0.8, dash='3,2'))
 
     # ---- solar generation meter + feeder cable
     o.append(R(cx - 80, 352, 160, 56, sw=1, stroke='#1f3bb8'))
@@ -169,7 +195,7 @@ def sheet_sld(d: dict) -> str:
         o.append(sym_lamp(cx + 92 + i * 22, 548, c) + T(cx + 92 + i * 22, 566, lab, 6.5, 'middle'))
     o.append(sym_contactor(cx, 598) + TL(cx + 14, 596, ['CONTACTOR', f"{z['br_main']} A, 4P"], 7))
     o.append(R(cx + 40, 616, 34, 16, sw=1) + T(cx + 57, 628, 'NVR', 7.5, 'middle', 'bold') + L(cx + 6, 624, cx + 40, 624, dash='2,2'))
-    o.append(sym_breaker(cx, 656, box=True) + TL(cx + 18, 650, [f"{z['br_main']} A, 415 V", f"4P {z['main_kind']} (OUTGOING)"], 7))
+    o.append(sym_breaker(cx, 656, box=True) + TL(cx + 18, 650, [f"{z['br_main']} A, {V} V", f"4P {z['main_kind']} (OUTGOING)"], 7))
     o.append(L(990, 640, 1004, 640) + sym_earth(1004, 640, 0.8) + T(960, 672, 'EARTHING (EP-2)', 6.5))
 
     # ---- inverters across the bottom band
@@ -179,7 +205,7 @@ def sheet_sld(d: dict) -> str:
     inv_x = [x_a + k * (inv_w + gap) for k in range(n_inv)]
     bus_l, bus_r = min(cx, inv_x[0] + inv_w / 2), max(cx, inv_x[-1] + inv_w / 2)
     o.append(L(max(476, bus_l), 690, min(1004, bus_r), 690, '#000', 3))
-    o.append(T(max(478, bus_l) + 2, 685, '415 V BUS', 6.5))
+    o.append(T(max(478, bus_l) + 2, 685, f'{V} V BUS', 6.5))
     inputs = _inputs(d)
     iy0, iy1 = 800, 860
     dy0, dy1 = 940, 990
@@ -246,9 +272,15 @@ def sheet_sld(d: dict) -> str:
 
     # ---- left column: note, cable details, design check, schedule
     o.append(R(44, 46, 400, 64, sw=1))
-    o.append(TL(50, 60, ['* NOTE:', '1. VALUES MARKED * ARE ESTIMATES — VERIFY WITH DATASHEET / ON SITE.',
-                         '2. DG SET / CHANGEOVER: NONE CONSIDERED. CONFIRM ON SITE; IF A DG',
-                         '    EXISTS, ADD CHANGEOVER + INTERLOCK (SOLAR OFF ON DG).'], 7.5))
+    lt = d.get('lt') or {}
+    if lt.get('dg'):
+        note2 = [f"2. DG SET {lt.get('dgKva') or '*'} kVA ON THE LT PANEL VIA {'ATS' if lt.get('changeover') == 'ats' else 'MANUAL CHANGEOVER'};",
+                 '    ' + ('DG-PV CONTROLLER KEEPS THE DG LOADED (SEE ACDB).' if lt.get('dgMode') == 'controller' else 'SOLAR SWITCHED OFF WHENEVER THE DG RUNS (SEE ACDB).')]
+    elif lt:
+        note2 = ['2. NO DG SET ON THIS LT PANEL (AS PER SITE DETAILS).', '']
+    else:
+        note2 = ['2. DG SET / CHANGEOVER: NOT ENTERED — CONFIRM ON SITE; IF A DG', '    EXISTS, ADD CHANGEOVER + INTERLOCK (SOLAR OFF ON DG).']
+    o.append(TL(50, 60, ['* NOTE:', '1. VALUES MARKED * ARE ESTIMATES — VERIFY WITH DATASHEET / ON SITE.'] + note2, 7.5))
     rows = [(['CABLE SIZE'], ['CURRENT', 'RATING'], ['CABLE', 'CONNECTION'], ['CABLE TYPE']),
             ([f"1.1 KV, {z['run_i']}R X 3.5C", f"X {z['sq_i']} SQ MM"], [f"{z['amp_i']} A **"], ['INVERTER TO', 'ACDB'], ['AL. XLPE INSULATED', 'ARMOURED CABLE']),
             ([f"1.1 KV, {z['run_m']}R X 3.5C", f"X {z['sq_m']} SQ MM"], [f"{z['amp_m']} A **" + (' / RUN' if z['run_m'] > 1 else '')], ['ACDB TO CLIENT', 'LT PANEL'], ['AL. XLPE INSULATED', 'ARMOURED CABLE']),
