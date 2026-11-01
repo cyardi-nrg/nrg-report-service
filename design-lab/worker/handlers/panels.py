@@ -1,4 +1,7 @@
-# Design Lab worker v1.8.1 (2026-10-31) — stage 'panels' (per quote / layout):
+# Design Lab worker v1.10.0 (2026-11-01) — stage 'panels' (per quote / layout):
+# v1.10.0: reads Site questions → Mounting. "Elevated structure" puts flat roofs on raised portrait tables of
+#   3 + 2 rows (nrg/packer.py); GI tables are portrait only. Best generation breaks a tie in favour of the
+#   bigger roof (fewer arrays) before distance, so equal roofs don't split the plant needlessly.
 # fit this quote's panels onto the drawn roofs, three ways, and draw them.
 #
 #   Option A  Best generation first  — south faces, then east / west, then north
@@ -51,7 +54,10 @@ def plan(job) -> dict:
         raise RuntimeError('This quote / option has no kWp or panel count.')
     site = sitemod.build(model, job.design.get('marks'))
     sun = sunmod.winter_sun()
-    packs = [packer.pack_face(site, f, spec['L'], spec['W'], sun) for f in site.faces]
+    qv = job.latest_version('questions', None)
+    mounting = (((qv or {}).get('data') or {}).get('mounting') or '').lower()
+    elevated = mounting == 'elevated'
+    packs = [packer.pack_face(site, f, spec['L'], spec['W'], sun, elevated=elevated) for f in site.faces]
     packs = [p for p in packs if p['modules']]
     if not packs:
         raise RuntimeError('No panel fits on the roofs marked “use for solar” (check setbacks and obstacles).')
@@ -65,7 +71,8 @@ def plan(job) -> dict:
         p['modules'].sort(key=lambda m: (col_d[round(m.u, 1)], round(m.u, 1), m.row))
     capacity = sum(len(p['modules']) for p in packs)
 
-    return {'model': model, 'roof_v': roof_v, 'spec': spec, 'site': site, 'sun': sun, 'packs': packs, 'capacity': capacity}
+    return {'model': model, 'roof_v': roof_v, 'spec': spec, 'site': site, 'sun': sun, 'packs': packs, 'capacity': capacity,
+            'mounting': mounting or None}
 
 
 STRING_UNIT = 20         # owner: strings of 20 preferred ...
@@ -162,7 +169,8 @@ def option_arrays(P: dict, order: list, whole_strings: bool = True) -> tuple[lis
 
 def orders(packs: list) -> dict:
     return {
-        'A': ('Best generation first', sorted(packs, key=lambda p: (-p['yield'], p['avg_dist']))),
+        # yields within ~1 % count as equal (same tilt and facing): then the bigger roof first, then the nearer
+        'A': ('Best generation first', sorted(packs, key=lambda p: (-round(p['yield'] / 15), -len(p['modules']), p['avg_dist']))),
         'B': ('Nearest the inverter (least DC cable)', sorted(packs, key=lambda p: (p['avg_dist'], -p['yield']))),
         'C': ('Biggest roofs first (fewest arrays)', sorted(packs, key=lambda p: (-len(p['modules']), -p['yield']))),
     }
