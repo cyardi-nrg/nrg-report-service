@@ -1,6 +1,7 @@
 <!doctype html>
 <!--
   NRG Design Lab — general 3D viewer · Version: v1.0 (2026-10-31) · NRG Technologists
+  v1.12 (2026-11-02): optional scene.steel (real GI members) and scene.watermark (anti-copy branding).
   Built by the Design Lab worker (design-lab/worker/handlers/views.py) from the roofs drawn in the
   Design Lab and the chosen panel layout option. Same look and the same capture hooks
   (window.__nrg3d: views / view(name) / duration / time(t)) as the hand-built viewers in 3d-design/.
@@ -29,6 +30,8 @@
              border-radius:1vh; border-left:.6vh solid var(--accent); transition:opacity .4s; }
   #caption .t { font-weight:800; font-size:3vh; line-height:1.15; }
   #caption .s { font-size:1.8vh; opacity:.9; margin-top:.6vh; line-height:1.35; }
+  /* v1.12: anti-copy watermark across the frame (scene.watermark.overlay) */
+  #wm { position:fixed; inset:0; pointer-events:none; display:none; background-repeat:repeat; opacity:0.16; }
   #spec { position:fixed; right:2.2vh; top:2.2vh; background:#ffffffe8; border-radius:1vh; padding:1.2vh 1.6vh; font-size:1.45vh; line-height:1.55;
           box-shadow:0 .4vh 1.6vh #0f172a22; max-width:42vh; }
   #spec b { font-size:1.75vh; }
@@ -51,6 +54,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="labels"></div>
+<div id="wm"></div>
 <div id="brand"><img src="/*__LOGO__*/" alt="NRG Technologists Pvt. Ltd."><div><div class="n">SOLAR EPC</div><div class="s">VADODARA · GUJARAT</div></div></div>
 <div id="spec"></div>
 <div id="caption"><div class="t"></div><div class="s"></div></div>
@@ -217,6 +221,57 @@ S.obstacles.forEach(function (o) {
   }
 })();
 
+// ---------- v1.12: the real frame — rectangular GI members from a to b (scene.steel); then no corner legs
+if (S.steel && S.steel.length) {
+  S.steel.forEach(function (m) {
+    var a = V(m.a[0], m.a[1], m.a[2]), b = V(m.b[0], m.b[1], m.b[2]), len = a.distanceTo(b);
+    if (len < 1e-3) return;
+    var box = new THREE.Mesh(new THREE.BoxGeometry(m.w || 0.04, len, m.d || 0.06), M.leg);
+    box.position.copy(a.clone().add(b).multiplyScalar(0.5));
+    box.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    box.castShadow = true; scene.add(box);
+  });
+}
+
+// ---------- v1.12: equipment boxes (inverter, ACDB, meter …) and cable runs (scene.boxes / scene.cables)
+(S.boxes || []).forEach(function (b) {
+  var mb = new THREE.Mesh(new THREE.BoxGeometry(b.size[0], b.size[2], b.size[1]), new THREE.MeshStandardMaterial({ color: b.color || '#e5e7eb', roughness: 0.5, metalness: 0.2 }));
+  mb.position.copy(V(b.c[0], b.c[1], b.c[2])); mb.castShadow = true; scene.add(mb);
+});
+(S.cables || []).forEach(function (cb) {
+  var pts = cb.pts.map(function (q) { return V(q[0], q[1], q[2]); });
+  var mat = new THREE.MeshStandardMaterial({ color: cb.color || '#111827', roughness: 0.6 });
+  for (var i = 0; i + 1 < pts.length; i++) {           // straight runs + a ball at each bend
+    var a = pts[i], b = pts[i + 1], len = a.distanceTo(b);
+    if (len < 1e-3) continue;
+    var tube = new THREE.Mesh(new THREE.CylinderGeometry(cb.r || 0.02, cb.r || 0.02, len, 10), mat);
+    tube.position.copy(a.clone().add(b).multiplyScalar(0.5));
+    tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    scene.add(tube);
+    var ball = new THREE.Mesh(new THREE.SphereGeometry(cb.r || 0.02, 10, 8), mat); ball.position.copy(b); scene.add(ball);
+  }
+});
+
+// ---------- v1.12: branding readable from every side (scene.watermark): lettering on walls + a faint frame overlay
+if (S.watermark) {
+  (S.watermark.walls || []).forEach(function (w) {
+    var cv = document.createElement('canvas'), k = 256;
+    cv.width = Math.round(k * w.width / w.height); cv.height = k;
+    var g = cv.getContext('2d');
+    g.font = '800 ' + Math.round(k * 0.62) + 'px Inter, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = w.color || '#0b3d91'; g.fillText(w.text || S.watermark.text, cv.width / 2, k * 0.54, cv.width * 0.94);
+    var tex = new THREE.CanvasTexture(cv); tex.anisotropy = 8;
+    var pl = new THREE.Mesh(new THREE.PlaneGeometry(w.width, w.height), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    pl.position.copy(V(w.c[0] + w.n[0] * 0.03, w.c[1] + w.n[1] * 0.03, w.c[2]));
+    pl.rotation.y = Math.atan2(w.n[0], w.n[1]);
+    scene.add(pl);
+  });
+  if (S.watermark.overlay) {
+    var t = S.watermark.text, svg = '<svg xmlns="http://www.w3.org/2000/svg" width="460" height="260"><text x="230" y="140" font-family="Arial" font-weight="800" font-size="34" fill="#0b3d91" text-anchor="middle" transform="rotate(-24 230 130)">' + t + '</text></svg>';
+    var wm = document.getElementById('wm'); wm.style.backgroundImage = 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")'; wm.style.display = 'block';
+  }
+}
+
 if (S.inverter) {
   var inv = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.2, 0.45), M.inverter);
   inv.position.copy(V(S.inverter[0], S.inverter[1], 0.6)); inv.castShadow = true; scene.add(inv);
@@ -272,7 +327,15 @@ var DURATION = S.duration || 40;
 function ease(x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
 function atTime(t) {
   var f = Math.max(0, Math.min(1, t / DURATION));
-  if (f < 0.8) {
+  if (S.path && S.path.length > 1) {                     // v1.12: a set camera route (scene.path keyframes)
+    var P = S.path, i = 0;
+    while (i < P.length - 2 && t > P[i + 1].at) i++;
+    var A = P[i], B = P[i + 1], u = ease(Math.max(0, Math.min(1, (t - A.at) / Math.max(1e-6, B.at - A.at))));
+    var lerp = function (a, b) { return a + (b - a) * u; };
+    var ta = V(A.t[0], A.t[1], A.t[2]), tb = V(B.t[0], B.t[1], B.t[2]);
+    cam.az = lerp(A.az, B.az); cam.el = lerp(A.el, B.el); cam.dist = lerp(A.dist, B.dist);
+    cam.tx = lerp(ta.x, tb.x); cam.ty = lerp(ta.y, tb.y); cam.tz = lerp(ta.z, tb.z);
+  } else if (f < 0.8) {
     var g = f / 0.8;
     cam.az = 135 + 360 * ease(g); cam.el = 34 - 12 * Math.sin(Math.PI * g); cam.dist = R * (2.4 - 1.0 * Math.sin(Math.PI * g));
     cam.tx = focus.x * Math.sin(Math.PI * g); cam.ty = MIDH + (focus.y - MIDH) * Math.sin(Math.PI * g); cam.tz = focus.z * Math.sin(Math.PI * g);
