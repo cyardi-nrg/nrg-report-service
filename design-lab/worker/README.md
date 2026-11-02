@@ -1,4 +1,4 @@
-# Design Lab worker — on your Mac  (v1.13.0, 2 Nov 2026)
+# Design Lab worker — on your Mac  (v1.14.0, 2 Nov 2026)
 
 The Design Lab in SolarConnect only *asks* for heavy work (shade check, panel layouts, drawings, 3D, the
 walk-around video). This small program on your MacBook does that work and files the results back into the
@@ -29,6 +29,7 @@ project's Google Drive folder and the Design Lab, where you approve them.
 | 3b | Panel placement: GI tables always portrait; Site questions → "Elevated structure" gives raised portrait tables of 3 + 2 rows with a walkway between, columns in line, above the parapet's shadow | **done (v1.10)** |
 | 2b | Roof design: the roofs in 3D (interactive file + pictures) from the roof check, to approve before Panel placement; a roof's height can be given above another roof; each roof's own structure height (≥ 1.8 m = raised walk-under tables, less = low tables with that front leg); inverter / meter floors set the DC and AC cable drops | **done (v1.11)** |
 | 6 | Design proposal: one A4 PDF for the client with the NRG logo — system, panel tables, roof layout, 3D views, expected units — plus a ready email, to send before the quote (optional contact line: NRG_PROPOSAL_CONTACT in .env) | **done (v1.13)** |
+| 1b | Start from a base design (stage “Base design”): a SolarEdge Designer screenshot or an AutoCAD drawing (PDF / picture, panels in blue, north up) — every panel and table read off it, the scale from the panel size, flat roofs sketched round the tables as a new Roof design draft, a check picture; Panel placement then uses those panels as placed (one option, “As in the base design”). DWG / DXF panel reading later | **done (v1.14)** |
 | 4b | 3D viewer: optional real GI members (steel), cable runs, equipment boxes (inverter, ACDB, meter), NRG SOLAR lettering on walls, a set camera route — first used for the two-option residential video | **done (v1.12)** |
 
 A job for a stage the Mac can't do yet simply **waits in the queue** and runs on its own once that phase is installed.
