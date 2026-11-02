@@ -1,0 +1,681 @@
+<!doctype html>
+<!--
+  Architect's Residence (G+1) — 15 solar modules — 3D viewer
+  Version: v2 (2026-10-30) · NRG Technologists — v2: fewer legs; the elevated array rests on the west parapet + terrace-room wall only
+  Geometry: owner's design screenshots (top view + 4 obliques): 6 modules (2 x 3 portrait) on an elevated structure over
+            the main roof, 9 modules (2 x 5, one bay open) on the terrace-room roof, both at the same level.
+  House facade is a representative contemporary design (owner: "2-storeyed residence of an architect").
+  Framework (controls, overlay, capture hooks) shared with ../jain-granite and ../sejal-parikh.
+  Built by build.mjs, which inlines three.js r158 (THREE placeholder) and the logo (LOGO placeholder) -> one offline file.
+  URL options:  ?capture=1  -> no buttons, used by render.mjs for the stills
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Architect's Residence 3D</title>
+<style>
+  :root { --ink:#0f172a; --muted:#475569; --accent:#f59e0b; --panel:#ffffffee; --line:#e2e8f0; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:#cfdcea; font-family:"Liberation Sans", Arial, Helvetica, sans-serif; color:var(--ink); overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #c { display:block; width:100%; height:100%; touch-action:none; }
+  #labels { position:absolute; inset:0; pointer-events:none; }
+  .lbl { position:absolute; transform:translate(-50%,-100%); white-space:nowrap; font-size:clamp(10px,1.35vh,15px);
+         font-weight:700; color:#fff; background:#0f172acc; padding:.3em .6em; border-radius:.4em; border-left:3px solid var(--accent); }
+  .lbl::after { content:""; position:absolute; left:50%; top:100%; width:1px; height:1.1em; background:#0f172acc; }
+  .lbl small { display:block; font-weight:400; opacity:.85; font-size:.85em; }
+
+  /* opaque and at least 37.5vh wide: render.mjs --rebrand lays this box over older renders, so it must hide the old one */
+  #brand { position:absolute; left:2.2vh; top:2.2vh; display:flex; align-items:center; gap:1.6vh; background:#fff; min-width:37.5vh;
+           padding:1vh 2vh 1vh 1.2vh; border-radius:1vh; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #brand img { height:10.5vh; width:auto; display:block; }
+  #brand .n { font-weight:800; font-size:2.6vh; letter-spacing:.08em; line-height:1; color:#0000fe; }
+  #brand .s { font-size:1.4vh; color:var(--muted); letter-spacing:.12em; margin-top:.7vh; }
+
+  #caption { position:absolute; left:2.2vh; bottom:3vh; max-width:70%; background:#0f172ad9; color:#fff; padding:1.4vh 2.2vh 1.5vh;
+             border-radius:1vh; border-left:.6vh solid var(--accent); transition:opacity .5s; }
+  #caption .t { font-weight:800; font-size:3vh; line-height:1.15; }
+  #caption .s { font-size:1.8vh; opacity:.9; margin-top:.6vh; line-height:1.35; }
+
+  #spec { position:absolute; right:2.2vh; top:2.2vh; background:#ffffffe8; border-radius:1vh; padding:1.2vh 1.6vh; font-size:1.45vh;
+          line-height:1.55; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #spec b { font-size:1.75vh; }
+  #compass { position:absolute; right:2.6vh; bottom:3vh; width:8vh; height:8vh; }
+  #note { position:absolute; right:12vh; bottom:3.4vh; font-size:1.15vh; color:#0f172a; background:#fff; padding:.4vh .8vh; border-radius:.5vh; }
+
+  #ui { position:fixed; left:50%; transform:translateX(-50%); top:1.6vh; display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
+        max-width:min(760px, calc(100% - 32px)); }
+  #ui button { font:600 13px/1 "Liberation Sans", Arial, sans-serif; border:1px solid var(--line); background:var(--panel);
+               padding:8px 11px; border-radius:8px; cursor:pointer; color:var(--ink); box-shadow:0 2px 6px #0f172a1a; }
+  #ui button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  #ui button.play { background:var(--accent); border-color:#d97706; color:#111; }
+  #help { position:fixed; left:50%; transform:translateX(-50%); bottom:1.2vh; font-size:12px; color:#334155; background:#ffffffc0;
+          padding:4px 10px; border-radius:6px; }
+  body.capture #ui, body.capture #help { display:none; }
+  @media (max-width: 700px) {
+    #spec { display:none; }
+    #brand { top:auto; bottom:17vh; min-width:0; }
+    #brand img { height:8vh; }
+    #ui { top:8px; }
+    #ui button { padding:7px 8px; font-size:12px; }
+    #caption { max-width:calc(100% - 4vh); bottom:2vh; }
+    #compass { bottom:auto; top:190px; width:56px; height:56px; right:12px; }
+    #note, #help { display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div id="brand">
+    <img src="/*__LOGO__*/" alt="NRG Technologists Pvt. Ltd.">
+    <div><div class="n">SOLAR EPC</div><div class="s">VADODARA · GUJARAT</div></div>
+  </div>
+  <div id="spec">
+    <b>Architect's Residence</b><br>
+    15 modules (wattage to confirm)<br>
+    6 elevated · 9 on terrace room<br>
+    Tilt 10° south (assumed)<br>
+    Ground + 1 · terrace room
+  </div>
+  <div id="caption"><div class="t"></div><div class="s"></div></div>
+  <svg id="compass" viewBox="-50 -50 100 100" aria-label="North arrow">
+    <circle r="46" fill="#ffffffd8" stroke="#0f172a33" stroke-width="2"/>
+    <g id="needle">
+      <path d="M0,-38 L11,4 L0,-3 L-11,4 Z" fill="#dc2626"/>
+      <path d="M0,38 L11,4 L0,-3 L-11,4 Z" fill="#94a3b8"/>
+    </g>
+    <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
+  </svg>
+  <div id="note">Concept visualisation · layout scaled from the design screenshots; heights, tilt &amp; module size assumed — verify on site · v2</div>
+</div>
+
+<div id="ui">
+  <button class="play" id="play">▶ Walk-around</button>
+  <button data-view="aerial">Aerial</button>
+  <button data-view="plan">Top view</button>
+  <button data-view="elevated">Elevated array</button>
+  <button data-view="terrace">Terrace</button>
+  <button data-view="ground">Ground</button>
+  <button id="tgLabels" class="on">Labels</button>
+  <button id="tgBos" class="on">Structure</button>
+</div>
+<div id="help">Drag to rotate · right-drag / two fingers to pan · scroll / pinch to zoom</div>
+
+<script>/*__THREE__*/</script>
+<script>
+(function () {
+'use strict';
+var VERSION = 'v2';
+var Q = new URLSearchParams(location.search);
+var CAPTURE = Q.has('capture');
+if (CAPTURE) document.body.classList.add('capture');
+
+// ======================================================================= site data (metres)
+// Measured off the owner's design screenshots (top view, north assumed up, 1042 x 1010 px). Numbers in px are
+// positions on that top view. SCALE: one module bay (1134 mm module + 20 mm gap) measures 69.5 px -> 60.2 px/m.
+var SCALE = 60.2, CX = 571.5, CY = 469.5;
+function P(px, py, h) { return new THREE.Vector3((px - CX) / SCALE, h || 0, (py - CY) / SCALE); }
+var ROOF = 6.85;              // ASSUMED: G+1 -> 0.45 m plinth + 2 floors x 3.2 m (top of roof slab)
+var PARAPET = 0.9;            // ASSUMED 3 ft parapet on the main roof
+var ROOM_H = 3.0;             // ASSUMED terrace room (stair cabin) height above the main roof slab
+var TILT = THREE.MathUtils.degToRad(10);   // ASSUMED 10°, modules facing south
+var MOD_W = 1.134, MOD_L = 2.278, MOD_T = 0.035, GAP = 0.02;   // ASSUMED module size (bay ratio 2.0 in the screenshot)
+var CLEAR = 0.45;             // module lower edge above the surface it stands on (terrace-room roof)
+var HOUSE = [252, 97, 891, 842];          // roof outline x0, y0, x1, y1 (px)
+var ROOM = [505, 495, 870, 792];          // terrace room
+// tables: 2 modules deep (portrait), north row = 0. skip = [row, col] bays left without a module
+var TABLES = [
+  { id: 'L', x: [265, 482], y: [505, 790], cols: 3, rows: 2, skip: [], elevated: true },   // 6 modules, elevated over the main roof
+  { id: 'R', x: [518, 867], y: [500, 786], cols: 5, rows: 2, skip: [[0, 1]], elevated: false }, // 9 modules on the terrace-room roof
+];
+
+// ======================================================================= renderer / scene
+var canvas = document.getElementById('c');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: CAPTURE });
+renderer.setPixelRatio(CAPTURE ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 2000);
+
+// sky dome (also used to build the reflection environment, so the glass reflects a real sky)
+function skyMesh(radius) {
+  var g = new THREE.SphereGeometry(radius, 48, 24);
+  var pos = g.attributes.position, col = [];
+  var top = new THREE.Color('#4f86cc'), hor = new THREE.Color('#e4ecf2'), gnd = new THREE.Color('#9c977f');
+  for (var i = 0; i < pos.count; i++) {
+    var y = pos.getY(i) / radius, c = new THREE.Color();
+    if (y >= 0) c.copy(hor).lerp(top, Math.pow(Math.min(1, y / 0.9), 0.55));
+    else c.copy(hor).lerp(gnd, Math.min(1, -y * 8));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+}
+scene.add(skyMesh(900));
+(function () {
+  var envScene = new THREE.Scene();
+  envScene.add(skyMesh(50));
+  var pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+})();
+scene.fog = new THREE.Fog('#dfe7ee', 160, 700);
+
+scene.add(new THREE.HemisphereLight('#dceaff', '#8a826c', 0.55));
+var sun = new THREE.DirectionalLight('#fff4e2', 2.6);
+// late-morning sun from the south-east (Vadodara ~22°N): az 125°, elevation 52°
+(function () {
+  var az = THREE.MathUtils.degToRad(125), el = THREE.MathUtils.degToRad(52), d = 120;
+  sun.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d);
+})();
+sun.castShadow = true;
+sun.shadow.mapSize.set(CAPTURE ? 4096 : 2048, CAPTURE ? 4096 : 2048);
+var sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 20; sc.far = 260;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun); scene.add(sun.target);
+
+// ======================================================================= procedural textures
+function canvasTex(w, h, draw, rx, ry) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  var t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx || 1, ry || 1);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+// module face: 6 x 22 half-cut cells (132-cell 625 Wp TOPCon), silver frame lip, white backsheet gaps
+var panelTex = canvasTex(240, 482, function (g, w, h) {
+  g.fillStyle = '#d7dbe0'; g.fillRect(0, 0, w, h);
+  var fr = 7; g.fillStyle = '#e9edf2'; g.fillRect(fr, fr, w - 2 * fr, h - 2 * fr);
+  var cols = 6, rows = 22, gx = 2, gy = 2, mid = 6;
+  var cw = (w - 2 * fr - 8 - (cols - 1) * gx) / cols, ch = (h - 2 * fr - 8 - (rows - 1) * gy - mid) / rows;
+  for (var i = 0; i < cols; i++) for (var j = 0; j < rows; j++) {
+    var x = fr + 4 + i * (cw + gx), y = fr + 4 + j * (ch + gy) + (j >= rows / 2 ? mid : 0);
+    var gr = g.createLinearGradient(x, y, x + cw, y + ch);
+    gr.addColorStop(0, '#15213d'); gr.addColorStop(1, '#0b1226');
+    g.fillStyle = gr; g.fillRect(x, y, cw, ch);
+    g.fillStyle = '#3a4a6e';
+    for (var b = 1; b <= 3; b++) g.fillRect(x + b * cw / 4 - 0.5, y, 1, ch);   // busbars
+  }
+});
+var roofTex = canvasTex(16, 64, function (g, w, h) {           // trapezoidal sheet ribs, one rib per tile
+  g.fillStyle = '#d8d3c8'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#efebe3'; g.fillRect(0, 0, w, 10);
+  g.fillStyle = '#b9b3a6'; g.fillRect(0, 10, w, 4);
+  g.fillStyle = '#c9c3b7'; g.fillRect(0, 44, w, 3);
+}, 1, 12);           // sheet ribs on the fresh-air-unit shed
+function wallTex(rx, ry) {
+  return canvasTex(64, 16, function (g, w, h) {                // vertical cladding ribs
+    g.fillStyle = '#c4ccd4'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#dde3e9'; g.fillRect(0, 0, 14, h);
+    g.fillStyle = '#9fa9b3'; g.fillRect(14, 0, 4, h);
+    g.fillStyle = '#b3bcc6'; g.fillRect(40, 0, 2, h);
+  }, rx, ry);
+}
+var shutterTex = canvasTex(8, 32, function (g, w, h) {
+  for (var y = 0; y < h; y += 4) { g.fillStyle = '#8f99a3'; g.fillRect(0, y, w, 3); g.fillStyle = '#6d7680'; g.fillRect(0, y + 3, w, 1); }
+}, 1, 30);
+var gratingTex = canvasTex(32, 32, function (g, w, h) {
+  g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#c9ced3';
+  for (var i = 0; i < w; i += 8) g.fillRect(i, 0, 3, h);
+  for (var j = 0; j < h; j += 8) g.fillRect(0, j, w, 2);
+}, 1, 1);
+var groundTex = canvasTex(256, 256, function (g, w, h) {
+  g.fillStyle = '#a39b7c'; g.fillRect(0, 0, w, h);
+  var r = mulberry(7);
+  for (var i = 0; i < 3500; i++) {
+    var v = r();
+    g.fillStyle = v < 0.33 ? '#8f8a63' : v < 0.66 ? '#b2a98a' : '#7f8a55';
+    g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 3);
+  }
+}, 60, 60);
+var concreteTex = canvasTex(128, 128, function (g, w, h) {
+  g.fillStyle = '#bdb8ae'; g.fillRect(0, 0, w, h);
+  var r = mulberry(3);
+  for (var i = 0; i < 1500; i++) { g.fillStyle = r() < 0.5 ? '#b2ada3' : '#c7c2b8'; g.fillRect(r() * w, r() * h, 1.5, 1.5); }
+  g.fillStyle = '#a19c93'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h);   // 3 m panel joints
+}, 1, 1);
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ======================================================================= materials
+var M = {
+  glass: new THREE.MeshPhysicalMaterial({ map: panelTex, roughness: 0.3, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.12, envMapIntensity: 0.55 }),
+  frame: new THREE.MeshStandardMaterial({ color: '#c7ccd3', metalness: 0.85, roughness: 0.35 }),
+  back:  new THREE.MeshStandardMaterial({ color: '#e8e8e4', roughness: 0.8 }),
+  rail:  new THREE.MeshStandardMaterial({ color: '#b8bec6', metalness: 0.8, roughness: 0.4 }),
+  roof:  new THREE.MeshStandardMaterial({ map: roofTex, metalness: 0.45, roughness: 0.5 }),
+  trim:  new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.6, roughness: 0.45 }),
+  plinth:new THREE.MeshStandardMaterial({ color: '#a59f94', roughness: 0.95 }),
+  shutter:new THREE.MeshStandardMaterial({ map: shutterTex, metalness: 0.5, roughness: 0.5 }),
+  walk:  new THREE.MeshStandardMaterial({ map: gratingTex, color: '#fcd34d', metalness: 0.2, roughness: 0.7 }),
+  tray:  new THREE.MeshStandardMaterial({ color: '#aeb6bf', metalness: 0.75, roughness: 0.35 }),
+  ground:new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1 }),
+  concrete:new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.95 }),
+  cwall: new THREE.MeshStandardMaterial({ color: '#e6dccb', roughness: 0.95 }),
+  inv:   new THREE.MeshStandardMaterial({ color: '#f4f5f6', roughness: 0.45 }),
+  invFace:new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.4 }),
+  acdb:  new THREE.MeshStandardMaterial({ color: '#c9cdd2', roughness: 0.55, metalness: 0.2 }),
+  red:   new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.5 }),
+  copper:new THREE.MeshStandardMaterial({ color: '#b8733a', metalness: 0.8, roughness: 0.35 }),
+  steel: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.85, roughness: 0.3 }),
+  pit:   new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.7 }),
+  ladder:new THREE.MeshStandardMaterial({ color: '#facc15', metalness: 0.3, roughness: 0.5 }),
+  trunk: new THREE.MeshStandardMaterial({ color: '#6b4f3a', roughness: 1 }),
+  leaf:  new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true }),
+  cable: new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.6 }),
+};
+
+function box(w, h, d, mat, cast, recv) {
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = cast !== false; m.receiveShadow = recv !== false;
+  return m;
+}
+function tube(points, r, mat) {          // straight-segment cable / conductor through world points
+  var path = new THREE.CurvePath();
+  for (var i = 0; i < points.length - 1; i++) path.add(new THREE.LineCurve3(points[i], points[i + 1]));
+  var m = new THREE.Mesh(new THREE.TubeGeometry(path, points.length * 8, r, 8, false), mat);
+  m.castShadow = true; return m;
+}
+
+var site = new THREE.Group(), bos = new THREE.Group();   // bos = module support structures (toggle)
+scene.add(site); scene.add(bos);
+
+// ======================================================================= ground, garden, compound wall
+var plaster = new THREE.MeshStandardMaterial({ color: '#f2f0eb', roughness: 0.85 });
+var greyPl = new THREE.MeshStandardMaterial({ color: '#8d8f91', roughness: 0.8 });
+var stoneTex = canvasTex(128, 128, function (g, w, h) {
+  g.fillStyle = '#7d7468'; g.fillRect(0, 0, w, h);
+  var r = mulberry(9), y = 0;
+  while (y < h) { var rh = 10 + r() * 8, x = -r() * 30; while (x < w) { var rw = 26 + r() * 30, v = 100 + r() * 40;
+    g.fillStyle = 'rgb(' + (v + 15 | 0) + ',' + (v + 8 | 0) + ',' + (v | 0) + ')'; g.fillRect(x + 1, y + 1, rw - 2, rh - 2); x += rw; } y += rh; }
+}, 3, 3);
+var stoneMat = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.95 });
+var timber = new THREE.MeshStandardMaterial({ color: '#8a5a34', roughness: 0.7 });
+var blackMat = new THREE.MeshStandardMaterial({ color: '#1d1f22', roughness: 0.5, metalness: 0.3 });
+var glassMat = new THREE.MeshStandardMaterial({ color: '#2a3b4c', roughness: 0.08, metalness: 0.4, envMapIntensity: 1.2 });
+var tileTex = canvasTex(64, 64, function (g, w, h) { g.fillStyle = '#d8d3c9'; g.fillRect(0, 0, w, h); g.fillStyle = '#c2bcb1'; g.fillRect(0, 0, w, 2); g.fillRect(0, 0, 2, h); }, 1, 1);
+var lawnTex = canvasTex(256, 256, function (g, w, h) {
+  g.fillStyle = '#7d9a55'; g.fillRect(0, 0, w, h);
+  var r = mulberry(5);
+  for (var i = 0; i < 4000; i++) { var v = r(); g.fillStyle = v < 0.4 ? '#6f8c4a' : v < 0.8 ? '#8aa862' : '#9a9a6a'; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
+}, 30, 30);
+var HB = { x0: P(HOUSE[0], 0).x, x1: P(HOUSE[2], 0).x, z0: P(0, HOUSE[1]).z, z1: P(0, HOUSE[3]).z };
+var TREES = [];                         // hidden in the elevation stills (views with notrees: true)
+(function () {
+  var g = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), M.ground); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; site.add(g);
+  var cx0 = HB.x0 - 4, cx1 = HB.x1 + 4, cz0 = HB.z0 - 3.5, cz1 = HB.z1 + 7;
+  var lawn = new THREE.Mesh(new THREE.PlaneGeometry(cx1 - cx0, cz1 - cz0), new THREE.MeshStandardMaterial({ map: lawnTex, roughness: 1 }));
+  lawn.rotation.x = -Math.PI / 2; lawn.position.set((cx0 + cx1) / 2, 0.015, (cz0 + cz1) / 2); lawn.receiveShadow = true; site.add(lawn);
+  var drive = new THREE.Mesh(new THREE.PlaneGeometry(4, cz1 - HB.z1), M.concrete); M.concrete.map.repeat.set(1.3, 2.3);
+  drive.rotation.x = -Math.PI / 2; drive.position.set(HB.x0 + 2.6, 0.03, (HB.z1 + cz1) / 2); drive.receiveShadow = true; site.add(drive);
+  var h = 1.8, t = 0.23, gate0 = HB.x0 + 0.4, gate1 = HB.x0 + 4.8;
+  [[cx0, cz0, cx1, cz0], [cx0, cz0, cx0, cz1], [cx1, cz0, cx1, cz1], [cx0, cz1, gate0, cz1], [gate1, cz1, cx1, cz1]].forEach(function (s) {
+    var len = Math.hypot(s[2] - s[0], s[3] - s[1]), v = s[0] === s[2];
+    var w = box(v ? t : len, h, v ? len : t, plaster); w.position.set((s[0] + s[2]) / 2, h / 2, (s[1] + s[3]) / 2); site.add(w);
+    var c = box(v ? t + 0.06 : len + 0.06, 0.06, v ? len + 0.06 : t + 0.06, greyPl); c.position.set((s[0] + s[2]) / 2, h + 0.03, (s[1] + s[3]) / 2); site.add(c);
+  });
+  var gate = box(gate1 - gate0, 1.6, 0.06, new THREE.MeshStandardMaterial({ color: '#4b5058', metalness: 0.5, roughness: 0.5 })); gate.position.set((gate0 + gate1) / 2, 0.85, cz1); site.add(gate);
+  var r = mulberry(31), spots = [];
+  for (var i = 0; i < 5; i++) spots.push([cx0 - 3.5 - r() * 5, cz0 + 2 + i * 5.5]);
+  for (i = 0; i < 5; i++) spots.push([cx1 + 3.5 + r() * 5, cz0 + 1 + i * 5.5]);
+  for (i = 0; i < 4; i++) spots.push([cx0 + 3 + i * 6, cz0 - 4 - r() * 3]);
+  spots.push([cx1 - 1.6, cz1 - 2.2]);                         // one tree inside the garden, south-east corner
+  var trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.15, 0.24, 1, 7), M.trunk, spots.length);
+  var leaves = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), M.leaf, spots.length * 2);
+  trunks.castShadow = leaves.castShadow = true;
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3(), col = new THREE.Color();
+  spots.forEach(function (p, k) {
+    var th = 2.4 + r() * 2.2, cr = 1.6 + r() * 1.3;
+    m4.compose(p3.set(p[0], th / 2, p[1]), q.identity(), s3.set(1, th, 1)); trunks.setMatrixAt(k, m4);
+    for (var j = 0; j < 2; j++) {
+      q.setFromEuler(new THREE.Euler(r(), r() * 6, r()));
+      m4.compose(p3.set(p[0] + (r() - 0.5) * 1.1, th + cr * (0.55 + j * 0.5), p[1] + (r() - 0.5) * 1.1), q, s3.set(cr * (1 - j * 0.25), cr * 0.8, cr * (1 - j * 0.25)));
+      leaves.setMatrixAt(k * 2 + j, m4); leaves.setColorAt(k * 2 + j, col.setHSL(0.24 + r() * 0.06, 0.38, 0.24 + r() * 0.08));
+    }
+  });
+  site.add(trunks); site.add(leaves); TREES.push(trunks, leaves);
+})();
+
+// ======================================================================= the house: G+1, contemporary (representative design)
+(function () {
+  var x0 = HB.x0, x1 = HB.x1, z0 = HB.z0, z1 = HB.z1, W = x1 - x0, D = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  var body = box(W, ROOF, D, plaster); body.position.set(cx, ROOF / 2, cz); site.add(body);
+  var pl = box(W + 0.1, 0.45, D + 0.1, greyPl); pl.position.set(cx, 0.225, cz); site.add(pl);
+  [[3.35, 0.32], [ROOF - 0.12, 0.2]].forEach(function (b) {          // slab bands: first floor and roof
+    var s = box(W + 2 * b[1], 0.24, D + 2 * b[1], plaster); s.position.set(cx, b[0], cz); site.add(s);
+  });
+  // roof: tiles + parapet with coping
+  var tf = box(W - 0.4, 0.02, D - 0.4, new THREE.MeshStandardMaterial({ map: tileTex, roughness: 0.9 })); tf.position.set(cx, ROOF + 0.01, cz); tf.castShadow = false; site.add(tf);
+  tileTex.repeat.set(W / 0.6, D / 0.6);
+  [[cx, z0 + 0.1, W, 0.2], [cx, z1 - 0.1, W, 0.2], [x0 + 0.1, cz, 0.2, D], [x1 - 0.1, cz, 0.2, D]].forEach(function (p) {
+    var w = box(p[2], PARAPET, p[3], plaster); w.position.set(p[0], ROOF + PARAPET / 2, p[1]); site.add(w);
+    var c = box(p[2] + 0.06, 0.05, p[3] + 0.06, greyPl); c.position.set(p[0], ROOF + PARAPET + 0.025, p[1]); site.add(c);
+  });
+  function win(x, y, z, w, h, face) {           // framed window on a face: 's', 'n', 'e', 'w'
+    var dz = face === 's' ? 1 : face === 'n' ? -1 : 0, dx = face === 'e' ? 1 : face === 'w' ? -1 : 0, alongX = dz !== 0;
+    var f = box(alongX ? w + 0.12 : 0.06, h + 0.12, alongX ? 0.06 : w + 0.12, blackMat); f.position.set(x + dx * 0.03, y, z + dz * 0.03); site.add(f);
+    var g = box(alongX ? w : 0.05, h, alongX ? 0.05 : w, glassMat); g.position.set(x + dx * 0.06, y, z + dz * 0.06); site.add(g);
+    var m = box(alongX ? 0.04 : 0.06, h, alongX ? 0.06 : 0.04, blackMat); m.position.set(x + dx * 0.07, y, z + dz * 0.07); site.add(m);
+  }
+  // south: stone feature wall with the entrance, big glass sliding wall on GF, long box window on FF
+  var stone = box(3.2, ROOF - 0.45, 0.1, stoneMat); stone.position.set(x0 + 1.6, 0.45 + (ROOF - 0.45) / 2, z1 + 0.05); site.add(stone);
+  stoneTex.repeat.set(3.2 / 1.2, (ROOF - 0.45) / 1.2);
+  var door = box(1.2, 2.4, 0.08, timber); door.position.set(x0 + 1.6, 0.45 + 1.2, z1 + 0.12); site.add(door);
+  var canopy = box(2.6, 0.18, 1.6, plaster); canopy.position.set(x0 + 1.6, 3.0, z1 + 0.8); site.add(canopy);
+  win(cx + 1.6, 0.45 + 1.35, z1, 5.4, 2.5, 's');
+  var bw = box(6.4, 1.9, 0.6, greyPl); bw.position.set(cx + 1.6, 5.15, z1 + 0.3); site.add(bw);               // box-window surround
+  win(cx + 1.6, 5.15, z1 + 0.6, 6.0, 1.5, 's');
+  // east: GF windows + FF timber louvre screen
+  win(x1, 1.9, cz - 3, 1.8, 1.5, 'e'); win(x1, 1.9, cz + 2.5, 1.8, 1.5, 'e');
+  win(x1, 5.15, cz - 0.5, 5.0, 2.0, 'e');
+  for (var k = 0; k < 16; k++) { var sl = box(0.12, 2.6, 0.06, timber); sl.position.set(x1 + 0.25, 5.1, cz - 3.1 + k * 0.35); site.add(sl); }
+  var lr = box(0.12, 0.08, 5.8, timber); lr.position.set(x1 + 0.25, 6.42, cz - 0.5); site.add(lr);
+  // west + north
+  [[cz - 3.5], [cz + 1.5]].forEach(function (z) { win(x0, 1.9, z[0], 1.4, 1.5, 'w'); win(x0, 5.15, z[0], 1.4, 1.5, 'w'); });
+  win(cx - 2, 1.9, z0, 2.6, 1.5, 'n'); win(cx + 2.5, 5.15, z0, 3.4, 1.4, 'n'); win(cx - 3, 5.3, z0, 0.9, 0.6, 'n');
+  // terrace room (stair cabin) on the main roof, glass door to the open terrace (north)
+  var a = P(ROOM[0], ROOM[1]), b = P(ROOM[2], ROOM[3]);
+  var room = box(b.x - a.x, ROOM_H, b.z - a.z, plaster); room.position.set((a.x + b.x) / 2, ROOF + ROOM_H / 2, (a.z + b.z) / 2); site.add(room);
+  var rc = box(b.x - a.x + 0.12, 0.15, b.z - a.z + 0.12, greyPl); rc.position.set((a.x + b.x) / 2, ROOF + ROOM_H + 0.075, (a.z + b.z) / 2); site.add(rc);
+  var dr = box(1.4, 2.3, 0.06, timber); dr.position.set(a.x + 1.4, ROOF + 1.15, a.z - 0.03); site.add(dr);
+  var df = box(1.72, 2.36, 0.04, blackMat); df.position.set(a.x + 1.4, ROOF + 1.18, a.z - 0.01); site.add(df);
+  win(a.x, ROOF + 1.6, (a.z + b.z) / 2, 1.2, 1.0, 'w');
+})();
+
+// ======================================================================= module tables + structures (structure in "bos" for the toggle)
+var tableInfo = {};
+(function () {
+  var legMat = new THREE.MeshStandardMaterial({ color: '#b8bec6', metalness: 0.8, roughness: 0.35 });
+  var pedMat = new THREE.MeshStandardMaterial({ color: '#a8a39a', roughness: 0.95 });
+  var geo = new THREE.BoxGeometry(MOD_W, MOD_T, MOD_L), mats = [M.frame, M.frame, M.glass, M.back, M.frame, M.frame];
+  var total = TABLES.reduce(function (s, t) { return s + t.rows * t.cols - t.skip.length; }, 0);
+  if (total !== 15) console.error('module count is ' + total + ', expected 15');
+  var mods = new THREE.InstancedMesh(geo, mats, total); mods.castShadow = mods.receiveShadow = true;
+  var m4 = new THREE.Matrix4(), k = 0, sinT = Math.sin(TILT), cosT = Math.cos(TILT), tanT = Math.tan(TILT);
+  var q = new THREE.Quaternion().setFromEuler(new THREE.Euler(TILT, 0, 0)), one = new THREE.Vector3(1, 1, 1);
+  var roomTop = ROOF + ROOM_H + 0.15;
+  TABLES.forEach(function (T) {
+    var c = P((T.x[0] + T.x[1]) / 2, (T.y[0] + T.y[1]) / 2);
+    var Lh = T.rows * (MOD_L + GAP) / 2, Wd = T.cols * (MOD_W + GAP);
+    var floor = T.elevated ? ROOF : roomTop;                       // what the legs stand on
+    var low = roomTop + CLEAR;                                     // both tables share one plane height (as in the design)
+    var hc = low + Lh * sinT + (MOD_T / 2) / cosT;                 // module-centre height at the table centre
+    for (var r = 0; r < T.rows; r++) for (var cc = 0; cc < T.cols; cc++) {
+      if (T.skip.some(function (s) { return s[0] === r && s[1] === cc; })) continue;
+      var zl = (r - (T.rows - 1) / 2) * (MOD_L + GAP), xl = (cc - (T.cols - 1) / 2) * (MOD_W + GAP);
+      m4.compose(new THREE.Vector3(c.x + xl, hc + -zl * sinT, c.z + zl * cosT), q, one); mods.setMatrixAt(k++, m4);
+    }
+    // structure (v2, owner: "reduce the number of legs; the ones on the lower terrace take on the wall and the parapet only")
+    // modules on purlins (E-W) on rafters (N-S, under every module joint) on two E-W beams (front + back) on the supports
+    var zF = c.z + (Lh - 0.35) * cosT, zB = c.z - (Lh - 0.35) * cosT;
+    function hR(z) { return low - 0.12 + (c.z + Lh * cosT - z) * tanT; }    // top of rafter under the modules
+    for (var f = 0; f <= T.cols; f++) {
+      var rx = c.x - Wd / 2 + Math.min(Math.max(f * (MOD_W + GAP), 0.12), Wd - 0.12);
+      var raf = box(0.06, 0.08, 2 * Lh + 0.1, legMat); raf.rotation.x = TILT; raf.position.set(rx, hR(c.z) - 0.04, c.z); bos.add(raf);
+    }
+    for (var pr = 0; pr < T.rows * 2; pr++) {
+      var z = c.z + (-Lh + (pr + 0.5) * Lh) * cosT, pu = box(Wd, 0.06, 0.05, legMat); pu.position.set(c.x, hR(z) + 0.03, z); bos.add(pu);
+    }
+    function beamY(z) { return hR(z) - 0.08 - 0.075; }                // centre of a 150 mm deep beam under the rafters
+    var supports, xA, xB, label;
+    if (T.elevated) {
+      // nothing stands on the lower terrace: posts on the west parapet + short posts on the terrace-room wall
+      xA = HB.x0 + 0.115; xB = P(ROOM[0], 0).x + 0.15;
+      supports = [[xA, ROOF + PARAPET, 0.1], [xB, roomTop, 0.1]];
+    } else {
+      xA = c.x - Wd / 2 + 0.3; xB = c.x + Wd / 2 - 0.3;
+      supports = [[xA, floor, 0.06], [c.x, floor, 0.06], [xB, floor, 0.06]];   // 3 frames x 2 legs = 6 legs
+    }
+    [zF, zB].forEach(function (z) {
+      var yb = beamY(z), beam = box(xB - xA + 0.2, 0.15, 0.1, legMat); beam.position.set((xA + xB) / 2, yb, z); bos.add(beam);
+      supports.forEach(function (sp) {
+        var ph = yb - 0.075 - sp[1];
+        if (ph > 0.02) { var post = box(sp[2], ph, sp[2], legMat); post.position.set(sp[0], sp[1] + ph / 2, z); bos.add(post); }
+        var bp = box(0.26, 0.02, 0.26, legMat); bp.position.set(sp[0], sp[1] + 0.01, z); bos.add(bp);           // anchored base plate
+        if (T.elevated && sp[0] === xA) {                                                              // knee brace post -> beam
+          bos.add(tube([new THREE.Vector3(xA, yb - 0.8, z), new THREE.Vector3(xA + 0.8, yb - 0.075, z)], 0.025, legMat));
+        }
+      });
+    });
+    supports.forEach(function (sp) {                                      // bracing in the N-S plane of each support line
+      var lo = sp[1] + 0.1, hiF = beamY(zF) - 0.15, hiB = beamY(zB) - 0.15;
+      if (hiB - lo < 0.3) return;
+      bos.add(tube([new THREE.Vector3(sp[0], lo, zF), new THREE.Vector3(sp[0], hiB, zB)], 0.022, legMat));
+      if (T.elevated) bos.add(tube([new THREE.Vector3(sp[0], lo, zB), new THREE.Vector3(sp[0], hiF, zF)], 0.022, legMat));
+    });
+    tableInfo[T.id] = { c: c, top: hc, floor: floor, zF: zF, x: xA, post: beamY(zF) - 0.075 - (ROOF + PARAPET) };
+  });
+  site.add(mods);
+})();
+
+// ======================================================================= labels
+var LABELS = {
+  tl: { p: tableInfo.L.c.clone().setY(tableInfo.L.top + 1.3), t: 'Elevated array', s: '6 modules · 2 × 3 portrait' },
+  tr: { p: tableInfo.R.c.clone().setY(tableInfo.R.top + 1.3), t: 'Terrace-room roof', s: '9 modules · 2 × 5, one bay open' },
+  legs: { p: new THREE.Vector3(tableInfo.L.x, ROOF + PARAPET + 1.2, tableInfo.L.zF), t: 'On the parapet + terrace-room wall', s: 'No legs on the lower terrace · posts ≈ ' + (tableInfo.L.post * 3.281).toFixed(0) + ' ft on the parapet' },
+  room: { p: P(690, 495, ROOF + ROOM_H + 0.3), t: 'Terrace room', s: '≈ 3 m (assumed)' },
+  terrace: { p: P(570, 260, ROOF + 0.6), t: 'Open terrace', s: 'North part of the roof kept free' },
+  gap: { p: P(622, 570, ROOF + ROOM_H + 1.2), t: 'Bay left open', s: 'As in the design' },
+  height: { p: P(891, 300, ROOF * 0.55), t: 'Ground + 1', s: 'Roof ≈ 6.9 m (assumed)' },
+};
+var labelBox = document.getElementById('labels');
+Object.keys(LABELS).forEach(function (k) {
+  var d = document.createElement('div'); d.className = 'lbl';
+  d.innerHTML = LABELS[k].t + (LABELS[k].s ? '<small>' + LABELS[k].s + '</small>' : '');
+  labelBox.appendChild(d); LABELS[k].el = d;
+});
+var labelsOn = true, visibleLabels = null;    // null = all
+var tmpV = new THREE.Vector3();
+function updateLabels() {
+  var w = canvas.clientWidth, h = canvas.clientHeight;
+  Object.keys(LABELS).forEach(function (k) {
+    var L = LABELS[k], show = labelsOn && (!visibleLabels || visibleLabels.indexOf(k) >= 0);
+    if (show) {
+      tmpV.copy(L.p).project(camera);
+      var dist = camera.position.distanceTo(L.p);
+      show = tmpV.z < 1 && Math.abs(tmpV.x) < 0.95 && Math.abs(tmpV.y) < 0.92 && dist < 140;
+      if (show) { L.el.style.left = ((tmpV.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - tmpV.y) / 2 * h - 14) + 'px'; }
+    }
+    L.el.style.display = show ? 'block' : 'none';
+  });
+}
+
+// ======================================================================= compass (projects true north on screen)
+var needle = document.getElementById('needle'), nlabel = document.getElementById('nlabel');
+var cTarget = new THREE.Vector3();
+function updateCompass() {
+  var a = cTarget.clone().project(camera), b = cTarget.clone().add(new THREE.Vector3(0, 0, -5)).project(camera);
+  var ang = Math.atan2((b.x - a.x) * camera.aspect, b.y - a.y);   // 0 = north is screen-up, clockwise positive
+  if (!isFinite(ang)) ang = 0;
+  needle.setAttribute('transform', 'rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')');
+  nlabel.setAttribute('x', (Math.sin(ang) * 39).toFixed(1)); nlabel.setAttribute('y', (-Math.cos(ang) * 39).toFixed(1));
+}
+
+// ======================================================================= captions
+var capEl = document.getElementById('caption'), capT = capEl.querySelector('.t'), capS = capEl.querySelector('.s');
+function setCaption(t, s) { capT.textContent = t || ''; capS.textContent = s || ''; capEl.style.opacity = t ? 1 : 0; }
+
+// ======================================================================= views (stills + buttons)
+var VIEWS = {
+  aerial:    { p: [20, 17, 24],   t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the south-east'], lab: ['tl', 'tr'] },
+  aerialnw:  { p: [-20, 18, -22], t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the north-west — open terrace in front'], lab: ['terrace', 'room'] },
+  plan:      { p: [0, 40, 3],     t: [0, 7, -0.3],  cap: ['Top view · north ↑', 'Same layout as the design: 6 elevated + 9 on the terrace room'], lab: ['tl', 'tr', 'gap'] },
+  elevated:  { p: [-3.3, 8.45, -4.6], t: [-3.3, 9.4, 2.4], cap: ['Under the elevated array', 'Carried on the west parapet and the terrace-room wall — the lower terrace floor stays clear'], lab: ['legs'] },
+  terrace:   { p: [-4.4, 8.6, -5.5], t: [1.2, 9.2, 2.2], cap: ['On the open terrace', 'Terrace room and both arrays seen from the north-west corner'], lab: ['room', 'tl', 'tr'] },
+  ground:    { p: [-8.6, 1.7, 12.6], t: [0, 6.6, 0], fov: 62,   cap: ['Approach view', 'From the gate at eye level'], lab: [] },
+  aerialne:  { p: [21, 17, -21],  t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the north-east'], lab: ['room'] },
+  aerialsw:  { p: [-21, 16, 22],  t: [0, 6, 0],     cap: ["Architect's Residence — 15 modules", 'Aerial view from the south-west — elevated array in front'], lab: ['tl', 'legs'] },
+  southelev: { p: [0, 12, 75],    t: [0, 6.0, 0], fov: 14, notrees: true, cap: ['South elevation', 'Both arrays face south at 10°, at the terrace-room roof level'], lab: [] },
+  eastelev:  { p: [75, 12, 0],    t: [0, 6.2, 0], fov: 15, notrees: true, cap: ['East elevation', 'Terrace-room array on top; the elevated array stands behind it at the same level'], lab: [] },
+  planclean: { p: [0, 40, 3],     t: [0, 7, -0.3],  cap: ['Top view · north ↑', '15 modules'], lab: [] },
+};
+
+// ======================================================================= walk-around camera path (seconds) — in-viewer tour only (no video made yet)
+// keyframes: [t, pos, target, stop?]  — cubic Hermite through them, zero velocity where stop = true
+var KF = [];
+function kf(t, p, tg, stop, vel) {    // vel: fixed velocity [x,y,z] m/s for both pos and target (straight walk)
+  KF.push({ t: t, p: new THREE.Vector3().fromArray(p), g: new THREE.Vector3().fromArray(tg), stop: !!stop, vel: vel ? new THREE.Vector3().fromArray(vel) : null });
+}
+kf(0, [36, 28, 42], [0, 5, 0], true);
+(function () {                         // 360° orbit, starting and ending in the south-east
+  var r = 30, h = 16, a0 = Math.atan2(24, 20), n = 12, t0 = 5, dur = 15;
+  for (var i = 0; i <= n; i++) {
+    var a = a0 - i / n * Math.PI * 2;
+    kf(t0 + i / n * dur, [Math.cos(a) * r, h + Math.sin(i / n * Math.PI) * 3, Math.sin(a) * r], [0, 6.5, 0]);
+  }
+})();
+kf(24, [0, 40, 3], [0, 7, -0.3], true);
+kf(27, [0, 37, 2.8], [0, 7, -0.3], true);
+kf(31, [-4.4, 8.6, -5.5], [1.2, 9.2, 2.2], true);
+kf(34, [-4.0, 8.6, -5.1], [1.2, 9.2, 2.2], true);
+kf(37, [-3.3, 8.45, -4.6], [-3.3, 9.4, 2.4], true);
+kf(40, [-3.3, 8.45, -3.6], [-3.3, 9.4, 2.4], true);
+kf(44, [-21, 16, 22], [0, 6, 0]);
+kf(47, [-20, 15, 21], [0, 6, 0], true);
+var DURATION = 47;
+(function tangents() {
+  ['p', 'g'].forEach(function (k) {
+    for (var i = 0; i < KF.length; i++) {
+      var m = new THREE.Vector3();
+      if (KF[i].vel) m.copy(KF[i].vel);
+      else if (!KF[i].stop && i > 0 && i < KF.length - 1) {
+        var a = KF[i][k].clone().sub(KF[i - 1][k]).divideScalar(KF[i].t - KF[i - 1].t);
+        var b = KF[i + 1][k].clone().sub(KF[i][k]).divideScalar(KF[i + 1].t - KF[i].t);
+        m.copy(a).add(b).multiplyScalar(0.5);
+      }
+      KF[i]['m' + k] = m;
+    }
+  });
+})();
+function pathAt(t) {
+  t = Math.max(0, Math.min(DURATION, t));
+  var i = 0; while (i < KF.length - 2 && KF[i + 1].t < t) i++;
+  var A = KF[i], B = KF[i + 1], h = B.t - A.t, s = h > 0 ? (t - A.t) / h : 0;
+  var s2 = s * s, s3 = s2 * s, h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
+  function H(k) { return A[k].clone().multiplyScalar(h00).add(A['m' + k].clone().multiplyScalar(h10 * h)).add(B[k].clone().multiplyScalar(h01)).add(B['m' + k].clone().multiplyScalar(h11 * h)); }
+  return { p: H('p'), g: H('g') };
+}
+var CAPS = [
+  [0, 5, "Architect's Residence", '15 solar modules · elevated structure + terrace-room roof', []],
+  [5, 20, 'Ground + 1 residence', '6 modules on an elevated structure, 9 on the terrace-room roof', ['tl', 'tr', 'height']],
+  [20, 29, 'Top view · north ↑', 'Same layout as the design', ['tl', 'tr', 'gap']],
+  [29, 35, 'On the open terrace', 'North part of the roof kept free', ['room', 'tl', 'tr']],
+  [35, 42, 'Under the elevated array', 'Carried on the parapet and the terrace-room wall — terrace floor clear', ['legs']],
+  [42, 47.1, 'NRG Technologists', '15 modules · elevated rooftop structure', []],
+];
+function captionAt(t) { for (var i = 0; i < CAPS.length; i++) if (t >= CAPS[i][0] && t < CAPS[i][1]) return CAPS[i]; return CAPS[CAPS.length - 1]; }
+
+// ======================================================================= orbit controls (mouse + touch)
+var ctl = { target: new THREE.Vector3(0, 6, 0), r: 70, th: 0.8, ph: 1.0 };
+function setFrom(pos, tg) {
+  ctl.target.copy(tg);
+  var d = pos.clone().sub(tg); ctl.r = d.length();
+  ctl.ph = Math.acos(Math.max(-1, Math.min(1, d.y / ctl.r))); ctl.th = Math.atan2(d.x, d.z);
+}
+function applyCtl() {
+  ctl.ph = Math.max(0.02, Math.min(1.54, ctl.ph)); ctl.r = Math.max(2.5, Math.min(260, ctl.r));
+  var s = Math.sin(ctl.ph);
+  camera.position.set(ctl.target.x + ctl.r * s * Math.sin(ctl.th), ctl.target.y + ctl.r * Math.cos(ctl.ph), ctl.target.z + ctl.r * s * Math.cos(ctl.th));
+  if (camera.position.y < 0.6) camera.position.y = 0.6;
+  camera.lookAt(ctl.target);
+  cTarget.copy(ctl.target);
+}
+var anim = null;       // {from:{p,g}, to:{p,g}, t0, dur} for button fly-to
+var playing = null;    // performance.now() start of a walk-around
+function stopAuto() { anim = null; if (playing !== null) { playing = null; document.getElementById('play').textContent = '▶ Walk-around'; visibleLabels = null; } }
+if (!CAPTURE) {
+  var ptrs = {}, last = null;
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  canvas.addEventListener('pointerdown', function (e) { stopAuto(); canvas.setPointerCapture(e.pointerId); ptrs[e.pointerId] = { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }; last = null; });
+  canvas.addEventListener('pointerup', function (e) { delete ptrs[e.pointerId]; last = null; });
+  canvas.addEventListener('pointercancel', function (e) { delete ptrs[e.pointerId]; last = null; });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = ptrs[e.pointerId]; if (!p) return;
+    var ids = Object.keys(ptrs), dx = e.clientX - p.x, dy = e.clientY - p.y;
+    if (ids.length === 1) {
+      if (p.b === 2 || p.sh) pan(dx, dy); else { ctl.th -= dx * 0.006; ctl.ph -= dy * 0.006; }
+    } else if (ids.length === 2) {
+      var o = ptrs[ids[0] == e.pointerId ? ids[1] : ids[0]];
+      var dist = Math.hypot(e.clientX - o.x, e.clientY - o.y), mid = { x: (e.clientX + o.x) / 2, y: (e.clientY + o.y) / 2 };
+      if (last) { ctl.r *= last.d / dist; pan(mid.x - last.m.x, mid.y - last.m.y); }
+      last = { d: dist, m: mid };
+    }
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  canvas.addEventListener('wheel', function (e) { e.preventDefault(); stopAuto(); ctl.r *= Math.exp(e.deltaY * 0.0012); }, { passive: false });
+}
+function pan(dx, dy) {
+  var k = ctl.r * 0.0016, right = new THREE.Vector3(), fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd); right.crossVectors(fwd, camera.up).normalize();
+  fwd.y = 0; fwd.normalize();
+  ctl.target.addScaledVector(right, -dx * k).addScaledVector(fwd, dy * k);
+}
+function setFov(f) { if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); } }
+function showTrees(on) { TREES.forEach(function (t) { t.visible = on; }); }
+function flyTo(name) {
+  var v = VIEWS[name]; stopAuto(); setFov(42); showTrees(true);
+  anim = { from: { p: camera.position.clone(), g: ctl.target.clone() }, to: { p: new THREE.Vector3().fromArray(v.p), g: new THREE.Vector3().fromArray(v.t) }, t0: performance.now(), dur: 1400 };
+  setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || null;
+}
+
+// ======================================================================= frame / resize
+function resize() {
+  var w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+function setCam(p, g) { camera.position.copy(p); camera.lookAt(g); cTarget.copy(g); }
+function renderNow() { camera.updateMatrixWorld(); updateLabels(); updateCompass(); renderer.render(scene, camera); }
+function applyTime(t) {
+  var s = pathAt(t); setFov(42); showTrees(true); setCam(s.p, s.g);
+  var c = captionAt(t); setCaption(c[2], c[3]); visibleLabels = c[4];
+}
+
+// capture hooks (render.mjs)
+window.__nrg3d = {
+  version: VERSION, duration: DURATION, views: Object.keys(VIEWS),
+  time: function (t) { applyTime(t); renderNow(); return true; },
+  view: function (name) { var v = VIEWS[name]; setFov(v.fov || 42); showTrees(!v.notrees); setCam(new THREE.Vector3().fromArray(v.p), new THREE.Vector3().fromArray(v.t)); setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || []; renderNow(); return true; },
+};
+
+if (CAPTURE) {
+  applyTime(Number(Q.get('t') || 0)); renderNow();
+} else {
+  setFrom(new THREE.Vector3().fromArray(VIEWS.aerial.p), new THREE.Vector3().fromArray(VIEWS.aerial.t));
+  setCaption(VIEWS.aerial.cap[0], 'Drag to look around · tap ▶ Walk-around for the guided tour');
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.addEventListener('click', function () { flyTo(b.dataset.view); }); });
+  document.getElementById('play').addEventListener('click', function () {
+    if (playing !== null) { stopAuto(); return; }
+    anim = null; playing = performance.now(); this.textContent = '■ Stop';
+  });
+  document.getElementById('tgLabels').addEventListener('click', function () { labelsOn = !labelsOn; this.classList.toggle('on', labelsOn); });
+  document.getElementById('tgBos').addEventListener('click', function () { bos.visible = !bos.visible; this.classList.toggle('on', bos.visible); });
+  (function loop(now) {
+    if (playing !== null) {
+      var t = (now - playing) / 1000;
+      if (t > DURATION) { var s = pathAt(DURATION); setFrom(s.p, s.g); stopAuto(); }
+      else { applyTime(t); setFrom(camera.position.clone(), pathAt(t).g); }
+    } else if (anim) {
+      var u = Math.min(1, (now - anim.t0) / anim.dur), e = u * u * (3 - 2 * u);
+      var p = anim.from.p.clone().lerp(anim.to.p, e), g = anim.from.g.clone().lerp(anim.to.g, e);
+      setFrom(p, g); if (u >= 1) anim = null;
+    }
+    if (playing === null) applyCtl();
+    renderNow();
+    requestAnimationFrame(loop);
+  })(performance.now());
+}
+})();
+</script>
+</body>
+</html>

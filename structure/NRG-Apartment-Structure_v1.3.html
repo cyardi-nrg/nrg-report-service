@@ -1,0 +1,1785 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>NRG Apartment Terrace Layout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- NRG Apartment Structure — v1.3 (ladder rafter diagonals, wider leg spacing, ladder purlins, 3D, 2-sheet PDF) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-office sheet — controls strip, key numbers, then stacked views (iso, section, plan, details) */
+:root {
+  --bg: #f3f5f7; --sheet: #ffffff; --fg: #18202a; --muted: #5d6b7a; --rule: #d5dbe2;
+  --steel: #39434f; --panel: #2f5aa8; --panelFill: rgba(47,90,168,.42); --walk: #c98a12; --walkFill: rgba(201,138,18,.35);
+  --dim: #c0392b; --ground: #9aa5b1; --accent: #1d4ed8; --chip: #e8edf3; --ok: #1f7a45; --okBg: #e3f3e9; --badBg: #fbe7e4; --amber: #b7791f; --scene: #e3e7eb; --floor: #c9cfd6; --steel3d: #8e9aa7;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161c; --sheet: #182029; --fg: #e4e9ef; --muted: #93a1b0; --rule: #2c3743;
+  --steel: #c3ccd6; --panel: #6f9cf0; --panelFill: rgba(70,120,215,.45); --walk: #e3a93a; --walkFill: rgba(227,169,58,.30);
+  --dim: #f07a6a; --ground: #5d6b7a; --accent: #7aa7ff; --chip: #222c37; --ok: #5cc98a; --okBg: #173325; --badBg: #3a1f1c; --amber: #e3a93a; --scene: #131a22; --floor: #27313c; --steel3d: #a9b4c0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11161c; --sheet: #182029; --fg: #e4e9ef; --muted: #93a1b0; --rule: #2c3743;
+  --steel: #c3ccd6; --panel: #6f9cf0; --panelFill: rgba(70,120,215,.45); --walk: #e3a93a; --walkFill: rgba(227,169,58,.30);
+  --dim: #f07a6a; --ground: #5d6b7a; --accent: #7aa7ff; --chip: #222c37; --ok: #5cc98a; --okBg: #173325; --badBg: #3a1f1c; --amber: #e3a93a; --scene: #131a22; --floor: #27313c; --steel3d: #a9b4c0; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+header h1 { margin: 0; font-size: 22px; font-weight: 600; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; line-height: 1.5; }
+.ver { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; min-width: 0; }
+.controls { display: grid; gap: 12px; }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.presets button { font: 500 13px var(--sans); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--rule); background: var(--chip); color: var(--fg); cursor: pointer; }
+.presets button[aria-pressed="true"] { background: var(--fg); color: var(--sheet); border-color: var(--fg); }
+.presets button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.field.chk input { width: 20px; height: 20px; margin: 6px 0 0; accent-color: var(--fg); }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+.field select { font: 13px var(--sans); padding: 7px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+.field input { font: 14px var(--mono); padding: 7px 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+.facts { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
+.fact { background: var(--bg); border-radius: 4px; padding: 10px 12px; min-width: 0; }
+.fact .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.fact .v { font: 500 18px var(--mono); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.fact .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+h2 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.cap { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 90ch; }
+.view { overflow-x: auto; }
+.view svg { display: block; width: 100%; height: auto; min-width: 640px; }
+.view.small svg { min-width: 0; }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.assume { font-size: 13px; line-height: 1.6; color: var(--fg); margin: 0; padding-left: 18px; }
+.assume li { margin-bottom: 4px; }
+.warn { color: var(--dim); }
+svg text { font-family: var(--mono); }
+.viewer { position: relative; height: min(64vh, 640px); min-height: 380px; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--scene); touch-action: none; }
+.viewer canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+.labels3d { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; font-size: 11.5px; padding: 2px 7px; border-radius: 3px; background: var(--sheet); color: var(--fg); border: 1px solid var(--rule); }
+.lbl.dim { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.lbl.crit { background: #d8402f; color: #fff; border-color: transparent; font-weight: 600; }
+.lbl.critok { background: #e0a21a; color: #1b1300; border-color: transparent; font-weight: 600; }
+.lbl.compass { font-family: var(--mono); background: transparent; border: none; color: var(--muted); letter-spacing: .08em; }
+.ctrl { position: absolute; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+.ctrl.top { top: 10px; } .ctrl.bottom { bottom: 10px; }
+.seg3 { pointer-events: auto; display: flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--sheet); }
+.seg3 span { font-size: 10.5px; color: var(--muted); padding: 6px 6px 6px 9px; letter-spacing: .05em; text-transform: uppercase; align-self: center; }
+.seg3 button { font: 12.5px var(--sans); border: 0; border-left: 1px solid var(--rule); background: transparent; color: var(--fg); padding: 6px 9px; cursor: pointer; }
+.seg3 button[aria-pressed="true"] { background: var(--fg); color: var(--sheet); }
+.seg3 button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.legend3 { pointer-events: auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 5px 10px; font-size: 11.5px; }
+.legend3 i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -2px; }
+.tb { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 6px; }
+.btn { font: 500 13.5px var(--sans); padding: 9px 14px; border-radius: 4px; border: 1px solid var(--fg); background: var(--fg); color: var(--sheet); cursor: pointer; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btnmsg { font-size: 13px; color: var(--muted); }
+.dwg { display: grid; gap: 14px; }
+.sheet { margin: 0; border: 1px solid var(--rule); border-radius: 4px; overflow-x: auto; background: var(--sheet); }
+.sheet figcaption { font-size: 12px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--rule); }
+.sheet svg { display: block; width: 100%; height: auto; min-width: 700px; }
+.sheet svg text { font-family: Arial, Helvetica, sans-serif; }
+.windline { margin: 12px 0 8px; font-size: 13.5px; line-height: 1.55; max-width: 100ch; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; }
+.rt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 860px; }
+.rt th { text-align: left; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--rule); background: var(--bg); }
+.rt td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.rt tr.grp td { background: var(--bg); font-weight: 600; font-size: 12.5px; padding-top: 10px; }
+.rt tbody tr.row { cursor: pointer; }
+.rt tbody tr.row:hover td { background: var(--chip); }
+.rt tbody tr.row[aria-selected="true"] td { background: var(--chip); box-shadow: inset 0 0 0 0 var(--accent); }
+.rt tbody tr.row[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.rt tbody tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rt .num { text-align: right; font-family: var(--mono); }
+.rt .mem { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.pill.ok { background: var(--okBg); color: var(--ok); } .pill.bad { background: var(--badBg); color: var(--dim); }
+.tag { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--accent); font-weight: 600; }
+.why { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+.detail { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-top: 4px; }
+.detail h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+.bars { display: grid; gap: 7px; }
+.barrow { display: grid; grid-template-columns: 120px 1fr 52px; gap: 10px; align-items: center; font-size: 13px; }
+.bar { height: 9px; background: var(--chip); border-radius: 5px; position: relative; overflow: hidden; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+.bar::after { content: ""; position: absolute; left: 66.6%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+.barrow .pc { text-align: right; font-family: var(--mono); font-size: 12px; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px; }
+.kv span:nth-child(2n) { font-family: var(--mono); text-align: right; }
+@media (max-width: 760px) { .detail { grid-template-columns: 1fr; } .barrow { grid-template-columns: 100px 1fr 46px; } }
+@media (max-width: 900px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .view.small svg { min-width: 0; }
+.twocol { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Apartment terrace structure<span class="ver">v1.3</span></h1>
+    <p>Ladder rafters and ladder legs on high-rise terraces. The tool picks the lightest pipe sizes for each option and shows where it fails. Panel 2.35 × 1.15 m in portrait, 20 mm gaps. Choose one continuous slope or a slope that steps down at every walkway.</p>
+  </header>
+
+  <section class="card controls" aria-label="Inputs">
+    <div class="presets" role="group" aria-label="Example layouts">
+      <button id="p1" type="button" aria-pressed="true">9 rows × 25 · 1 walkway</button>
+      <button id="p2" type="button" aria-pressed="false">12 rows × 20 · 2 walkways</button>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="slope">Slope</label><select id="slope"><option value="one">One continuous slope</option><option value="step">Steps down at each walkway</option></select></div>
+      <div class="field"><label for="wtype">Walkway</label><select id="wtype"><option value="u">Rafter drops into a U</option><option value="straight">Rafter straight, step over</option></select></div>
+      <div class="field"><label for="rows">Rows (up the slope)</label><input id="rows" type="number" min="2" max="20" value="9"></div>
+      <div class="field"><label for="cols">Columns (east–west)</label><input id="cols" type="number" min="2" max="60" value="25"></div>
+      <div class="field"><label for="ww">Walkways</label><input id="ww" type="number" min="0" max="5" value="1"></div>
+      <div class="field"><label for="split">Rows per group</label><input id="split" type="text" placeholder="auto e.g. 4,5"></div>
+      <div class="field"><label for="H">Front leg (m)</label><input id="H" type="number" min="1" max="8" step="0.5" value="4"></div>
+      <div class="field"><label for="wW">Walkway width (m)</label><input id="wW" type="number" min="0.4" max="1.5" step="0.05" value="0.6"></div>
+      <div class="field"><label for="tilt">Tilt (°)</label><input id="tilt" type="number" min="3" max="25" step="1" value="10"></div>
+      <div class="field"><label for="drop">Walkway drop (m)</label><input id="drop" type="number" min="0.2" max="1.5" step="0.05" value="0.5"></div>
+      <div class="field chk"><label for="legU">Leg under each walkway</label><input id="legU" type="checkbox" checked></div>
+      <div class="field"><label for="lat">Latitude (° N)</label><input id="lat" type="number" min="8" max="35" step="0.1" value="22.3"></div>
+    </div>
+  </section>
+
+  <section class="facts" id="facts" aria-label="Key numbers"></section>
+
+  <section class="card" id="card3d"><h2>3D view</h2>
+    <p class="cap">The option picked in the table below, coloured by how hard each part works. Drag to turn, scroll or pinch to zoom, shift-drag or right-drag to move.</p>
+    <div class="viewer" id="viewer">
+      <canvas id="c3d" aria-label="3D model of the selected apartment structure. Drag to rotate, scroll or pinch to zoom."></canvas>
+      <div class="labels3d" id="labels3d"></div>
+      <div class="ctrl top"><div class="legend3"><span><i style="background:#2f9a64"></i>Under 70%</span><span><i style="background:#e0a21a"></i>70–100%</span><span><i style="background:#d8402f"></i>Fails</span><span><i style="background:var(--steel3d)"></i>Not checked</span></div></div>
+      <div class="ctrl bottom">
+        <div class="seg3" role="group" aria-label="Camera"><span>View</span><button type="button" id="v3d" aria-pressed="true">3D</button><button type="button" id="vfront" aria-pressed="false">Front</button><button type="button" id="vside" aria-pressed="false">Side</button><button type="button" id="vtop" aria-pressed="false">Top</button></div>
+        <div class="seg3" role="group" aria-label="Show"><span>Show</span><button type="button" id="tPanels" aria-pressed="true">Panels</button><button type="button" id="tStress" aria-pressed="true">Stress</button><button type="button" id="tLabels" aria-pressed="true">Labels</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="calcCard"><h2>Strength and weight — all options</h2>
+    <p class="cap">For every option the tool tries frame gaps up to 6.5 m and leg spacings up to 10 m, plain or ladder purlins, ladder rafters with rungs only or with a diagonal in every bay, chord and rung sizes (40×40, 60×40, 72×72), ladder depths and rung spacings, and keeps the cheapest that passes: steel weight plus the "each leg costs" figure for every leg (pedestal, base plate, anchors and labour). Leave frame gap and leg spacing empty to let the tool choose, or type your own. Click a row to draw it.</p>
+    <div class="fields">
+      <div class="field"><label for="floors">Building floors</label><input id="floors" type="number" min="0" max="60" value="12"></div>
+      <div class="field"><label for="storeyH">Floor height (m)</label><input id="storeyH" type="number" min="2.5" max="5" step="0.1" value="3"></div>
+      <div class="field"><label for="cat">Surroundings</label><select id="cat"><option value="1">Open sea / flat open</option><option value="2" selected>Open / city edge (cat 2)</option><option value="3">Suburbs, similar buildings (cat 3)</option><option value="4">Dense tall city (cat 4)</option></select></div>
+      <div class="field"><label for="V">Design wind (km/h)</label><input id="V" type="number" min="90" max="220" step="5" value="150"></div>
+      <div class="field"><label for="fy">Pipe grade</label><select id="fy"><option value="210" selected>YSt 210 (not known)</option><option value="240">YSt 240</option><option value="310">YSt 310 (confirmed)</option></select></div>
+      <div class="field"><label for="watt">Panel watts</label><input id="watt" type="number" step="5" value="590"></div>
+      <div class="field"><label for="pkg">Panel kg</label><input id="pkg" type="number" step="0.5" value="30"></div>
+      <div class="field"><label for="plate">Walkway plate kg/m²</label><input id="plate" type="number" step="1" value="24"></div>
+      <div class="field"><label for="LL">People on walkway kN/m²</label><input id="LL" type="number" step="0.25" value="1.5"></div>
+      <div class="field"><label for="rafWeb">Ladder rafter</label><select id="rafWeb"><option value="diag" selected>Rungs + diagonals</option><option value="rungs">Rungs only</option></select></div>
+      <div class="field"><label for="legKg">Each leg costs (kg steel)</label><input id="legKg" type="number" min="0" step="5" value="40"></div>
+      <div class="field"><label for="fGap">Frame gap (m)</label><input id="fGap" type="number" min="1.5" max="8" step="0.1" placeholder="auto"></div>
+      <div class="field"><label for="lSpace">Leg spacing (m)</label><input id="lSpace" type="number" min="2" max="8" step="0.5" placeholder="auto"></div>
+    </div>
+    <p class="windline" id="windLine"></p>
+    <div class="tablewrap"><table class="rt" id="rt"></table></div>
+    <p class="cap" id="calcState"></p>
+    <div class="detail" id="calcDetail"></div>
+  </section>
+
+  <section class="card"><h2>Isometric view</h2>
+    <p class="cap">Looking from the south-west. Panels drawn see-through so the ladder rafters and legs show underneath. Walkways in amber.</p>
+    <div class="view" id="iso"></div>
+    <div class="legend"><span><i style="background:var(--panelFill)"></i>Panels</span><span><i style="background:var(--walkFill);border:1px solid var(--walk)"></i>Walkway</span><span><i style="background:var(--steel)"></i>Ladder rafters and legs</span></div>
+  </section>
+
+  <section class="card"><h2>Section through one frame</h2>
+    <p class="cap" id="secCap"></p>
+    <div class="view" id="sec"></div>
+  </section>
+
+  <section class="card"><h2>Plan</h2>
+    <p class="cap">Looking down. Grey lines are the ladder rafters (frames) under the panels, squares are the legs on pedestals.</p>
+    <div class="view" id="plan"></div>
+  </section>
+
+  <div class="twocol">
+    <section class="card"><h2>Leg types</h2>
+      <p class="cap">A and B are the two ways to turn a ladder leg; box uses four chords with rungs on all four faces. The chosen one is outlined.</p>
+      <div class="view small" id="legs"></div>
+    </section>
+    <section class="card"><h2>Walkway — section through one frame</h2>
+      <p class="cap" id="walkCap"></p>
+      <div class="view small" id="walk"></div>
+    </section>
+  </div>
+
+  <section class="card" id="dwgCard"><h2>Fabrication drawing</h2>
+    <p class="cap">Two A3 sheets for the option picked above. Sheet 1: front elevation, plan, side elevation of a typical frame and an isometric view with panels, at a true scale. Sheet 2: ladder rafter, leg and base plate, walkway section, leg-to-rafter joint, leg schedule, bill of material and design data, with the NRG title block.</p>
+    <div class="tb">
+      <div class="field"><label for="dNo">Drawing no.</label><input id="dNo" type="text" placeholder="auto"></div>
+      <div class="field"><label for="dRev">Rev</label><input id="dRev" type="text" value="0"></div>
+      <div class="field"><label for="dRevTxt">Revision detail</label><input id="dRevTxt" type="text" value="First issue"></div>
+      <div class="field"><label for="dProj">Project / client</label><input id="dProj" type="text" placeholder="e.g. Sky Heights, Tower B"></div>
+      <div class="field"><label for="dDrawn">Drawn by</label><input id="dDrawn" type="text" value="Narayan Chawda"></div>
+      <div class="field"><label for="dChk">Checked by</label><input id="dChk" type="text" value="Chaitanya Yardi"></div>
+      <div class="field"><label for="dApp">Approved by</label><input id="dApp" type="text" value="Narendra Yardi"></div>
+    </div>
+    <div class="btns"><button type="button" class="btn" id="dlPdf">Download PDF (A3, 2 sheets)</button><span class="btnmsg" id="dlMsg" role="status"></span></div>
+    <div class="dwg" id="dwg"></div>
+  </section>
+
+  <section class="card"><h2>Assumed for this layout</h2>
+    <ul class="assume" id="assume"></ul>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// NRG Apartment Structure — calculation engine — v1.2 (ladder rafters with diagonals option, deeper ladders, legs up to 10 m apart)
+// Ladder rafters + ladder legs on high-rise terraces. Same basis as the Designer engine:
+// IS 875-3 wind (k2 for height and terrain), IS 800 member checks without partial factors
+// ("gives way at" basis), buckling curve c, slenderness limit 250, sag limit span/180 at V/sqrt(1.5).
+const AE = 200000; // N/mm2
+function arhs(B, H, t) { // B = width (across), H = depth (in bending plane)
+  const b = B - 2 * t, h = H - 2 * t, A = B * H - b * h;
+  const Ix = (B * H ** 3 - b * h ** 3) / 12, Iy = (H * B ** 3 - h * b ** 3) / 12;
+  return { A, Ix, Iy, Zpx: (B * H * H - b * h * h) / 4, Zpy: (H * B * B - h * b * b) / 4,
+           rx: Math.sqrt(Ix / A), ry: Math.sqrt(Iy / A), kgm: A * 7.85e-3, B, H };
+}
+const ACH = { "40x40x2": arhs(40, 40, 2), "60x40x2": arhs(40, 60, 2), "72x72x2": arhs(72, 72, 2) };
+const APL = 2.35, APW = 1.15, AGAP = 0.02, AOVS = 0.4, APED = 0.3, ARUNG = 600, ARD = 0.2;
+const RAF_GAPS = [75, 100, 150, 200, 250, 300, 400, 500]; // clear gap between rafter chords, mm
+const LEG_GAPS = [150, 200, 300];              // clear gap between leg chords, mm
+const LEG_MAX = [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0]; // largest leg spacing along the rafter, m
+const RUNGS = [150, 200, 300, 450, 600];       // rung spacing, mm
+const RAF_RUNG = ["40x40x2", "60x40x2", "72x72x2"]; // rafter rung section (60 deep in the plane of the rafter)
+const ORIENTS = ["A", "B", "box"];
+
+// ---------- geometry (shared with the layout drawings) ----------
+function aptGeom(o) {
+  // o: rows, cols, nw, split, H, wW, drop, tiltDeg, lat, stepped, wType, legUnder, nr?, legMax?
+  const rows = Math.max(2, Math.round(o.rows || 9)), cols = Math.max(2, Math.round(o.cols || 25));
+  const nw = Math.max(0, Math.min(rows - 1, Math.round(o.nw || 0)));
+  const H = o.H || 4, wW = o.wW || 0.6, t = (o.tiltDeg || 10) * Math.PI / 180, ct = Math.cos(t), sn = Math.sin(t);
+  const drop = Math.max(0.2, o.drop || 0.5), stepped = !!o.stepped, wType = o.wType || "u";
+  const legUnder = !!o.legUnder && !stepped && nw > 0, lat = o.lat || 22.3, legMax = o.legMax || 4.0;
+  let groups = String(o.split || "").split(/[,+ ]+/).map(Number).filter(n => n > 0);
+  if (groups.length !== nw + 1 || groups.reduce((a, b) => a + b, 0) !== rows) {
+    const g = nw + 1, base = Math.floor(rows / g), extra = rows % g;
+    groups = Array.from({ length: g }, (_, i) => base + (i >= g - extra ? 1 : 0)); // spare rows go to the back groups
+  }
+  const rowsS = [], walks = [], gSpans = []; let s = 0;
+  groups.forEach((n, gi) => {
+    const g0 = s;
+    for (let i = 0; i < n; i++) { rowsS.push({ s0: s, s1: s + APL, g: gi }); s += APL + (i < n - 1 ? AGAP : 0); }
+    gSpans.push({ s0: g0, s1: s });
+    if (gi < groups.length - 1) { walks.push({ s0: s, s1: s + wW }); s += wW; }
+  });
+  const L = s, W = cols * APW + (cols - 1) * AGAP;
+  const nr = o.nr || Math.max(2, Math.ceil((W - 0.6) / 2.4) + 1), xs = [];
+  for (let i = 0; i < nr; i++) xs.push(0.3 + i * (W - 0.6) / (nr - 1));
+  const sA = AOVS, sB = L - AOVS;
+  const spanOf = sv => gSpans.find(q => sv >= q.s0 - 1e-6 && sv <= q.s1 + 1e-6) || gSpans.find(q => q.s0 > sv) || gSpans[gSpans.length - 1];
+  const zr = sv => APED + H + (sv - (stepped ? spanOf(sv).s0 : 0) - AOVS) * sn;   // underside of rafter above the roof slab
+  const RDg = o.rd || ARD, PUg = o.puH || 0.045;                                // rafter depth, purlin depth (m)
+  const zP = sv => zr(sv) + RDg + PUg + 0.035;                                  // panel surface
+  const yOf = sv => sv * ct;
+  walks.forEach((w, i) => {
+    w.mid = (w.s0 + w.s1) / 2;
+    w.zW = (stepped ? zP(gSpans[i + 1].s0) : zP(w.s0)) - drop;
+    // a U walkway, or a stepped one on its leg-to-leg cross member, must sit below the underside of the rafter
+    if (stepped) w.zW = Math.min(w.zW, zr(gSpans[i + 1].s0) - 0.02);
+    else if (wType !== "straight") w.zW = Math.min(w.zW, Math.min(zr(w.s0), zr(w.s1)) - 0.02);
+    w.drop = zP(w.s0) - w.zW;
+    w.onTop = !stepped && wType === "straight" && w.zW > Math.min(zr(w.s0), zr(w.s1)) - 0.02;
+    if (w.onTop) w.zW = Math.max(zr(w.s0), zr(w.s1)) + RDg + 0.085;
+    w.zIn = w.zW - 0.085; w.zOut = w.zIn - Math.min(RDg, 0.25);
+    w.stepOver = !stepped && wType === "straight" && !w.onTop ? zr(w.mid) + RDg - w.zW : 0;
+  });
+  // legs: no more than legMax apart; continuous slope may add one under the middle of every walkway
+  const ss = [], pieces = [];
+  const fill = (anchors) => { const out = []; for (let i = 0; i < anchors.length - 1; i++) { const a = anchors[i], b = anchors[i + 1], n = Math.max(1, Math.ceil((b - a) / legMax - 1e-9)); for (let j = 0; j < n; j++) out.push(a + j * (b - a) / n); } out.push(anchors[anchors.length - 1]); return out; };
+  if (stepped) gSpans.forEach(q => { const l = fill([q.s0 + AOVS, q.s1 - AOVS]); ss.push(...l); pieces.push({ s0: q.s0, s1: q.s1, legs: l }); });
+  else { const l = fill([sA, ...(legUnder ? walks.map(w => w.mid) : []), sB]); ss.push(...l); pieces.push({ s0: 0, s1: L, legs: l }); }
+  const alt = (90 - lat - 23.44) * Math.PI / 180;
+  walks.forEach((w, i) => {
+    if (!stepped) { w.shade = 0; return; }
+    const yB = gSpans[i].s1 * ct, zB = zP(gSpans[i].s1), yN = gSpans[i + 1].s0 * ct, zN = zP(gSpans[i + 1].s0), ta = Math.tan(alt), tt = Math.tan(t);
+    const y = (zB - zN + yB * ta + yN * tt) / (ta + tt); w.sun = { yB, zB, y, z: zN + (y - yN) * tt }; w.shade = Math.max(0, (y - yN) / ct);
+  });
+  const walkAt = sv => stepped ? null : walks.find(w => sv > w.s0 - RDg - 1e-6 && sv < w.s1 + RDg + 1e-6);
+  const legTop = sv => { const w = walkAt(sv); return w && !w.onTop ? w.zOut : zr(sv); };
+  const braceOK = (sv, s2) => { const q = spanOf(sv); return s2 >= q.s0 && s2 <= q.s1 && !walkAt(s2); };
+  return { rows, cols, nw, H, wW, drop, legUnder, stepped, wType, lat, alt, t, ct, sn, groups, gSpans, rowsS, walks, L, W, nr, xs, nc: ss.length / (stepped ? 1 : 1), ss, pieces, legMax,
+           zr, zP, yOf, walkAt, legTop, braceOK, Lh: L * ct, spanOf };
+}
+
+// ---------- beam with load varying along its length ----------
+// wf(x) gives the load (N/mm, +down) at x (mm). Returns |M|max (Nmm), |V|max (N), max |deflection| for EI given, reactions (N, +up).
+function beamV(L, sups, wf, EI, extra = []) {
+  const n = 120;
+  let xs = []; for (let i = 0; i <= n; i++) xs.push(L * i / n);
+  xs = xs.concat(sups, extra).map(x => Math.round(x * 1000) / 1000).sort((a, b) => a - b).filter((x, i, a) => i === 0 || x - a[i - 1] > 1e-6);
+  const N = xs.length, D = 2 * N, bw = 4;
+  const K = Array.from({ length: D }, () => new Float64Array(2 * bw + 1)), F = new Float64Array(D);
+  const add = (i, j, v) => { K[i][j - i + bw] += v; };
+  const ke = l => { const c = EI / l ** 3; return [[12, 6 * l, -12, 6 * l], [6 * l, 4 * l * l, -6 * l, 2 * l * l], [-12, -6 * l, 12, -6 * l], [6 * l, 2 * l * l, -6 * l, 4 * l * l]].map(r => r.map(v => v * c)); };
+  const fe = (l, w) => [w * l / 2, w * l * l / 12, w * l / 2, -w * l * l / 12];
+  const wel = []; for (let e = 0; e < N - 1; e++) wel.push(wf((xs[e] + xs[e + 1]) / 2));
+  for (let e = 0; e < N - 1; e++) {
+    const l = xs[e + 1] - xs[e], k = ke(l), idx = [2 * e, 2 * e + 1, 2 * e + 2, 2 * e + 3], f = fe(l, wel[e]);
+    for (let a = 0; a < 4; a++) { F[idx[a]] += f[a]; for (let b = 0; b < 4; b++) add(idx[a], idx[b], k[a][b]); }
+  }
+  const sr = sups.map(x => Math.round(x * 1000) / 1000);
+  const supNodes = sr.map(sv => xs.findIndex(x => Math.abs(x - sv) < 1e-6));
+  const P = 1e6 * EI / Math.min(...xs.slice(1).map((x, i) => x - xs[i])) ** 3;
+  supNodes.forEach(nd => add(2 * nd, 2 * nd, P));
+  for (let i = 0; i < D; i++) {
+    const piv = K[i][bw];
+    for (let r = i + 1; r <= Math.min(D - 1, i + bw); r++) {
+      const f = K[r][i - r + bw] / piv; if (!f) continue;
+      for (let c = i; c <= Math.min(D - 1, i + bw); c++) K[r][c - r + bw] -= f * K[i][c - i + bw];
+      F[r] -= f * F[i];
+    }
+  }
+  const u = new Float64Array(D);
+  for (let i = D - 1; i >= 0; i--) { let s = F[i]; for (let c = i + 1; c <= Math.min(D - 1, i + bw); c++) s -= K[i][c - i + bw] * u[c]; u[i] = s / K[i][bw]; }
+  // recompute element end forces with the original stiffness
+  let Mmax = 0, Vmax = 0, dmax = 0;
+  for (let e = 0; e < N - 1; e++) {
+    const l = xs[e + 1] - xs[e], k = ke(l), idx = [2 * e, 2 * e + 1, 2 * e + 2, 2 * e + 3], f = fe(l, wel[e]);
+    const end = r => k[r].reduce((s, v, j) => s + v * u[idx[j]], 0) - f[r];
+    const v1 = end(0), m1 = end(1), m2 = end(3);
+    Mmax = Math.max(Mmax, Math.abs(m1), Math.abs(m2), Math.abs(m1 - v1 * l / 2 + wel[e] * l * l / 8));
+    Vmax = Math.max(Vmax, Math.abs(v1), Math.abs(v1 - wel[e] * l));
+  }
+  for (let i = 0; i < N; i++) dmax = Math.max(dmax, Math.abs(u[2 * i]));
+  const R = supNodes.map(nd => P * u[2 * nd]);
+  return { Mmax, Vmax, dmax, R };
+}
+function aLayout(L, nSup, a) { // purlin: equal spans with end overhang a (mm), unit load, EI = 1
+  const sups = []; for (let i = 0; i < nSup; i++) sups.push(a + i * (L - 2 * a) / (nSup - 1));
+  return { ...beamV(L, sups, () => 1, 1), a, sups };
+}
+const afcd = (fy, lam) => {
+  const fcc = Math.PI ** 2 * AE / lam ** 2, ln = Math.sqrt(fy / fcc), phi = 0.5 * (1 + 0.49 * (ln - 0.2) + ln * ln);
+  return Math.min(fy, fy / (phi + Math.sqrt(phi * phi - ln * ln)));
+};
+// IS 875-3:2015 Table 2, k2 by height (m) and terrain category 1-4
+const K2H = [10, 15, 20, 30, 50, 100, 150];
+const K2T = { 1: [1.05, 1.09, 1.12, 1.15, 1.20, 1.26, 1.30], 2: [1.00, 1.05, 1.07, 1.12, 1.17, 1.24, 1.28],
+              3: [0.91, 0.97, 1.01, 1.06, 1.12, 1.20, 1.24], 4: [0.80, 0.80, 0.80, 0.97, 1.10, 1.20, 1.24] };
+function k2Of(z, cat) {
+  const row = K2T[cat] || K2T[2];
+  if (z <= K2H[0]) return row[0];
+  for (let i = 1; i < K2H.length; i++) if (z <= K2H[i]) return row[i - 1] + (row[i] - row[i - 1]) * (z - K2H[i - 1]) / (K2H[i] - K2H[i - 1]);
+  return row[row.length - 1];
+}
+
+// ---------- member checks ----------
+const R40 = ACH["40x40x2"];
+// Purlin sections: plain pipe, or ladder "L:<chord>:<gap>:<upright spacing>" (two chords one above the other, 40x40 uprights)
+const PURLINS = ["40x40x2", "60x40x2"];
+for (const ch of ["40x40x2", "60x40x2"]) for (const gp of [75, 100, 125, 150, 200]) for (const ua of [200, 300, 500]) PURLINS.push("L:" + ch + ":" + gp + ":" + ua);
+function purlinSec(id) {
+  if (!id.startsWith("L:")) { const c = ACH[id]; return { id, ladder: false, c, B: c.B, H: c.H, kgm: c.kgm, name: id.replace(/x/g, "×") }; }
+  const [, ch, gp, ua] = id.split(":"), c = ACH[ch], gap = +gp, a = +ua;
+  return { id, ladder: true, ch, c, gap, a, d: c.H + gap, B: c.B, H: 2 * c.H + gap, kgm: 2 * c.kgm + (gap / 1000) * R40.kgm / (a / 1000),
+           name: "Ladder 2×" + ch.replace(/x/g, "×") + ", " + gap + " gap, uprights @" + a };
+}
+// Lateral buckling of the free chord of a ladder whose other chord is held (by panels or purlins):
+// the 40x40 uprights act as U-frames, an elastic foundation of stiffness 3EI/h^3 per upright (Ncr = 2 sqrt(beta E I)).
+function uFrameLam(c, gap, a) {
+  const h = gap + c.H, k = 3 * AE * R40.Ix / h ** 3, beta = k / a, Ncr = 2 * Math.sqrt(beta * AE * c.Iy);
+  return Math.max(a / c.ry, Math.PI * Math.sqrt(AE * c.A / Ncr));
+}
+function rafterCheck(ch, gap, a, F, fy, rung) {
+  // F: Mdn, Vdn, Mup, Vup (Nmm, N), dUnit (mm per N/mm, EI=1), ws (N/mm), span (mm), Lb (mm, unbraced bottom chord under uplift)
+  const c = ACH[ch], d = c.H + gap, Ib = 2 * (c.Ix + c.A * (d / 2) ** 2), Mc = c.Zpx * fy, Mr = ACH[rung || "40x40x2"].Zpx * fy;
+  const lamTop = Math.max(a / c.rx, 1175 / c.ry), lamBot = Math.max(a / c.rx, Math.min(F.Lb / c.ry, uFrameLam(c, gap, a)));
+  const one = (M, V, lam) => { const N = M / d, Ml = V * a / 4; return Math.max(N / (c.A * afcd(fy, lam)) + Ml / Mc, N / (c.A * fy) + Ml / Mc); };
+  const uStr = Math.max(one(F.Mdn, F.Vdn, lamTop), one(F.Mup, F.Vup, lamBot), Math.max(F.Vdn, F.Vup) * a / 2 / Mr);
+  const dB = F.dUnit * F.ws / (AE * Ib), dS = F.ws * F.span * F.span * a * a / (192 * AE * 2 * c.Ix);
+  const lam = Math.max(lamTop, lamBot);
+  return { u: lam > 250 ? Math.max(uStr, 1.01) : uStr, defl: (dB + dS) / (F.span / 180), lam, d, Ib };
+}
+// Ladder rafter with a 40x40 diagonal in every bay (a truss): chords take M/d only, diagonals take V, rungs take V.
+function trussCheck(ch, gap, a, F, fy, dg) {
+  const c = ACH[ch], D = ACH[dg], d = c.H + gap, Ib = 2 * (c.Ix + c.A * (d / 2) ** 2), ld = Math.hypot(a, d), sn = d / ld;
+  const lamTop = Math.max(a / c.rx, 1175 / c.ry), lamBot = Math.max(a / c.rx, Math.min(F.Lb / c.ry, uFrameLam(c, gap, a)));
+  const chord = (M, lam) => Math.max(M / d / (c.A * afcd(fy, lam)), M / d / (c.A * fy));
+  const V = Math.max(F.Vdn, F.Vup), lamD = ld / Math.min(D.rx, D.ry), lamR = d / R40.ry;
+  const uStr = Math.max(chord(F.Mdn, lamTop), chord(F.Mup, lamBot), V / sn / (D.A * afcd(fy, lamD)), V / (R40.A * afcd(fy, lamR)));
+  const lam = Math.max(lamTop, lamBot, lamD);
+  const dB = F.dUnit * F.ws / (AE * Ib) * 1.1;   // +10% for the truss web
+  return { u: lam > 250 ? Math.max(uStr, 1.01) : uStr, defl: dB / (F.span / 180), lam, d, Ib };
+}
+function legCheck(orient, ch, gap, a, h, Ndn, Nup, Vns, Vew, fy) {
+  // h m; N kN (+ = that direction: Ndn compression, Nup tension); V kN shear at the leg
+  const c = ACH[ch], nch = orient === "box" ? 4 : 2, d = c.B + gap, H = h * 1000;
+  const Mns = Vns * h / 2, Mew = Vew * h;                      // kNm: N-S rigid top (knee braces), E-W free cantilever
+  let u = 0, lamMax = 0;
+  [["NS", Mns, Vns, 1.2], ["EW", Mew, Vew, 2.0]].forEach(([dir, M, V, K]) => {
+    const built = orient === "box" || (orient === "A" && dir === "EW") || (orient === "B" && dir === "NS");
+    if (built) {
+      const Ib = nch * c.Iy + nch * c.A * (d / 2) ** 2, rb = Math.sqrt(Ib / (nch * c.A));
+      const lam = 1.1 * K * H / rb, lam1 = a / Math.min(c.rx, c.ry), side = nch / 2;   // chords on each side of the bending axis
+      const Fm = M * 1e6 / d / side, Ml = (V * 1000 / nch) * a / 2, planes = nch === 4 ? 2 : 1;
+      const comp = Ndn * 1e3 / (nch * c.A * afcd(fy, lam)) + Fm / (c.A * afcd(fy, lam1)) + Ml / (c.Zpy * fy);
+      const tens = Nup * 1e3 / (nch * c.A * fy) + Fm / (c.A * fy) + Ml / (c.Zpy * fy);
+      const rung = (V * 1000 / planes) * a / 2 / (R40.Zpx * fy);
+      u = Math.max(u, comp, tens, rung); lamMax = Math.max(lamMax, lam, lam1);
+    } else {
+      const lam = K * H / c.rx, Mcap = nch * c.Zpx * fy;
+      const comp = Ndn * 1e3 / (nch * c.A * afcd(fy, lam)) + M * 1e6 / Mcap, tens = Nup * 1e3 / (nch * c.A * fy) + M * 1e6 / Mcap;
+      u = Math.max(u, comp, tens); lamMax = Math.max(lamMax, lam);
+    }
+  });
+  return { u: lamMax > 250 ? Math.max(u, 1.01) : u, uRaw: u, lam: lamMax };
+}
+const legKgm = (orient, ch, gap, a) => { const c = ACH[ch], nch = orient === "box" ? 4 : 2, planes = orient === "box" ? 4 : 1; return nch * c.kgm + planes * (gap / 1000) * R40.kgm / (a / 1000); };
+const rafKgm = (ch, gap, a = 600, rung = "40x40x2") => 2 * ACH[ch].kgm + (gap / 1000) * ACH[rung].kgm / (a / 1000);
+
+// ---------- one scenario, one geometry ----------
+function aptLoads(inp, g) {
+  const V = inp.V, zTop = Math.max(...g.gSpans.map(q => g.zP(q.s1)));
+  const z = inp.floors * inp.storeyH + zTop, k2 = k2Of(z, inp.cat);
+  const q = 0.6 * (V / 3.6 * k2) ** 2 / 1000, qs = q / 1.5;   // kN/m2
+  return { z, k2, q, qs };
+}
+function aptEvalGeom(inp, g, W) {
+  const fy = inp.fy, t = g.t, { q, qs } = W;
+  const DL = inp.panelKg * 9.81 / 1000 / (APL * APW) + 0.04;         // kN/m2 panels + purlins
+  const DLw = inp.plateKg * 9.81 / 1000, LL = inp.LL;                 // walkway plate, people
+  const CpF = 1.3, CpP = 1.5, CpDn = 0.8;
+  // purlins (2 per panel row, continuous east-west over the frames)
+  const pl = aLayout(g.W * 1000, g.nr, 300), spacing = (g.W - 0.6) / (g.nr - 1), tribP = APL / 2;
+  const wP = Math.max(q * CpP - DL * Math.cos(t), q * CpDn + DL) * tribP;
+  const purl = PURLINS.map(k => {
+    const P = purlinSec(k), c = P.c, ws = qs * CpP * tribP, span = spacing * 1000;
+    let u, defl;
+    if (!P.ladder) { u = pl.Mmax * wP / (c.Zpx * fy); defl = pl.dmax * ws / (AE * c.Ix) / (span / 180); }
+    else {
+      // Vierendeel ladder: chords take M/d plus local bending V.a/4; uprights take V.a/2; free chord held by U-frame action
+      const M = pl.Mmax * wP, V = pl.Vmax * wP, N = M / P.d, Ml = V * P.a / 4, Mc = c.Zpx * fy;
+      const lam = Math.max(P.a / c.rx, uFrameLam(c, P.gap, P.a));
+      u = Math.max(N / (c.A * afcd(fy, lam)) + Ml / Mc, N / (c.A * fy) + Ml / Mc, V * P.a / 2 / (R40.Zpx * fy));
+      const Ib = 2 * (c.Ix + c.A * (P.d / 2) ** 2);
+      defl = (pl.dmax * ws / (AE * Ib) + ws * span * span * P.a * P.a / (192 * AE * 2 * c.Ix)) / (span / 180);
+    }
+    return { k, P, u, defl, kg: 2 * g.rows * (g.W + 0.04) * P.kgm };
+  }).sort((a, b) => a.kg - b.kg);
+  const purlin = purl.find(p => p.u <= 1 && p.defl <= 1) || purl.reduce((a, b) => Math.max(a.u, a.defl) <= Math.max(b.u, b.defl) ? a : b);
+  const tribF = Math.max(...pl.R) / 1000;                             // m of roof per frame
+  // rafter pieces: loads per mm along the slope (N/mm, +down)
+  const inWalk = x => g.walks.some(w => x / 1000 > w.s0 && x / 1000 < w.s1);
+  const wDn = x => (inWalk(x) ? (DLw + Math.max(LL, q * CpDn)) : (DL + q * CpDn)) * tribF;
+  const wUp = x => -(inWalk(x) ? (q * CpF - DLw * Math.cos(t)) : (q * CpF - DL * Math.cos(t))) * tribF;
+  let F = { Mdn: 0, Vdn: 0, Mup: 0, Vup: 0, dUnit: 0, span: 0, M1: 0 }; const legs = [];
+  g.pieces.forEach(pc => {
+    const Lp = (pc.s1 - pc.s0) * 1000, sups = pc.legs.map(s => (s - pc.s0) * 1000);
+    const ex = g.walks.flatMap(w => [w.s0, w.s1]).map(s => (s - pc.s0) * 1000).filter(x => x > 0 && x < Lp);
+    const sh = x => x + pc.s0 * 1000;
+    const dn = beamV(Lp, sups, x => wDn(sh(x)), 1, ex), up = beamV(Lp, sups, x => wUp(sh(x)), 1, ex), un = beamV(Lp, sups, () => 1, 1, ex);
+    const spans = sups.slice(1).map((v, i) => v - sups[i]);
+    F.Mdn = Math.max(F.Mdn, dn.Mmax); F.Vdn = Math.max(F.Vdn, dn.Vmax); F.Mup = Math.max(F.Mup, up.Mmax); F.Vup = Math.max(F.Vup, up.Vmax);
+    F.M1 = Math.max(F.M1, un.Mmax); F.dUnit = Math.max(F.dUnit, un.dmax); F.span = Math.max(F.span, ...spans, sups[0], Lp - sups[sups.length - 1]);
+    // N-S horizontal force on this piece, shared by its legs by stiffness (1/h^3)
+    const hs = pc.legs.map(s => g.legTop(s) - APED), kk = hs.map(h => 1 / h ** 3), sk = kk.reduce((a, b) => a + b, 0);
+    const Hns = q * CpF * tribF * (pc.s1 - pc.s0) * Math.sin(t);
+    pc.legs.forEach((s, i) => legs.push({ s, h: hs[i], Ndn: dn.R[i] / 1000, Nup: Math.max(0, -up.R[i] / 1000), Vns: Hns * kk[i] / sk }));
+  });
+  F.Lb = Math.max(700, F.span - 1400); F.ws = qs * CpF * tribF;
+  // E-W wind on the whole array, shared by every leg by stiffness (1/h^3)
+  const allH = []; for (let i = 0; i < g.nr; i++) legs.forEach(l => allH.push(l.h));
+  const Few = q * (0.05 * g.W * g.L + 0.24 * g.L + 1.2 * 0.32 * g.L * (1 + 0.25 * (g.nr - 1)) + allH.reduce((s, h) => s + 1.2 * 0.12 * (h + APED), 0));
+  const skEW = allH.reduce((s, h) => s + 1 / h ** 3, 0);
+  legs.forEach(l => { l.Vew = Few * (1 / l.h ** 3) / skEW; });
+  // rafter: lightest chord + depth that passes
+  const rafOpts = [];
+  for (const ch of ["40x40x2", "60x40x2", "72x72x2"]) for (const gap of RAF_GAPS) for (const a of RUNGS) for (const rung of RAF_RUNG) {
+    const kgm = rafKgm(ch, gap, a, rung), wself = kgm * 9.81 / 1000;    // N/mm
+    const r = rafterCheck(ch, gap, a, { ...F, Mdn: F.Mdn + wself * F.M1 }, fy, rung);
+    rafOpts.push({ ch, gap, a, rung, kgm, ...r });
+  }
+  if (inp.rafDiag) for (const ch of ["40x40x2", "60x40x2", "72x72x2"]) for (const gap of RAF_GAPS) for (const a of [300, 450, 600, 800]) for (const dg of ["40x40x2", "60x40x2"]) {
+    const d = ACH[ch].H + gap, kgm = rafKgm(ch, gap, a) + Math.hypot(a, d) / 1000 * ACH[dg].kgm / (a / 1000), wself = kgm * 9.81 / 1000;
+    const r = trussCheck(ch, gap, a, { ...F, Mdn: F.Mdn + wself * F.M1 }, fy, dg);
+    rafOpts.push({ ch, gap, a, rung: "40x40x2", diag: dg, kgm, ...r });
+  }
+  const pick = (opts, key) => { const ok = opts.filter(o => o.u <= 1 && (o.defl == null || o.defl <= 1)).sort((a, b) => a[key] - b[key]); return ok[0] || opts.reduce((a, b) => Math.max(a.u, a.defl || 0) <= Math.max(b.u, b.defl || 0) ? a : b); };
+  const raf = pick(rafOpts, "kgm");
+  // rafter length per frame (+ U turn-downs), walkway steel per frame
+  const Lraf = g.pieces.reduce((s, p) => s + (p.s1 - p.s0), 0);
+  let rafLen = Lraf, wkKgFrame = 0;
+  if (!g.stepped && g.wType === "u") rafLen += g.walks.length * 2 * (g.drop + 0.1);
+  g.walks.forEach(w => {
+    if (g.stepped) wkKgFrame += (2 * AOVS + g.wW) * rafKgm("40x40x2", 100);
+    else if (g.wType === "straight" && !w.onTop) wkKgFrame += 2 * (w.zW > 0 ? Math.max(0.1, g.zr(w.mid) - w.zIn) : 0.3) * R40.kgm + g.wW * rafKgm("40x40x2", 100);
+    else if (g.wType === "straight") wkKgFrame += g.wW * R40.kgm;
+  });
+  // walkway pipes: two per walkway spanning frame to frame, plate + people, or a 1 kN foot; lightest that passes
+  const wPipe = (DLw + LL) * g.wW / 2, sp = spacing;
+  const wpOpts = ["40x40x2", "60x40x2", "72x72x2"].map(k => ({ k, u: Math.max(wPipe * sp * sp / 10, 1.0 * sp / 4 * 0.8 + DLw * g.wW / 2 * sp * sp / 10) * 1e6 / (ACH[k].Zpx * fy) }));
+  const wpipe = wpOpts.find(o => o.u <= 1) || wpOpts[wpOpts.length - 1];
+  const wkPipes = g.walks.length * 2 * g.W * ACH[wpipe.k].kgm;
+  // walkway pipes: two 40x40 spanning frame to frame, plate + people, or a 1 kN foot
+  const uWalk = g.nw ? wpipe.u : 0;
+  // knee braces: two at every leg, one at the ends of each piece, none at legs under a walkway
+  let knees = 0; g.pieces.forEach(p => p.legs.forEach((s, i) => { if (g.walkAt(s)) return; knees += (i === 0 || i === p.legs.length - 1) ? 1 : 2; }));
+  const kgCommon = { purlin: purlin.kg, rafter: g.nr * rafLen * raf.kgm, knee: g.nr * knees * 1.0 * R40.kgm, walkway: g.nr * wkKgFrame + wkPipes };
+  // legs per orientation
+  const out = {};
+  for (const orient of ORIENTS) {
+    const opts = [];
+    for (const ch of ["40x40x2", "60x40x2", "72x72x2"]) for (const gap of LEG_GAPS) for (const a of RUNGS) {
+      let u = 0, uRaw = 0, lam = 0, worst = 0;
+      legs.forEach((l, i) => { const r = legCheck(orient, ch, gap, a, l.h, l.Ndn, l.Nup, l.Vns, l.Vew, fy); if (r.u > u) { u = r.u; worst = i; } uRaw = Math.max(uRaw, r.uRaw); lam = Math.max(lam, r.lam); });
+      const kgm = legKgm(orient, ch, gap, a);
+      opts.push({ ch, gap, a, kgm, u, uRaw, lam, worst, kg: g.nr * legs.reduce((s, l) => s + l.h, 0) * kgm });
+    }
+    const leg = pick(opts, "kg");
+    const kg = { ...kgCommon, legs: leg.kg }, total = Object.values(kg).reduce((a, b) => a + b, 0);
+    const util = { purlin: purlin.u, purlinDefl: purlin.defl, rafter: raf.u, rafterDefl: raf.defl, legs: leg.u, walkway: uWalk };
+    const gov = Object.entries(util).sort((a, b) => b[1] - a[1])[0][0];
+    const uStr = Math.max(purlin.u, raf.u > 1 && raf.lam > 250 ? 0 : raf.u, leg.uRaw, uWalk);
+    out[orient] = { orient, nr: g.nr, legMax: g.legMax, spacing, nc: legs.length, pedestals: g.nr * legs.length, purlin: purlin.k, wpipe: wpipe.k, raf, leg, util, gov,
+      pass: Math.max(...Object.values(util)) <= 1, slender: leg.lam > 250 || raf.lam > 250, kg, total, tallest: Math.max(...legs.map(l => l.h)),
+      uplift: Math.max(...legs.map(l => l.Nup)), maxSpan: F.span / 1000, legs, worstLeg: legs[leg.worst], bendSpeed: inp.V / Math.sqrt(Math.max(uStr, 1e-6)), tribF };
+  }
+  return out;
+}
+
+// ---------- search: lightest passing design per leg orientation ----------
+function aptDesign(inp, scen) {
+  const base = aptGeom({ ...inp, ...scen });
+  const Wl = aptLoads(inp, base);
+  // frame gap and leg spacing: fixed by the user, or searched (frames up to 6.5 m apart, legs up to 7 m)
+  const fixNr = inp.frameGap > 0 ? Math.max(2, Math.ceil((base.W - 0.6) / inp.frameGap - 1e-9) + 1) : 0;
+  const nrMin = fixNr || Math.max(2, Math.ceil((base.W - 0.6) / 6.5) + 1), nrMax = fixNr || Math.max(nrMin, Math.ceil((base.W - 0.6) / 1.8) + 1);
+  const legList = inp.legSpace > 0 ? [inp.legSpace] : LEG_MAX, legKg = inp.legKg || 0;
+  const score = c => c.total + legKg * c.pedestals;   // each leg also costs a pedestal, plate, anchors and labour
+  const best = {};
+  for (const legMax of legList) for (let nr = nrMin; nr <= nrMax; nr++) {
+    const g = aptGeom({ ...inp, ...scen, nr, legMax });
+    const r = aptEvalGeom(inp, g, Wl);
+    for (const o of ORIENTS) {
+      const c = r[o], b = best[o];
+      const better = !b || (c.pass && !b.pass) || (c.pass === b.pass && (c.pass ? score(c) < score(b) : Math.max(...Object.values(c.util)) < Math.max(...Object.values(b.util))));
+      if (better) best[o] = c;
+    }
+  }
+  const kW = base.rows * base.cols * inp.watt / 1000;
+  ORIENTS.forEach(o => { best[o].score = score(best[o]); best[o].kgkW = best[o].total / kW; best[o].kW = kW; best[o].plateKg = base.nw * base.W * base.wW * inp.plateKg; });
+  return { scen, wind: Wl, best, kW };
+}
+
+
+// NRG Apartment Structure — fabrication drawings — v1.2 (ladder rafter diagonals)
+// Two A3 sheets in first-angle projection with the NRG title block:
+//   Sheet 1 GENERAL ARRANGEMENT: front elevation, plan, side elevation (typical frame), isometric with panels.
+//   Sheet 2 DETAILS: ladder rafter, ladder leg + base plate, walkway section, rafter-to-leg joint, leg schedule, bill of material, design data, notes.
+// Primitives: L line, T text, C circle, F filled rect, Q filled polygon, I image. Units: sheet 1 model mm (scale S), sheet 2 paper mm (S = 1).
+const APTDRAW = (function () {
+  const SCALES = [50, 75, 100, 125, 150, 200, 250, 300, 400, 500];
+
+  // One frame of ladder rafter (and the walkway steel tied to it) as line segments in (y, z) metres.
+  // seg(y1, z1, y2, z2, kind): kind 1 = chord / main member, 0.6 = rung or short piece.
+  // kind 0.5 = diagonal in a ladder bay (when diag is true)
+  function rafterLines(g, seg, rd, a, diag) {
+    rd = rd || 0.2; a = a || 0.6;
+    let cuts;
+    if (g.stepped) cuts = g.gSpans.flatMap(q => [q.s0, q.s1]);
+    else if (g.wType === "straight") cuts = [0, g.L];
+    else { cuts = [0]; g.walks.forEach(w => cuts.push(w.s0, w.s1)); cuts.push(g.L); }
+    for (let i = 0; i < cuts.length; i += 2) {
+      const p = cuts[i], q = cuts[i + 1];
+      seg(g.yOf(p), g.zr(p), g.yOf(q), g.zr(q), 1); seg(g.yOf(p), g.zr(p) + rd, g.yOf(q), g.zr(q) + rd, 1);
+      const n = Math.max(1, Math.round((q - p) / a));
+      for (let k = 0; k <= n; k++) { const sv = p + (q - p) * k / n; seg(g.yOf(sv), g.zr(sv), g.yOf(sv), g.zr(sv) + rd, 0.6); }
+      if (diag) for (let k = 0; k < n; k++) { const s1 = p + (q - p) * k / n, s2 = p + (q - p) * (k + 1) / n, up = k % 2 === 0;
+        seg(g.yOf(up ? s1 : s2), g.zr(up ? s1 : s2), g.yOf(up ? s2 : s1), g.zr(up ? s2 : s1) + rd, 0.5); }
+    }
+    const cross = (ya, yb, w, single) => {
+      seg(ya, w.zIn, yb, w.zIn, 1); if (single) return;
+      seg(ya, w.zOut, yb, w.zOut, 1);
+      const nb = Math.max(1, Math.round((yb - ya) / 0.3)); for (let k = 0; k <= nb; k++) { const y = ya + (yb - ya) * k / nb; seg(y, w.zOut, y, w.zIn, 0.6); }
+    };
+    if (g.stepped) { g.walks.forEach(w => cross(g.yOf(w.s0 - 0.4), g.yOf(w.s1 + 0.4), w)); return; }
+    if (g.wType === "straight") {
+      g.walks.forEach(w => {
+        const ya = g.yOf(w.s0), yb = g.yOf(w.s1);
+        if (w.onTop) { cross(ya, yb, w, true); return; }
+        seg(ya, g.zr(w.s0), ya, w.zOut, 1); seg(yb, g.zr(w.s1), yb, w.zOut, 1);
+        cross(ya, yb, w);
+      });
+      return;
+    }
+    g.walks.forEach(w => {
+      const yi0 = g.yOf(w.s0), yi1 = g.yOf(w.s1), yo0 = yi0 - rd, yo1 = yi1 + rd;
+      seg(yi0, g.zr(w.s0) + rd, yi0, w.zIn, 1); seg(yi0, w.zIn, yi1, w.zIn, 1); seg(yi1, w.zIn, yi1, g.zr(w.s1) + rd, 1);
+      seg(yo0, g.zr(w.s0 - rd), yo0, w.zOut, 1); seg(yo0, w.zOut, yo1, w.zOut, 1); seg(yo1, w.zOut, yo1, g.zr(w.s1 + rd), 1);
+      seg(yo0, g.zr(w.s0 - rd), yi0, g.zr(w.s0), 1); seg(yi1, g.zr(w.s1), yo1, g.zr(w.s1 + rd), 1);
+      for (let z = w.zIn; z <= g.zr(w.s0) + 1e-6; z += Math.max(0.15, (g.zr(w.s0) - w.zIn) / 2)) seg(yo0, z, yi0, z, 0.6);
+      for (let z = w.zIn; z <= g.zr(w.s1) + 1e-6; z += Math.max(0.15, (g.zr(w.s1) - w.zIn) / 2)) seg(yi1, z, yo1, z, 0.6);
+      const nb = Math.max(1, Math.round((yi1 - yi0) / 0.3)); for (let k = 0; k <= nb; k++) { const y = yi0 + (yi1 - yi0) * k / nb; seg(y, w.zOut, y, w.zIn, 0.6); }
+    });
+  }
+
+  // ---------- shared sizes derived from the chosen design ----------
+  function parts(g, b, inp) {
+    const C = ACH[b.leg.ch], RC = ACH[b.raf.ch], PU = purlinSec(b.purlin), RG = ACH[b.raf.rung || "40x40x2"], WP = ACH[b.wpipe || "40x40x2"];
+    const d = C.B + b.leg.gap;                                  // leg chord centres, mm
+    let ew, ns, chordsAt;
+    if (b.orient === "A") { ew = d + C.B; ns = C.H; chordsAt = [[-d / 2, 0], [d / 2, 0]]; }
+    else if (b.orient === "B") { ew = C.H; ns = d + C.B; chordsAt = [[0, -d / 2], [0, d / 2]]; }
+    else { ew = d + C.B; ns = d + C.H; chordsAt = [[-d / 2, -d / 2], [d / 2, -d / 2], [d / 2, d / 2], [-d / 2, d / 2]]; }
+    const chEW = b.orient === "B" ? C.H : C.B, chNS = b.orient === "B" ? C.B : C.H;
+    const up = b.uplift;
+    const plateEW = Math.ceil((ew + 120) / 25) * 25, plateNS = Math.ceil((ns + 120) / 25) * 25;
+    const plateT = up <= 8 ? 10 : up <= 16 ? 12 : 16, bolt = up / 4 <= 3 ? 12 : up / 4 <= 6 ? 16 : 20;
+    const pedEW = Math.max(450, Math.ceil((plateEW + 150) / 50) * 50), pedNS = Math.max(450, Math.ceil((plateNS + 150) / 50) * 50);
+    const rD = 2 * RC.H + b.raf.gap;                            // rafter overall depth, mm
+    const legs = g.ss.map((s, i) => ({ mark: "L" + (i + 1), s, h: (g.legTop(s) - 0.3) * 1000, under: !!g.walkAt(s) }));
+    const rD_ = (2 * RC.H + b.raf.gap) / 1000;
+    const pz = sv => g.zP(sv);                                // top of panel, m (geometry built with the real rafter and purlin depths)
+    return { pz, RG, WP, C, RC, PU, d, ew, ns, chordsAt, chEW, chNS, plateEW, plateNS, plateT, bolt, pedEW, pedNS, rD, legs };
+  }
+
+  // ---------- bill of material (whole array) ----------
+  function bom(g, b, inp) {
+    const K = parts(g, b, inp), R40 = ACH["40x40x2"], nr = g.nr;
+    const raf = b.raf, leg = b.leg, nch = b.orient === "box" ? 4 : 2, planes = b.orient === "box" ? 4 : 1;
+    let rafLen = g.pieces.reduce((s, p) => s + (p.s1 - p.s0), 0);
+    if (!g.stepped && g.wType === "u") rafLen += g.walks.length * 2 * (g.drop + 0.1);
+    const rungsRaf = nr * Math.round(rafLen / (raf.a / 1000) + g.pieces.length), baysRaf = nr * Math.round(g.pieces.reduce((s, p) => s + (p.s1 - p.s0), 0) / (raf.a / 1000));
+    const legH = K.legs.reduce((s, l) => s + l.h / 1000, 0);
+    const rungsLeg = nr * K.legs.reduce((s, l) => s + Math.floor(l.h / leg.a), 0) * planes;
+    let knees = 0; g.pieces.forEach(p => p.legs.forEach((s, i) => { if (g.walkAt(s)) return; knees += (i === 0 || i === p.legs.length - 1) ? 1 : 2; }));
+    const rows = [];
+    const add = (mark, descr, sec, qty, len, kgm) => rows.push({ mark, descr, sec, qty, len, m: qty * len, kg: qty * len * kgm });
+    if (K.PU.ladder) {
+      add("P1", "Ladder purlin chord, continuous E-W (2 purlins per panel row)", K.PU.ch, 2 * 2 * g.rows, g.W + 0.04, K.PU.c.kgm);
+      add("P2", "Ladder purlin upright @ " + K.PU.a + " c/c", "40x40x2", 2 * g.rows * (Math.round((g.W + 0.04) / (K.PU.a / 1000)) + 1), K.PU.gap / 1000, R40.kgm);
+    } else add("P1", "Purlin, continuous E-W (2 per panel row)", b.purlin, 2 * g.rows * 1, g.W + 0.04, K.PU.kgm);
+    add("R1", "Rafter chord (top + bottom)" + (!g.stepped && g.wType === "u" && g.nw ? ", incl. walkway U" : ""), raf.ch, 2 * nr, rafLen, K.RC.kgm);
+    add("R2", "Rafter rung @ " + raf.a + " c/c", raf.rung || "40x40x2", rungsRaf, raf.gap / 1000, K.RG.kgm);
+    if (raf.diag) add("R3", "Rafter diagonal, one per bay (alternating)", raf.diag, baysRaf, Math.hypot(raf.a, K.RC.H + raf.gap) / 1000, ACH[raf.diag].kgm);
+    add("L*", "Leg chord (" + nch + " per leg, see leg schedule)", leg.ch, nch * nr, legH, K.C.kgm);
+    add("L0", "Leg rung @ " + leg.a + " c/c", "40x40x2", rungsLeg, leg.gap / 1000, R40.kgm);
+    add("K1", "Knee brace, leg to rafter", "40x40x2", knees * nr, 1.0, R40.kgm);
+    if (g.nw) {
+      add("W1", "Walkway pipe, continuous E-W (2 per walkway)", b.wpipe || "40x40x2", 2 * g.nw, g.W, K.WP.kgm);
+      if (g.stepped) add("W2", "Walkway cross member, leg to leg (ladder)", "40x40x2", nr * g.nw * 2, 2 * 0.4 + g.wW, R40.kgm);
+      else if (g.wType === "straight" && !g.walks[0].onTop) {
+        const hang = Math.max(0.1, g.zr(g.walks[0].mid) - g.walks[0].zIn);
+        add("W2", "Walkway hanger", "40x40x2", nr * g.nw * 2, hang, R40.kgm);
+        add("W3", "Walkway cross member (ladder)", "40x40x2", nr * g.nw * 2, g.wW, R40.kgm);
+      } else if (g.wType === "straight") add("W2", "Walkway cross member on rafter", "40x40x2", nr * g.nw, g.wW, R40.kgm);
+    }
+    const steelKg = rows.reduce((s, r) => s + r.kg, 0);
+    const extra = [
+      { mark: "B1", descr: "Base plate " + K.plateEW + " x " + K.plateNS + " x " + K.plateT + " thk", sec: "MS plate", qty: b.pedestals, kg: b.pedestals * K.plateEW * K.plateNS * K.plateT * 7.85e-6 }
+    ];
+    if (g.nw) extra.push({ mark: "W0", descr: "Walkway chequered plate, " + Math.round(g.wW * 1000) + " wide", sec: inp.plateKg + " kg/m2", qty: g.nw, len: g.W, m: g.nw * g.W, kg: g.nw * g.W * g.wW * inp.plateKg });
+    return { rows, extra, steelKg, K };
+  }
+
+  // ---------- sheet kit ----------
+  function kit(S) {
+    const P = [];
+    const pp = v => v * S;
+    const L_ = (x1, y1, x2, y2, layer, lw) => P.push({ t: "L", x1, y1, x2, y2, layer, lw: lw || (layer === "DIM" || layer === "PANEL" || layer === "HIDDEN" || layer === "CENTER" ? 0.18 : 0.35) });
+    const T_ = (x, y, hPaper, str, layer, align, rot, bold) => P.push({ t: "T", x, y, h: pp(hPaper), s: String(str), layer: layer || "TEXT", align: align || "l", rot: rot || 0, bold: !!bold });
+    const C_ = (x, y, rad, layer) => P.push({ t: "C", x, y, r: rad, layer, lw: 0.35 });
+    const F_ = (x1, y1, x2, y2, gray) => P.push({ t: "F", x1, y1, x2, y2, gray });
+    const rect = (x1, y1, x2, y2, layer, lw) => { L_(x1, y1, x2, y1, layer, lw); L_(x2, y1, x2, y2, layer, lw); L_(x2, y2, x1, y2, layer, lw); L_(x1, y2, x1, y1, layer, lw); };
+    function dim(ax, ay, bx, by, dir, offPaper, label) {
+      const off = pp(offPaper), sg = Math.sign(offPaper), ext = pp(1.5) * sg, gap = pp(1) * sg, tk = pp(0.9);
+      let p1, p2;
+      if (dir === "h") { const y = (offPaper < 0 ? Math.min(ay, by) : Math.max(ay, by)) + off; p1 = [ax, y]; p2 = [bx, y]; L_(ax, ay + gap, ax, y + ext, "DIM"); L_(bx, by + gap, bx, y + ext, "DIM"); }
+      else { const x = (offPaper < 0 ? Math.min(ax, bx) : Math.max(ax, bx)) + off; p1 = [x, ay]; p2 = [x, by]; L_(ax + gap, ay, x + ext, ay, "DIM"); L_(bx + gap, by, x + ext, by, "DIM"); }
+      L_(p1[0], p1[1], p2[0], p2[1], "DIM");
+      [p1, p2].forEach(p => L_(p[0] - tk, p[1] - tk, p[0] + tk, p[1] + tk, "DIM"));
+      const val = label != null ? label : String(Math.round(dir === "h" ? Math.abs(bx - ax) : Math.abs(by - ay)));
+      if (dir === "h") T_((p1[0] + p2[0]) / 2, p1[1] + pp(0.8), 2.0, val, "DIM", "c");
+      else T_(p1[0] - pp(0.8), (p1[1] + p2[1]) / 2, 2.0, val, "DIM", "c", 90);
+    }
+    const balloon = (x, y, tx, ty, n) => { const rr = pp(3); C_(tx, ty, rr, "TEXT"); T_(tx, ty - pp(1.1), 2.4, n, "TEXT", "c", 0, true); const dx = x - tx, dy = y - ty, l = Math.hypot(dx, dy) || 1; L_(tx + dx / l * rr, ty + dy / l * rr, x, y, "TEXT", 0.18); };
+    const brk = (x, y1, y2) => { const m = (y1 + y2) / 2, a = pp(1.2); L_(x, y1, x, m - a, "TEXT", 0.18); L_(x, m - a, x - a, m, "TEXT", 0.18); L_(x - a, m, x + a, m + a / 2, "TEXT", 0.18); L_(x + a, m + a / 2, x, m + a * 1.5, "TEXT", 0.18); L_(x, m + a * 1.5, x, y2, "TEXT", 0.18); };
+    return { P, S, pp, L_, T_, C_, F_, rect, dim, balloon, brk };
+  }
+
+  // ---------- frame + NRG title block (shared by both sheets) ----------
+  function furniture(K, ctx, sheet, scaleTxt) {
+    const { pp, L_, T_, C_, F_, rect, P } = K;
+    rect(0, 0, pp(420), pp(297), "FRAME", 0.1);
+    rect(pp(10), pp(10), pp(410), pp(287), "FRAME", 0.7);
+    rect(pp(12), pp(274), pp(72), pp(285), "FRAME", 0.35);
+    T_(pp(13), pp(282.6), 1.6, "DRG. NO.", "TEXT");
+    T_(pp(14), pp(275.8), 3.8, ctx.drgNo + "/" + sheet, "TEXT", "l", 0, true);
+    T_(pp(7), pp(100), 1.8, "(c) Copyright - NRG Technologists Pvt Ltd. Not to be copied or shared without permission.", "TEXT", "l", 90);
+    const tx0 = pp(218), tx1 = pp(408), ty0 = pp(12);
+    let y = ty0;
+    const hline = (yy, x1, x2, lw) => L_(x1 == null ? tx0 : x1, yy, x2 == null ? tx1 : x2, yy, "FRAME", lw || 0.25);
+    const vline = (x, y1, y2, lw) => L_(x, y1, x, y2, "FRAME", lw || 0.25);
+    const lab = (x, yTop, t) => T_(x + pp(0.8), yTop - pp(2.2), 1.5, t, "TEXT");
+    const val = (x, yb, t, h, bold) => T_(x + pp(0.8), yb + pp(1.2), h || 2.4, t, "TEXT", "l", 0, bold);
+    rect(tx0, ty0, tx1, pp(92), "FRAME", 0.5);
+    const r1 = y + pp(14);
+    hline(r1, null, null, 0.35); vline(pp(338), y, r1); vline(pp(392), y, r1);
+    lab(tx0, r1, "DESCRIPTION");
+    val(tx0, y + pp(5.4), ctx.descr1, 2.8, true); val(tx0, y + pp(0.6), ctx.descr2, 2.2, true);
+    lab(pp(338), r1, "DRG. NUMBER"); T_(pp(340), y + pp(3), 3.6, ctx.drgNo, "TEXT", "l", 0, true);
+    lab(pp(392), r1, "REV"); T_(pp(400), y + pp(3), 4.6, ctx.rev, "TEXT", "c", 0, true);
+    y = r1;
+    const r2 = y + pp(10);
+    hline(r2); [238, 268, 298, 328].forEach(x => vline(pp(x), y, r2));
+    { const cy = y + pp(5), cx = pp(233.5);
+      L_(pp(220), cy - pp(3.6), pp(220), cy + pp(3.6), "TEXT"); L_(pp(227), cy - pp(2.4), pp(227), cy + pp(2.4), "TEXT");
+      L_(pp(220), cy + pp(3.6), pp(227), cy + pp(2.4), "TEXT"); L_(pp(220), cy - pp(3.6), pp(227), cy - pp(2.4), "TEXT");
+      L_(pp(219), cy, pp(228), cy, "CENTER");
+      C_(cx, cy, pp(3.6), "TEXT"); C_(cx, cy, pp(2.4), "TEXT"); L_(cx - pp(4.3), cy, cx + pp(4.3), cy, "CENTER"); }
+    lab(pp(238), r2, "SCALE"); val(pp(238), y + pp(0.6), scaleTxt, 2.6, true);
+    lab(pp(268), r2, "SHEET SIZE"); val(pp(268), y + pp(0.6), "A3", 2.8, true);
+    lab(pp(298), r2, "SHEET"); val(pp(298), y + pp(0.6), sheet + " OF 2", 2.8, true);
+    lab(pp(328), r2, "REF."); val(pp(328), y + pp(0.6), ctx.ref, 2.0);
+    y = r2;
+    [["APPROVED BY", ctx.names.approved], ["CHKD. BY", ctx.names.checked], ["DRAWN BY", ctx.names.drawn]].forEach((p, k) => {
+      const yb = y + pp(5) * k, yt = yb + pp(5);
+      hline(yt, tx0, pp(318)); vline(pp(244), yb, yt); vline(pp(290), yb, yt);
+      T_(tx0 + pp(0.8), yb + pp(1.5), 1.9, p[0], "TEXT");
+      T_(pp(245), yb + pp(1.5), 2.2, p[1], "TEXT");
+      T_(pp(291), yb + pp(1.5), 2.2, ctx.date, "TEXT");
+    });
+    vline(pp(318), y, y + pp(15));
+    lab(pp(318), y + pp(15), "STRUCTURE WEIGHT"); val(pp(318), y + pp(7.5), ctx.weightTxt, 2.2, true);
+    hline(y + pp(7.5), pp(318), tx1);
+    lab(pp(318), y + pp(7.5), "DESIGN WIND / GRADE"); val(pp(318), y, ctx.windTxt, 2.0, true);
+    y = y + pp(15); hline(y);
+    const r4 = y + pp(17);
+    vline(pp(318), y, r4);
+    if (ctx.logo) P.push({ t: "I", x: tx0 + pp(1.5), y: y + pp(1.5), w: pp(14) * ctx.logo.w / ctx.logo.h, h: pp(14), layer: "TEXT" });
+    T_(tx0 + pp(18), y + pp(11.8), 3.4, "NRG TECHNOLOGISTS PVT. LTD.", "TEXT", "l", 0, true);
+    T_(tx0 + pp(18), y + pp(7.9), 1.9, "989/6, G.I.D.C. Makarpura, Vadodara, Gujarat 390010", "TEXT");
+    T_(tx0 + pp(18), y + pp(4.9), 1.9, "GSTIN 24AABCN8993K1ZV  -  nrgtechnologists.com", "TEXT");
+    T_(tx0 + pp(18), y + pp(1.9), 1.7, "Quality | Commitment | Value", "TEXT");
+    hline(y + pp(8.5), pp(318), tx1);
+    lab(pp(318), r4, "MATERIAL"); val(pp(318), y + pp(8.5) + pp(0.3), "GI hollow sec. IS 4923", 2.0, true);
+    lab(pp(318), y + pp(8.5), "FINISH"); val(pp(318), y + pp(0.3), "Galvanised; welds zinc-rich", 1.9, true);
+    y = r4; hline(y);
+    const r5 = y + pp(5);
+    vline(pp(278), y, r5); vline(pp(340), y, r5);
+    T_(pp(248), y + pp(1.6), 1.9, "IF ANY DOUBT PLEASE ASK", "TEXT", "c");
+    T_(pp(309), y + pp(1.6), 1.9, "REMOVE ALL SHARP EDGES", "TEXT", "c");
+    T_(pp(374), y + pp(1.6), 1.9, "ALL DIMENSIONS ARE IN mm", "TEXT", "c");
+    y = r5; hline(y);
+    const rc = [218, 232, 318, 340, 370, 408].map(pp);
+    const r6 = y + pp(6);
+    F_(tx0, y, tx1, r6, 0.9);
+    ["REV. No.", "REVISION DETAIL", "ECR No.", "MODIFY BY", "DATE"].forEach((h, k) => T_((rc[k] + rc[k + 1]) / 2, y + pp(2), 1.8, h, "TEXT", "c", 0, true));
+    rc.slice(1, -1).forEach(x => vline(x, y, pp(92)));
+    hline(r6); hline(r6 + pp(6.5));
+    [ctx.rev, ctx.revText, "-", ctx.names.drawnInit, ctx.date].forEach((v, k) => T_((rc[k] + rc[k + 1]) / 2, r6 + pp(6.5) + pp(2.2), 2.1, v, "TEXT", "c"));
+  }
+
+  // ================= SHEET 1: GENERAL ARRANGEMENT =================
+  function sheet1(g, b, inp, ctx) {
+    const mm = v => v * 1000, K0 = parts(g, b, inp);
+    const W = mm(g.W), Lh = mm(g.Lh), ct = g.ct;
+    const zTop = Math.max(...g.gSpans.map(q => K0.pz(q.s1))) * 1000 + 40;
+    const S = SCALES.find(k => W / k <= 172 && zTop / k + Lh / k <= 168 && zTop / k <= 150 && W / k + Lh / k <= 330) || 500;
+    const Kt = kit(S), { P, pp, L_, T_, C_, rect, dim, balloon } = Kt;
+    const xs = g.xs.map(mm), ss = g.ss;
+    const rd = K0.rD / 1000;
+
+    // ---- FRONT ELEVATION (looking north) ----
+    const X0 = pp(30), floorY = pp(260) - zTop;
+    T_(X0, floorY + zTop + pp(3.5), 3, "FRONT ELEVATION", "TITLE", "l", 0, true);
+    T_(X0 + pp(40), floorY + zTop + pp(3.5), 2.2, "(looking north from the low edge)", "TEXT");
+    L_(X0 - pp(6), floorY, X0 + W + pp(6), floorY, "CONC", 0.5);
+    const sF = ss[0], hF = mm(g.legTop(sF));
+    const faceW = b.orient === "B" ? K0.chEW : K0.ew;          // width of the front leg seen from the south
+    xs.forEach(x => {
+      rect(X0 + x - K0.pedEW / 2, floorY, X0 + x + K0.pedEW / 2, floorY + 300, "CONC");
+      rect(X0 + x - K0.plateEW / 2, floorY + 300, X0 + x + K0.plateEW / 2, floorY + 300 + K0.plateT, "STEEL", 0.25);
+      if (b.orient === "B") rect(X0 + x - K0.chEW / 2, floorY + 300, X0 + x + K0.chEW / 2, floorY + hF, "STEEL", 0.25);
+      else {
+        [-1, 1].forEach(sg => rect(X0 + x + sg * K0.d / 2 - K0.chEW / 2, floorY + 300, X0 + x + sg * K0.d / 2 + K0.chEW / 2, floorY + hF, "STEEL", 0.25));
+        for (let z = 300 + b.leg.a; z < hF - 300 - 1; z += b.leg.a) L_(X0 + x - K0.d / 2, floorY + z, X0 + x + K0.d / 2, floorY + z, "STEEL", 0.18);
+      }
+      rect(X0 + x - K0.RC.B / 2, floorY + mm(g.zr(0)), X0 + x + K0.RC.B / 2, floorY + mm(g.zr(0)) + K0.rD, "STEEL", 0.25);
+      L_(X0 + x, floorY - pp(2), X0 + x, floorY + zTop + pp(1), "CENTER");
+    });
+    g.gSpans.forEach(q => { const z0 = floorY + mm(K0.pz(q.s0)), z1 = floorY + mm(K0.pz(q.s1)); rect(X0, z0, X0 + W, z1, "PANEL"); });
+    g.walks.forEach(w => L_(X0, floorY + mm(w.zW), X0 + W, floorY + mm(w.zW), "HIDDEN"));
+    dim(X0, floorY, X0 + xs[0], floorY, "h", -6, Math.round(xs[0]) + "*");
+    for (let i = 0; i < xs.length - 1; i++) dim(X0 + xs[i], floorY, X0 + xs[i + 1], floorY, "h", -6);
+    dim(X0 + xs[xs.length - 1], floorY, X0 + W, floorY, "h", -6, Math.round(W - xs[xs.length - 1]) + "*");
+    dim(X0, floorY, X0 + W, floorY, "h", -12, Math.round(W) + " (" + g.cols + " panels)");
+    dim(X0, floorY + 300, X0, floorY + hF, "v", -6, Math.round(hF - 300) + "*");
+    dim(X0 + W, floorY, X0 + W, floorY + zTop - 40, "v", 6, Math.round(zTop - 40) + " top");
+    balloon(X0 + xs[0], floorY + hF * 0.5, X0 + xs[0] + pp(8), floorY + hF * 0.75, "L1");
+
+    // ---- PLAN (below the front elevation; south at the bottom) ----
+    const planTop = floorY - pp(24), PY = planTop - Lh;
+    T_(X0, planTop + pp(3), 3, "PLAN", "TITLE", "l", 0, true);
+    T_(X0 + pp(12), planTop + pp(3), 2.2, "(looking down)", "TEXT");
+    const pw = mm(1.15), pg = mm(0.02);
+    g.gSpans.forEach(q => {
+      const y0 = PY + mm(q.s0) * ct, y1 = PY + mm(q.s1) * ct;
+      rect(X0, y0, X0 + W, y1, "PANEL");
+      for (let k = 1; k < g.cols; k++) { const x = k * (pw + pg) - pg / 2; L_(X0 + x, y0, X0 + x, y1, "PANEL", 0.13); }
+    });
+    g.rowsS.forEach((r, i) => { if (i && g.rowsS[i - 1].g === r.g) L_(X0, PY + mm(r.s0) * ct, X0 + W, PY + mm(r.s0) * ct, "PANEL", 0.13);
+      [0.25, 0.75].forEach(f => { const y = PY + mm(r.s0 + 2.35 * f) * ct; L_(X0 - 20, y, X0 + W + 20, y, "PURLIN", 0.18); }); });
+    g.walks.forEach(w => {
+      const y0 = PY + mm(w.s0) * ct, y1 = PY + mm(w.s1) * ct;
+      rect(X0, y0, X0 + W, y1, "BRACE", 0.25);
+      for (let x = 0; x < W; x += pp(4)) L_(X0 + x, y0, X0 + Math.min(W, x + pp(2)), y1, "BRACE", 0.13);
+      T_(X0 + W / 2, (y0 + y1) / 2 - pp(1), 2.0, "WALKWAY " + Math.round(mm(g.wW)), "TEXT", "c", 0, true);
+    });
+    xs.forEach(x => {
+      rect(X0 + x - K0.RC.B / 2, PY, X0 + x + K0.RC.B / 2, PY + Lh, "STEEL", 0.25);
+      ss.forEach(sv => { const y = PY + mm(sv) * ct; rect(X0 + x - K0.pedEW / 2, y - K0.pedNS / 2, X0 + x + K0.pedEW / 2, y + K0.pedNS / 2, "CONC", 0.18); rect(X0 + x - K0.ew / 2, y - K0.ns / 2, X0 + x + K0.ew / 2, y + K0.ns / 2, "STEEL", 0.35); });
+    });
+    dim(X0, PY, X0 + xs[0], PY, "h", -6); for (let i = 0; i < xs.length - 1; i++) dim(X0 + xs[i], PY, X0 + xs[i + 1], PY, "h", -6); dim(X0 + xs[xs.length - 1], PY, X0 + W, PY, "h", -6);
+    dim(X0, PY, X0 + W, PY, "h", -12, Math.round(W));
+    const yL = ss.map(sv => PY + mm(sv) * ct);
+    dim(X0, PY, X0, yL[0], "v", -6); for (let i = 0; i < yL.length - 1; i++) dim(X0, yL[i], X0, yL[i + 1], "v", -6); dim(X0, yL[yL.length - 1], X0, PY + Lh, "v", -6);
+    dim(X0, PY, X0, PY + Lh, "v", -13, Math.round(Lh));
+    T_(X0 + W / 2, PY - pp(16.5), 2.2, "SOUTH (low edge)", "TEXT", "c");
+    const nax = X0 + W + pp(6), nay = PY + Lh - pp(8);
+    L_(nax, nay - pp(5), nax, nay + pp(5), "TEXT"); L_(nax, nay + pp(5), nax - pp(1.5), nay + pp(2.5), "TEXT"); L_(nax, nay + pp(5), nax + pp(1.5), nay + pp(2.5), "TEXT"); T_(nax, nay + pp(6), 3, "N", "TEXT", "c", 0, true);
+    balloon(X0 + xs[0], PY + Lh * 0.45, X0 + xs[0] + pp(9), PY + Lh * 0.45 + pp(6), "R1");
+    balloon(X0 + W * 0.6, PY + mm(0.59) * ct, X0 + W * 0.6 + pp(6), PY + mm(0.59) * ct + pp(8), "P1");
+
+    // ---- SIDE ELEVATION (typical frame, looking east; south on the right) ----
+    const sx0 = Math.max(pp(226), X0 + W + pp(22)), sF0 = pp(114);
+    const U = y => sx0 + (Lh - y * 1000);
+    const Z = z => sF0 + z * 1000;
+    T_(sx0, sF0 + zTop + pp(3.5), 3, "SIDE ELEVATION", "TITLE", "l", 0, true);
+    T_(sx0 + pp(36), sF0 + zTop + pp(3.5), 2.2, "(typical frame, looking east)  -  " + (g.stepped ? g.groups.length + " stepped tables" : "ladder rafter " + Math.round(mm(g.L)) + " along slope") + " @ " + Math.round(g.t * 180 / Math.PI) + " deg", "TEXT");
+    L_(U(g.Lh) - pp(5), sF0, U(0) + pp(5), sF0, "CONC", 0.5);
+    rafterLines(g, (y1, z1, y2, z2, k) => L_(U(y1), Z(z1), U(y2), Z(z2), "STEEL", k === 1 ? 0.3 : 0.15), rd, b.raf.a / 1000, !!b.raf.diag);
+    g.rowsS.forEach(r => { L_(U(g.yOf(r.s0)), Z(K0.pz(r.s0)), U(g.yOf(r.s1)), Z(K0.pz(r.s1)), "PANEL", 0.35);
+      [0.25, 0.75].forEach(f => { const sv = r.s0 + 2.35 * f, u = U(g.yOf(sv)), z = Z(g.zr(sv) + rd);
+        if (K0.PU.ladder) { const ch = K0.PU.c.H; rect(u - K0.PU.B / 2, z, u + K0.PU.B / 2, z + ch, "PURLIN", 0.18); rect(u - K0.PU.B / 2, z + ch + K0.PU.gap, u + K0.PU.B / 2, z + K0.PU.H, "PURLIN", 0.18); L_(u, z + ch, u, z + ch + K0.PU.gap, "PURLIN", 0.18); }
+        else rect(u - K0.PU.B / 2, z, u + K0.PU.B / 2, z + K0.PU.H, "PURLIN", 0.18); }); });
+    g.walks.forEach(w => { L_(U(g.yOf(w.s0)), Z(w.zW), U(g.yOf(w.s1)), Z(w.zW), "BRACE", 0.5); });
+    const sideW = b.orient === "A" ? K0.chNS : K0.ns;
+    ss.forEach((sv, i) => {
+      const u = U(g.yOf(sv)), top = Z(g.legTop(sv));
+      rect(u - K0.pedNS / 2, sF0, u + K0.pedNS / 2, sF0 + 300, "CONC", 0.18);
+      if (b.orient === "A") rect(u - K0.chNS / 2, sF0 + 300, u + K0.chNS / 2, top, "STEEL", 0.25);
+      else {
+        [-1, 1].forEach(sg => rect(u + sg * K0.d / 2 - K0.chNS / 2, sF0 + 300, u + sg * K0.d / 2 + K0.chNS / 2, top, "STEEL", 0.2));
+        for (let z = sF0 + 300 + b.leg.a; z < top - 1; z += b.leg.a) L_(u - K0.d / 2, z, u + K0.d / 2, z, "STEEL", 0.13);
+      }
+      if (!g.walkAt(sv)) [-1, 1].forEach(dd => { const s2 = sv + dd * 0.7; if (!g.braceOK(sv, s2)) return; L_(u, Z(g.zr(sv) - 0.6), U(g.yOf(s2)), Z(g.zr(s2)), "BRACE", 0.3); });
+      T_(u + sideW / 2 + pp(1), sF0 + 300 + (top - sF0 - 300) * (i % 2 ? 0.42 : 0.3), 1.9, "L" + (i + 1), "TEXT", "l", 0, true);
+    });
+    const uL = ss.map(sv => U(g.yOf(sv)));
+    dim(U(g.Lh), sF0, uL[uL.length - 1], sF0, "h", -6); for (let i = uL.length - 1; i > 0; i--) dim(uL[i], sF0, uL[i - 1], sF0, "h", -6); dim(uL[0], sF0, U(0), sF0, "h", -6);
+    dim(U(g.Lh), sF0, U(0), sF0, "h", -12, Math.round(Lh));
+    dim(uL[0], sF0 + 300, uL[0], Z(g.legTop(ss[0])), "v", 6, Math.round(mm(g.legTop(ss[0]) - 0.3)) + "*");
+    const iT = ss.reduce((bi, v, i) => g.legTop(v) > g.legTop(ss[bi]) ? i : bi, 0);
+    dim(uL[iT], sF0 + 300, uL[iT], Z(g.legTop(ss[iT])), "v", -6, Math.round(mm(g.legTop(ss[iT]) - 0.3)) + "*");
+    T_(U(0) + pp(2), sF0 + pp(1), 2, "S", "TEXT", "l", 0, true); T_(U(g.Lh) - pp(4), sF0 + pp(1), 2, "N", "TEXT", "l", 0, true);
+
+    // ---- ISOMETRIC (NTS) in the largest free area ----
+    {
+      const sideTop = (sF0 + zTop) / S + 6, leftR = (X0 + W) / S + 14, sxp = sx0 / S;
+      const regions = [{ x1: sxp - 4, x2: 406, y1: sideTop + 2, y2: 270 }, { x1: leftR, x2: sxp - 8, y1: 96, y2: 270 }];
+      const segs = [], quads = [];
+      const P3 = (x, y, z) => [x * 1000, y * 1000, z * 1000];
+      g.xs.forEach(x => {
+        rafterLines(g, (y1, z1, y2, z2, k) => { if (k === 1) segs.push([P3(x, y1, z1 + rd / 2), P3(x, y2, z2 + rd / 2), 0.3]); }, 0, 99);
+        g.ss.forEach(sv => segs.push([P3(x, g.yOf(sv), 0.3), P3(x, g.yOf(sv), g.legTop(sv)), 0.4]));
+      });
+      g.rowsS.forEach(r => { for (let c = 0; c < g.cols; c++) { const x0 = c * 1.17, x1 = x0 + 1.15; quads.push([P3(x0, g.yOf(r.s0), K0.pz(r.s0)), P3(x1, g.yOf(r.s0), K0.pz(r.s0)), P3(x1, g.yOf(r.s1), K0.pz(r.s1)), P3(x0, g.yOf(r.s1), K0.pz(r.s1))]); } });
+      const wq = g.walks.map(w => [P3(0, g.yOf(w.s0), w.zW), P3(g.W, g.yOf(w.s0), w.zW), P3(g.W, g.yOf(w.s1), w.zW), P3(0, g.yOf(w.s1), w.zW)]);
+      const cs30 = Math.cos(Math.PI / 6), prj = p => [(p[0] - p[1]) * cs30, p[2] + (p[0] + p[1]) * 0.5];
+      const all = []; segs.forEach(sg => all.push(prj(sg[0]), prj(sg[1]))); quads.forEach(q => q.forEach(p => all.push(prj(p))));
+      const umin = Math.min(...all.map(p => p[0])), umax = Math.max(...all.map(p => p[0])), vmin = Math.min(...all.map(p => p[1])), vmax = Math.max(...all.map(p => p[1]));
+      let best = null;
+      regions.forEach(R => { const w = R.x2 - R.x1, h = R.y2 - R.y1; if (w < 40 || h < 40) return; const kf = Math.min((w - 6) / (umax - umin), (h - 12) / (vmax - vmin)); if (!best || kf > best.kf) best = { R, kf }; });
+      if (best) {
+        const { R, kf } = best, bw = (umax - umin) * kf, bh = (vmax - vmin) * kf;
+        const ox = R.x1 + (R.x2 - R.x1 - bw) / 2, oy = R.y1 + 3 + (R.y2 - R.y1 - 12 - bh) / 2;
+        const map = p => { const q = prj(p); return [pp(ox + (q[0] - umin) * kf), pp(oy + (q[1] - vmin) * kf)]; };
+        const fl = [[0, 0, 0], [W, 0, 0], [W, Lh, 0], [0, Lh, 0]].map(map);
+        for (let j = 0; j < 4; j++) L_(fl[j][0], fl[j][1], fl[(j + 1) % 4][0], fl[(j + 1) % 4][1], "HIDDEN", 0.13);
+        segs.forEach(([a, c, w]) => { const A = map(a), B = map(c); L_(A[0], A[1], B[0], B[1], "STEEL", w * 0.6); });
+        wq.forEach(q => P.push({ t: "Q", pts: q.map(map), layer: "PANEL", fill: [0.85, 0.6, 0.15], alpha: 0.38, lw: 0.18 }));
+        quads.forEach(q => P.push({ t: "Q", pts: q.map(map), layer: "PANEL", fill: [0.55, 0.68, 0.9], alpha: 0.38, lw: 0.1 }));
+        const nb = map([W + 1500, 0, 0]), nt = map([W + 1500, 3000, 0]);
+        L_(nb[0], nb[1], nt[0], nt[1], "TEXT", 0.25); T_(nt[0] + pp(1), nt[1], 2.4, "N", "TEXT", "l", 0, true);
+        T_(pp(ox + bw / 2), pp(oy + bh + 4), 2.8, "ISOMETRIC VIEW  (NTS)", "TITLE", "c", 0, true);
+      }
+    }
+    furniture(Kt, ctx, 1, "1 : " + S);
+    return { P, S };
+  }
+
+  // ================= SHEET 2: DETAILS =================
+  function sheet2(g, b, inp, ctx) {
+    const Kt = kit(1), { P, L_, T_, C_, F_, rect, dim, balloon, brk } = Kt;
+    const B = bom(g, b, inp), K0 = B.K, C = K0.C, RC = K0.RC;
+    const title = (x, y, t, sc) => { T_(x, y, 2.8, t, "TITLE", "l", 0, true); if (sc) T_(x + t.length * 1.62 + 3, y, 2.2, "(SCALE " + sc + ")", "TEXT"); };
+
+    // ---- DETAIL A: LADDER RAFTER (1:10) ----
+    {
+      const k = 0.1, x0 = 22, y0 = 238, Lp = 1200, H = RC.H, gap = b.raf.gap, a = b.raf.a;
+      title(16, 270, "DETAIL A - LADDER RAFTER", "1:10");
+      const yb = y0, yt = y0 + (H + gap) * k;
+      rect(x0, yb, x0 + Lp * k, yb + H * k, "STEEL"); rect(x0, yt, x0 + Lp * k, yt + H * k, "STEEL");
+      const rw = K0.RG.H / 2; let bay = 0; for (let x = a / 2; x < Lp; x += a) { rect(x0 + (x - rw) * k, yb + H * k, x0 + (x + rw) * k, yt, "STEEL", 0.25);
+        if (b.raf.diag && x + a < Lp) { const up = bay++ % 2 === 0; L_(x0 + (x + rw) * k, up ? yb + H * k : yt, x0 + (x + a - rw) * k, up ? yt : yb + H * k, "STEEL", 0.35); } }
+      brk(x0, yb - 2, yt + H * k + 2); brk(x0 + Lp * k, yb - 2, yt + H * k + 2);
+      if (!K0.PU.ladder) { [Lp * 0.3, Lp * 0.8].forEach(x => rect(x0 + (x - K0.PU.B / 2) * k, yt + H * k, x0 + (x + K0.PU.B / 2) * k, yt + (H + K0.PU.H) * k, "PURLIN", 0.25));
+        L_(x0, yt + (H + K0.PU.H + 6) * k, x0 + Lp * k, yt + (H + K0.PU.H + 6) * k, "PANEL", 0.35); }
+      else { // ladder purlin shown as its own section beside section A-A
+        const px = 196, py = 236, ch = K0.PU.c.H, cb = K0.PU.B;
+        T_(px - 4, 266, 2.4, "PURLIN P1", "TITLE", "l", 0, true);
+        rect(px, py, px + cb * k, py + ch * k, "PURLIN"); rect(px, py + (ch + K0.PU.gap) * k, px + cb * k, py + K0.PU.H * k, "PURLIN");
+        rect(px + (cb / 2 - 20) * k, py + ch * k, px + (cb / 2 + 20) * k, py + (ch + K0.PU.gap) * k, "HIDDEN");
+        dim(px + cb * k, py, px + cb * k, py + K0.PU.H * k, "v", 4, String(K0.PU.H));
+        T_(px - 4, py - 4, 1.7, "uprights @ " + K0.PU.a, "TEXT");
+      }
+      dim(x0 + (a / 2) * k, yb, x0 + (a * 1.5) * k, yb, "h", -4, a + " c/c");
+      dim(x0 + Lp * k, yb, x0 + Lp * k, yt + H * k, "v", 5, String(K0.rD));
+      dim(x0 + Lp * k, yb + H * k, x0 + Lp * k, yt, "v", 12, String(gap));
+      balloon(x0 + (a / 2) * k, (yb + yt) / 2 + 1, x0 + (a / 2) * k + 8, Math.min(yt + H * k + 9, 262), "R2");
+      balloon(x0 + Lp * 0.55 * k, yt + H * k / 2, x0 + Lp * 0.55 * k + 6, Math.min(yt + H * k + 10, 262), "R1");
+      T_(x0, yb - 9, 2.0, "Chords " + b.raf.ch.replace(/x/g, " x ") + ";  rungs " + (b.raf.rung || "40x40x2").replace(/x/g, " x ") + " @ " + a + " c/c" + (b.raf.diag ? ";  diagonals " + b.raf.diag.replace(/x/g, " x ") + " (R3) alternating" : "") + ", welded all round", "TEXT");
+      // section A-A
+      const sx = 168, sy = 236;
+      T_(sx - 2, 266, 2.4, "SECTION A-A", "TITLE", "l", 0, true);
+      rect(sx, sy, sx + RC.B * k, sy + H * k, "STEEL"); rect(sx, sy + (H + gap) * k, sx + RC.B * k, sy + (2 * H + gap) * k, "STEEL");
+      rect(sx + (RC.B / 2 - 20) * k, sy + H * k, sx + (RC.B / 2 + 20) * k, sy + (H + gap) * k, "HIDDEN");
+      dim(sx, sy, sx + RC.B * k, sy, "h", -4, String(RC.B));
+      dim(sx + RC.B * k, sy, sx + RC.B * k, sy + H * k, "v", 4, String(H));
+    }
+
+    // ---- DETAIL B: LEG + DETAIL C: BASE PLATE (1:10) ----
+    {
+      const k = 0.1, x0 = 22, y0 = 128, hShow = 600, a = b.leg.a;
+      title(16, 224, "DETAIL B - " + (b.orient === "box" ? "BOX" : "LADDER") + " LEG, BOTTOM", "1:10");
+      const faceB = b.orient !== "B";                      // ladder face seen from the south for A and box
+      const cw = faceB ? K0.chEW : K0.chNS, d = K0.d, pedW = faceB ? K0.pedEW : K0.pedNS, plW = faceB ? K0.plateEW : K0.plateNS;
+      const cx = x0 + pedW / 2 * k;
+      rect(x0, y0, x0 + pedW * k, y0 + 300 * k, "CONC");
+      rect(cx - plW / 2 * k, y0 + 300 * k, cx + plW / 2 * k, y0 + (300 + K0.plateT) * k, "STEEL");
+      const yL0 = y0 + (300 + K0.plateT) * k, yL1 = y0 + (300 + hShow) * k;
+      [-1, 1].forEach(sg => rect(cx + (sg * d / 2 - cw / 2) * k, yL0, cx + (sg * d / 2 + cw / 2) * k, yL1, "STEEL"));
+      for (let z = 300 + a; z < 300 + hShow; z += a) rect(cx - (d / 2 - cw / 2) * k, y0 + (z - 20) * k, cx + (d / 2 - cw / 2) * k, y0 + (z + 20) * k, "STEEL", 0.25);
+      L_(cx - (d / 2 + cw) * k, yL1, cx + (d / 2 + cw) * k, yL1 + 2, "TEXT", 0.18);
+      L_(cx, y0 - 3, cx, yL1 + 3, "CENTER");
+      dim(cx - d / 2 * k, yL1 - 6, cx + d / 2 * k, yL1 - 6, "h", -2, d + " c/c");
+      dim(cx + (d / 2 + cw / 2) * k, y0 + 300 * k, cx + (d / 2 + cw / 2) * k, y0 + (300 + Math.min(a, hShow - 50)) * k, "v", 6, a + " c/c");
+      dim(x0, y0, x0 + pedW * k, y0, "h", -4, String(pedW));
+      dim(x0, y0, x0, y0 + 300 * k, "v", -4, "300");
+      balloon(cx - d / 2 * k, y0 + 600 * k, cx - d / 2 * k - 9, y0 + 700 * k, "L*");
+      balloon(cx + 10 * k, y0 + (300 + a) * k, cx + (d / 2 + cw) * k + 12, y0 + (300 + a) * k - 2, "L0");
+      T_(x0 - 4, y0 - 7, 1.9, (b.orient === "B" ? "Seen from the east" : "Seen from the south") + "; chords " + b.leg.ch.replace(/x/g, " x ") + ", rungs 40 x 40 x 2 @ " + a, "TEXT");
+      // section B-B (plan of the chords)
+      const px = 112, py = 186;
+      T_(px - 6, 216, 2.4, "SECTION B-B", "TITLE", "l", 0, true);
+      const fx = px + K0.ew / 2 * k, fy = py;
+      K0.chordsAt.forEach(([ox, oy]) => rect(fx + (ox - K0.chEW / 2) * k, fy + (oy - K0.chNS / 2) * k, fx + (ox + K0.chEW / 2) * k, fy + (oy + K0.chNS / 2) * k, "STEEL"));
+      if (b.orient === "A" || b.orient === "box") { const oy = b.orient === "box" ? [-d / 2, d / 2] : [0]; oy.forEach(o => rect(fx - (d / 2 - K0.chEW / 2) * k, fy + (o - 20) * k, fx + (d / 2 - K0.chEW / 2) * k, fy + (o + 20) * k, "HIDDEN")); }
+      if (b.orient === "B" || b.orient === "box") { const ox = b.orient === "box" ? [-d / 2, d / 2] : [0]; ox.forEach(o => rect(fx + (o - 20) * k, fy - (d / 2 - K0.chNS / 2) * k, fx + (o + 20) * k, fy + (d / 2 - K0.chNS / 2) * k, "HIDDEN")); }
+      dim(fx - K0.ew / 2 * k, fy - K0.ns / 2 * k, fx + K0.ew / 2 * k, fy - K0.ns / 2 * k, "h", -4, String(Math.round(K0.ew)));
+      dim(fx + K0.ew / 2 * k, fy - K0.ns / 2 * k, fx + K0.ew / 2 * k, fy + K0.ns / 2 * k, "v", 4, String(Math.round(K0.ns)));
+      T_(fx, fy + K0.ns / 2 * k + 6, 2.0, "N", "TEXT", "c", 0, true); L_(fx, fy + K0.ns / 2 * k + 1.5, fx, fy + K0.ns / 2 * k + 5, "TEXT", 0.25);
+      // detail C base plate plan
+      const bx = 162, by = 150;
+      T_(bx - 6, 216, 2.4, "DETAIL C - BASE PLATE", "TITLE", "l", 0, true);
+      const pw = K0.plateEW * k, ph = K0.plateNS * k, ccx = bx + pw / 2, ccy = by + ph / 2 + 10;
+      rect(bx, ccy - ph / 2, bx + pw, ccy + ph / 2, "STEEL");
+      K0.chordsAt.forEach(([ox, oy]) => rect(ccx + (ox - K0.chEW / 2) * k, ccy + (oy - K0.chNS / 2) * k, ccx + (ox + K0.chEW / 2) * k, ccy + (oy + K0.chNS / 2) * k, "STEEL", 0.25));
+      const e = 40 * k;
+      [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([i, j]) => C_(ccx + i * (pw / 2 - e), ccy + j * (ph / 2 - e), (K0.bolt + 2) / 2 * k, "STEEL"));
+      L_(ccx, ccy - ph / 2 - 2, ccx, ccy + ph / 2 + 2, "CENTER"); L_(bx - 2, ccy, bx + pw + 2, ccy, "CENTER");
+      dim(bx, ccy - ph / 2, bx + pw, ccy - ph / 2, "h", -4, String(K0.plateEW));
+      dim(bx + pw, ccy - ph / 2, bx + pw, ccy + ph / 2, "v", 4, String(K0.plateNS));
+      dim(bx + e, ccy - ph / 2, bx + pw - e, ccy - ph / 2, "h", -9, Math.round(K0.plateEW - 80) + " c/c");
+      [" ", "Plate " + K0.plateEW + " x " + K0.plateNS + " x " + K0.plateT + " thk", "4 holes dia " + (K0.bolt + 2) + " for M" + K0.bolt, "chemical anchors, 120 embed.", "Chords welded all round", "Uplift per leg " + b.uplift.toFixed(1) + " kN"].forEach((t, i) => T_(bx, ccy - ph / 2 - 9 - i * 3.6, 2.0, t, "TEXT"));
+    }
+
+    // ---- DETAIL D: WALKWAY SECTION (1:20) ----
+    if (g.nw) {
+      const k = 0.05, x0 = 20, y0 = 58, wW = g.wW * 1000, D = K0.rD, drop = g.drop * 1000;
+      title(16, 112, "DETAIL D - WALKWAY", "1:20");
+      const span = wW + 900, mid = x0 + span / 2 * k;
+      const i0 = mid - wW / 2 * k, i1 = mid + wW / 2 * k;
+      const zr = y0 + 300 * k + (g.stepped ? 0 : 300) * k;              // underside of rafter near the walkway
+      const zP = zr + (D + 80) * k, zW = g.stepped ? y0 + 300 * k + (D + 80 - drop) * k + 400 * k : zP - drop * k;
+      if (g.stepped) {
+        const zL = zr + 500 * k, zRr = zr;
+        rect(x0, zL, i0 - 300 * k, zL + D * k, "STEEL"); rect(i1 + 300 * k, zRr, x0 + span * k, zRr + D * k, "STEEL");
+        rect(i0 - 340 * k, y0, i0 - 260 * k, zL, "STEEL"); rect(i1 + 260 * k, y0, i1 + 340 * k, zRr, "STEEL");
+        rect(i0 - 300 * k, zW - 9 * k - 120 * k, i1 + 300 * k, zW - 9 * k - 40 * k, "STEEL", 0.25);
+        L_(x0, zL + (D + 80) * k, i0 - 300 * k, zL + (D + 80) * k, "PANEL", 0.5); L_(i1 + 300 * k, zRr + (D + 80) * k, x0 + span * k, zRr + (D + 80) * k, "PANEL", 0.5);
+        T_(i0 - 300 * k, y0 - 4, 1.8, "back leg", "TEXT", "c"); T_(i1 + 300 * k, y0 - 4, 1.8, "front leg", "TEXT", "c");
+      } else if (g.wType === "straight") {
+        rect(x0, zr, x0 + span * k, zr + D * k, "STEEL");
+        L_(x0, zP, i0, zP, "PANEL", 0.5); L_(i1, zP, x0 + span * k, zP, "PANEL", 0.5);
+        if (!g.walks[0].onTop) { rect(i0, zW - 9 * k - 120 * k, i0 + 40 * k, zr, "STEEL", 0.25); rect(i1 - 40 * k, zW - 9 * k - 120 * k, i1, zr, "STEEL", 0.25); rect(i0, zW - 9 * k - 120 * k, i1, zW - 9 * k - 40 * k, "STEEL", 0.25);
+          dim(i1 + 2, zr + D * k, i1 + 2, zW, "v", 10, "step " + Math.round(g.walks[0].stepOver * 1000)); }
+      } else {
+        rect(x0, zr, i0 - D * k, zr + D * k, "STEEL"); rect(i1 + D * k, zr, x0 + span * k, zr + D * k, "STEEL");
+        const zIn = zW - 49 * k, zOut = zIn - D * k * 0.9;
+        L_(i0, zr + D * k, i0, zIn, "STEEL"); L_(i0, zIn, i1, zIn, "STEEL"); L_(i1, zIn, i1, zr + D * k, "STEEL");
+        L_(i0 - D * k, zr, i0 - D * k, zOut, "STEEL"); L_(i0 - D * k, zOut, i1 + D * k, zOut, "STEEL"); L_(i1 + D * k, zOut, i1 + D * k, zr, "STEEL");
+        L_(x0, zP, i0 - D * k, zP, "PANEL", 0.5); L_(i1 + D * k, zP, x0 + span * k, zP, "PANEL", 0.5);
+        if (g.legUnder) rect(mid - 10 * k - K0.d / 2 * k, y0, mid + K0.d / 2 * k + 10 * k, zOut, "HIDDEN");
+      }
+      [i0 + 10 * k, i1 - 50 * k].forEach(x => rect(x, zW - 9 * k - 40 * k, x + 40 * k, zW - 9 * k, "PURLIN", 0.25));
+      rect(i0, zW - 6 * k, i1, zW, "BRACE", 0.35);
+      dim(i0, zW, i1, zW, "h", 8, String(Math.round(wW)));
+      if (!g.stepped && g.wType === "u") dim(i1 + D * k + 2, zP, i1 + D * k + 2, zW, "v", 6, "drop " + Math.round(drop));
+      L_(x0 - 2, y0, x0 + span * k + 2, y0, "CONC", 0.35);
+      T_(x0, y0 - 9, 1.9, "Plate on 2 x 40x40x2 E-W pipes; " + (g.stepped ? "cross member leg to leg" : g.wType === "straight" ? "hangers from the rafter" : "rafter turned down into a U") + ".", "TEXT");
+    }
+
+    // ---- DETAIL E: RAFTER TO LEG JOINT (1:20) ----
+    {
+      const k = 0.05, x0 = 132, y0 = 58, t = g.t, D = K0.rD;
+      title(118, 112, "DETAIL E - LEG TO RAFTER", "1:20");
+      const lx = x0 + 30, top = y0 + 700 * k;
+      const lw = (b.orient === "A" ? K0.chNS : K0.ns) * k;
+      rect(lx - lw / 2, y0, lx + lw / 2, top, "STEEL");
+      const ax = x0 - 10, bx = x0 + 70, sl = Math.tan(t);
+      const yA = top + (ax - lx) * sl, yB = top + (bx - lx) * sl;
+      L_(ax, yA, bx, yB, "STEEL"); L_(ax, yA + D * k, bx, yB + D * k, "STEEL");
+      for (let x = ax, i = 0; x <= bx; x += b.raf.a * k, i++) { L_(x, top + (x - lx) * sl, x, top + (x - lx) * sl + D * k, "STEEL", 0.18);
+        if (b.raf.diag && x + b.raf.a * k <= bx) { const x2 = x + b.raf.a * k, up = i % 2 === 0; L_(x, top + (x - lx) * sl + (up ? 0 : D * k), x2, top + (x2 - lx) * sl + (up ? D * k : 0), "STEEL", 0.18); } }
+      const kb = 600 * k;
+      [-1, 1].forEach(sg => { const ex = lx + sg * kb; const ey = top + (ex - lx) * sl; L_(lx + sg * lw / 2, top - kb, ex, ey, "BRACE", 0.5); L_(lx + sg * lw / 2, top - kb - 40 * k * 1.4, ex + sg * 40 * k, ey, "BRACE", 0.25); });
+      dim(lx, top, lx + kb, top, "h", -14, "600");
+      dim(lx + lw / 2, top - kb, lx + lw / 2, top, "v", 22, "600");
+      balloon(lx + kb / 2, top - kb / 2, lx + kb / 2 + 10, top - kb / 2 - 6, "K1");
+      T_(x0 - 14, y0 - 9, 1.9, "Knee brace 40x40x2 both sides (one at end legs); weld all round.", "TEXT");
+    }
+
+    // ---- NOTES (bottom left) ----
+    {
+      const nx = 14, ny = 46;
+      T_(nx, ny, 2.6, "Notes :", "TEXT", "l", 0, true); L_(nx, ny - 0.8, nx + 14, ny - 0.8, "TEXT", 0.25);
+      const notes = [
+        "All members GI hollow section to IS 4923, grade " + ctx.grade + ", 2 mm wall. Rungs and braces 40x40x2.",
+        "Ladder rafters and legs: chords continuous, rungs welded all round. No splices within 500 mm of a leg.",
+        "Purlins continuous over all rafters, 40 mm face up for J-clamps; joints only over a rafter" + (K0.PU.ladder ? ". Ladder purlin P1: 2 x " + K0.PU.ch + ", " + K0.PU.gap + " gap, 40x40x2 uprights @ " + K0.PU.a + "." : "."),
+        "Leg heights (schedule) from top of pedestal to underside of rafter. Check levels before welding.",
+        "Remove weld spatter; give all welds and cut ends 2 coats of zinc-rich paint.",
+        "Pedestals M25 on the terrace slab, dowelled 4 x 12 dia in chemical anchor; waterproofing by others.",
+        "Design wind " + inp.V + " km/h at " + ctx.zTxt + " (IS 875-3, terrain cat. " + inp.cat + "); max uplift per leg " + b.uplift.toFixed(1) + " kN.",
+        "Concept design. To be checked and approved by a structural engineer before fabrication."
+      ];
+      notes.forEach((n, i) => T_(nx, ny - 4.6 - i * 3.9, 1.9, "*  " + n, "TEXT"));
+    }
+
+    // ---- BILL OF MATERIAL (above title block) ----
+    let topY;
+    {
+      const rows = B.rows, ex = B.extra, rh = 4.6;
+      const bc = [218, 228, 240, 302, 324, 342, 362, 384, 408];
+      const n = rows.length + ex.length + 1;
+      const by = 96 + rh * (n + 1);
+      F_(218, by - rh, 408, by, 0.85);
+      ["Item", "Mark", "Description", "Section", "Length", "Qty", "Total m", "Wt (kg)"].forEach((h, k) => T_((bc[k] + bc[k + 1]) / 2, by - rh + 1.4, 1.9, h, "TEXT", "c", 0, true));
+      const line = (k, v, bold) => { const yy = by - rh * (k + 2); v.forEach((s, j) => T_(j === 2 ? bc[j] + 0.8 : (bc[j] + bc[j + 1]) / 2, yy + 1.4, j === 2 ? 1.7 : 1.9, s, "TEXT", j === 2 ? "l" : "c", 0, bold)); };
+      rows.forEach((r, k) => line(k, [String(k + 1), r.mark, r.descr, r.sec, r.mark === "L*" ? "sched." : String(Math.round(r.len * 1000)), String(r.qty), r.m.toFixed(1), r.kg.toFixed(0)]));
+      line(rows.length, ["", "", "Total GI steel (structure)", "", "", "", "", B.steelKg.toFixed(0)], true);
+      ex.forEach((r, k) => line(rows.length + 1 + k, [String(rows.length + 1 + k), r.mark, r.descr, r.sec, r.len ? String(Math.round(r.len * 1000)) : "-", String(r.qty), r.m ? r.m.toFixed(1) : "-", r.kg.toFixed(0)]));
+      for (let k = 0; k <= n + 1; k++) L_(218, by - rh * k, 408, by - rh * k, "FRAME", k === 0 || k === n + 1 ? 0.5 : 0.15);
+      bc.forEach((x, k) => L_(x, by - rh * (n + 1), x, by, "FRAME", k === 0 || k === bc.length - 1 ? 0.5 : 0.15));
+      T_(218, by + 2, 2.6, "BILL OF MATERIAL  (whole array, " + g.nr + " frames)", "TITLE", "l", 0, true);
+      topY = by + 7;
+    }
+    // ---- LEG SCHEDULE ----
+    {
+      const legs = K0.legs, rh = Math.min(4.2, 60 / (legs.length + 1));
+      const cols = [218, 236, 276, 306, 332, 362];
+      const y1 = topY + rh * (legs.length + 1);
+      T_(218, y1 + 2, 2.6, "LEG SCHEDULE  (per frame, " + g.nr + " frames)", "TITLE", "l", 0, true);
+      F_(218, y1 - rh, 362, y1, 0.85);
+      ["Mark", "From low edge", "Height", "Per frame", "Total"].forEach((h, k) => T_((cols[k] + cols[k + 1]) / 2, y1 - rh + 1.2, 1.8, h, "TEXT", "c", 0, true));
+      legs.forEach((l, i) => { const yy = y1 - rh * (i + 2); [l.mark + (l.under ? " (W)" : ""), String(Math.round(l.s * 1000 * g.ct)), String(Math.round(l.h)) + "*", "1", String(g.nr)].forEach((v, k) => T_((cols[k] + cols[k + 1]) / 2, yy + 1.1, 1.8, v, "TEXT", "c")); });
+      for (let k = 0; k <= legs.length + 1; k++) L_(218, y1 - rh * k, 362, y1 - rh * k, "FRAME", k === 0 || k === legs.length + 1 ? 0.45 : 0.13);
+      cols.forEach((x, k) => L_(x, y1 - rh * (legs.length + 1), x, y1, "FRAME", k === 0 || k === cols.length - 1 ? 0.45 : 0.13));
+      T_(365, y1 - 4, 1.7, "(W) = leg under", "TEXT"); T_(365, y1 - 7, 1.7, "the walkway", "TEXT");
+      topY = y1 + 7;
+    }
+    // ---- DESIGN DATA ----
+    {
+      const lines = [
+        ["Option", ctx.option],
+        ["Panels", g.rows + " rows x " + g.cols + " = " + g.rows * g.cols + " (" + b.kW.toFixed(1) + " kW)"],
+        ["Frames / legs", g.nr + " @ " + (b.spacing * 1000).toFixed(0) + " / " + b.pedestals + " legs"],
+        ["Members", "Purlin " + K0.PU.name.replace(/×/g, "x") + "; rafter 2x" + b.raf.ch + " +" + b.raf.gap + (b.raf.diag ? " with diagonals" : "") + "; leg " + (b.orient === "box" ? "4" : "2") + "x" + b.leg.ch + " @" + K0.d],
+        ["Wind", inp.V + " km/h, " + ctx.zTxt + ", k2 " + ctx.k2.toFixed(2) + ", q " + ctx.q.toFixed(2) + " kN/m2"],
+        ["Result", (b.pass ? "Passes" : "FAILS") + " - gives way ~" + Math.round(b.bendSpeed) + " km/h; " + b.kgkW.toFixed(1) + " kg/kW"]
+      ];
+      const rh = 3.9, y1 = Math.min(270, topY + rh * lines.length);
+      T_(218, y1 + 2, 2.6, "DESIGN DATA", "TITLE", "l", 0, true);
+      lines.forEach((l, i) => { T_(218, y1 - rh * (i + 1) + 1, 1.8, l[0], "TEXT", "l", 0, true); T_(246, y1 - rh * (i + 1) + 1, 1.8, l[1], "TEXT"); });
+    }
+    furniture(Kt, ctx, 2, "AS SHOWN");
+    return { P, S: 1 };
+  }
+
+  // ---------- SVG preview of one sheet ----------
+  function toSVG(D, colors, bg, logoUrl) {
+    const P = D.P, S = D.S, w = 420 * S, h = 297 * S;
+    const X = x => x.toFixed(1), Y = y => (h - y).toFixed(1);
+    const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    let out = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w.toFixed(0) + ' ' + h.toFixed(0) + '" font-family="Arial, Helvetica, sans-serif">';
+    if (bg) out += '<rect width="100%" height="100%" fill="' + bg + '"/>';
+    P.filter(p => p.t === "F").forEach(p => { out += '<rect x="' + X(Math.min(p.x1, p.x2)) + '" y="' + Y(Math.max(p.y1, p.y2)) + '" width="' + Math.abs(p.x2 - p.x1).toFixed(1) + '" height="' + Math.abs(p.y2 - p.y1).toFixed(1) + '" fill="' + colors("FILL") + '" fill-opacity="' + (1 - p.gray).toFixed(2) + '"/>'; });
+    P.filter(p => p.t === "Q").forEach(p => { out += '<polygon points="' + p.pts.map(q => X(q[0]) + "," + Y(q[1])).join(" ") + '" fill="rgb(' + p.fill.map(v => Math.round(v * 255)).join(",") + ')" fill-opacity="' + p.alpha + '" stroke="' + colors("PURLIN") + '" stroke-width="' + (p.lw * S).toFixed(1) + '"/>'; });
+    const groups = {};
+    P.filter(p => p.t === "L").forEach(p => { const key = p.layer + "|" + p.lw; (groups[key] = groups[key] || []).push(p); });
+    Object.entries(groups).forEach(([key, list]) => {
+      const [layer, lw] = key.split("|");
+      let d = ""; list.forEach(p => { d += "M" + X(p.x1) + " " + Y(p.y1) + "L" + X(p.x2) + " " + Y(p.y2); });
+      out += '<path d="' + d + '" stroke="' + colors(layer) + '" stroke-width="' + (Math.max(+lw, 0.13) * S).toFixed(2) + '" fill="none" stroke-linecap="round"' + (layer === "HIDDEN" ? ' stroke-dasharray="' + (3 * S) + ' ' + (1.5 * S) + '"' : layer === "CENTER" ? ' stroke-dasharray="' + (6 * S) + ' ' + (1.2 * S) + ' ' + (1 * S) + ' ' + (1.2 * S) + '"' : '') + '/>';
+    });
+    P.filter(p => p.t === "C").forEach(p => { out += '<circle cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + p.r.toFixed(2) + '" stroke="' + colors(p.layer) + '" stroke-width="' + (0.3 * S).toFixed(2) + '" fill="none"/>'; });
+    P.filter(p => p.t === "I").forEach(p => { if (logoUrl) out += '<image href="' + logoUrl + '" x="' + X(p.x) + '" y="' + Y(p.y + p.h) + '" width="' + p.w.toFixed(1) + '" height="' + p.h.toFixed(1) + '"/>'; });
+    P.filter(p => p.t === "T").forEach(p => {
+      const tr = p.rot ? ' transform="rotate(' + (-p.rot) + ' ' + X(p.x) + ' ' + Y(p.y) + ')"' : "";
+      out += '<text x="' + X(p.x) + '" y="' + Y(p.y) + '" font-size="' + p.h.toFixed(2) + '" fill="' + colors(p.layer) + '"' + (p.bold ? ' font-weight="bold"' : '') + (p.align === "c" ? ' text-anchor="middle"' : '') + tr + '>' + esc(p.s) + '</text>';
+    });
+    return out + "</svg>";
+  }
+
+  // ---------- PDF: several A3 landscape pages, vector, Helvetica ----------
+  function stream(D, logo) {
+    const P = D.P, S = D.S, k = 72 / 25.4 / S;
+    const f = v => v.toFixed(2), X = x => f(x * k), Y = y => f(y * k);
+    const COL = { DIM: "0.75 0.1 0.1", PANEL: "0.5 0.5 0.5", HIDDEN: "0.5 0.5 0.5", CONC: "0.4 0.4 0.4", BRACE: "0.1 0.45 0.2", PURLIN: "0.1 0.25 0.6", CENTER: "0.6 0.3 0.1" };
+    const pdfStr = t => t.replace(/°/g, " deg").replace(/[—–·]/g, "-").replace(/×/g, "x").replace(/[^\x20-\x7E]/g, "?").replace(/([()\\])/g, "\\$1");
+    let cs = "1 J 1 j\n";
+    P.filter(p => p.t === "F").forEach(p => { cs += p.gray + " g " + X(Math.min(p.x1, p.x2)) + " " + Y(Math.min(p.y1, p.y2)) + " " + X(Math.abs(p.x2 - p.x1)) + " " + Y(Math.abs(p.y2 - p.y1)) + " re f\n"; });
+    P.filter(p => p.t === "Q").forEach(p => {
+      const path = p.pts.map((q, j) => X(q[0]) + " " + Y(q[1]) + (j ? " l " : " m ")).join("") + "h";
+      cs += "q /GS1 gs " + p.fill.map(v => v.toFixed(3)).join(" ") + " rg " + path + " f Q\n";
+      cs += "0.1 0.25 0.6 RG " + f(p.lw * 72 / 25.4) + " w [] 0 d " + path + " S\n";
+    });
+    let cur = "";
+    P.filter(p => p.t === "L" || p.t === "C").forEach(p => {
+      const col = COL[p.layer] || "0 0 0";
+      const dash = p.layer === "HIDDEN" ? "[6 3] 0 d" : p.layer === "CENTER" ? "[12 3 2 3] 0 d" : "[] 0 d";
+      const st = col + " RG " + f(Math.max(p.lw, 0.1) * 72 / 25.4) + " w " + dash;
+      if (st !== cur) { cs += st + "\n"; cur = st; }
+      if (p.t === "L") cs += X(p.x1) + " " + Y(p.y1) + " m " + X(p.x2) + " " + Y(p.y2) + " l S\n";
+      else {
+        const cx = p.x * k, cy = p.y * k, r = p.r * k, q = 0.5523 * r;
+        cs += f(cx + r) + " " + f(cy) + " m " + f(cx + r) + " " + f(cy + q) + " " + f(cx + q) + " " + f(cy + r) + " " + f(cx) + " " + f(cy + r) + " c " + f(cx - q) + " " + f(cy + r) + " " + f(cx - r) + " " + f(cy + q) + " " + f(cx - r) + " " + f(cy) + " c " + f(cx - r) + " " + f(cy - q) + " " + f(cx - q) + " " + f(cy - r) + " " + f(cx) + " " + f(cy - r) + " c " + f(cx + q) + " " + f(cy - r) + " " + f(cx + r) + " " + f(cy - q) + " " + f(cx + r) + " " + f(cy) + " c S\n";
+      }
+    });
+    P.filter(p => p.t === "I").forEach(p => { if (logo) cs += "q " + X(p.w) + " 0 0 " + Y(p.h) + " " + X(p.x) + " " + Y(p.y) + " cm /Im1 Do Q\n"; });
+    P.filter(p => p.t === "T").forEach(p => {
+      const col = COL[p.layer] || "0 0 0", size = p.h * k, txt = pdfStr(p.s);
+      let x = p.x * k, y = p.y * k;
+      const a = (p.rot || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      if (p.align === "c") { const wEst = txt.length * size * (p.bold ? 0.56 : 0.52); x -= ca * wEst / 2; y -= sa * wEst / 2; }
+      cs += col + " rg BT /" + (p.bold ? "F2" : "F1") + " " + f(size) + " Tf " + ca.toFixed(4) + " " + sa.toFixed(4) + " " + (-sa).toFixed(4) + " " + ca.toFixed(4) + " " + f(x) + " " + f(y) + " Tm (" + txt + ") Tj ET\n";
+    });
+    return cs;
+  }
+  function toPDF(sheets, logo) {
+    const PW = 1190.55, PH = 841.89, n = sheets.length;
+    // objects: 1 catalog, 2 pages, 3 font F1, 4 font F2, 5 logo (optional), then per page: page + contents
+    const objs = [];
+    const kids = sheets.map((_, i) => (6 + 2 * i) + " 0 R").join(" ");
+    objs.push("<< /Type /Catalog /Pages 2 0 R >>");
+    objs.push("<< /Type /Pages /Kids [" + kids + "] /Count " + n + " >>");
+    objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+    objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+    objs.push(logo ? "<< /Type /XObject /Subtype /Image /Width " + logo.w + " /Height " + logo.h + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length " + (logo.hex.length + 1) + " >>\nstream\n" + logo.hex + ">\nendstream" : "<< >>");
+    sheets.forEach((D, i) => {
+      const cs = stream(D, logo);
+      objs.push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + PW + " " + PH + "] /Contents " + (7 + 2 * i) + " 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /ExtGState << /GS1 << /ca 0.38 >> >>" + (logo ? " /XObject << /Im1 5 0 R >>" : "") + " >> >>");
+      objs.push("<< /Length " + cs.length + " >>\nstream\n" + cs + "endstream");
+    });
+    let out = "%PDF-1.4\n";
+    const offs = [];
+    objs.forEach((o, i) => { offs.push(out.length); out += (i + 1) + " 0 obj\n" + o + "\nendobj\n"; });
+    const xref = out.length;
+    out += "xref\n0 " + (objs.length + 1) + "\n0000000000 65535 f \n" + offs.map(o => String(o).padStart(10, "0") + " 00000 n \n").join("");
+    out += "trailer\n<< /Size " + (objs.length + 1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF";
+    return out;
+  }
+
+  return { rafterLines, parts, bom, sheet1, sheet2, toSVG, toPDF };
+})();
+
+</script>
+<script>
+// NRG Apartment Terrace Layout — v1.3 (ladder rafters with diagonals, legs up to 10 m apart; ladder purlins; 3D view; 2-sheet PDF)
+const LOGO_B64 = "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";
+const $ = id => document.getElementById(id);
+const PL = 2.35, PW = 1.15, GAP = 0.02, MAXGAP = 2.4, LEGMAX = 4.0, OVS = 0.4, RD = 0.2, PED = 0.3; // m
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const f1 = v => v.toFixed(1), f2 = v => v.toFixed(2);
+
+const st = { pick: null, results: null };
+function geomInputs() {
+  return { rows: +$("rows").value || 9, cols: +$("cols").value || 25, nw: Math.max(0, Math.round(+$("ww").value || 0)), split: $("split").value,
+    H: +$("H").value || 4, wW: +$("wW").value || 0.6, drop: +$("drop").value || 0.5, tiltDeg: +$("tilt").value || 10, lat: +$("lat").value || 22.3,
+    stepped: $("slope").value === "step", wType: $("wtype").value, legUnder: $("legU").checked };
+}
+const curKey = () => { const gi = geomInputs(); return !gi.nw ? "u" : gi.stepped ? "step" : gi.wType; };
+function layout() {
+  const p = st.pick && st.pick.key === curKey() ? st.pick : null;
+  const b = p && st.results ? (st.results.find(x => x.sc.key === p.key) || {}).r : null, bb = b ? b.best[p.orient] : null;
+  const rd = bb ? (2 * ACH[bb.raf.ch].H + bb.raf.gap) / 1000 : undefined, puH = bb ? purlinSec(bb.purlin).H / 1000 : undefined;
+  return aptGeom({ ...geomInputs(), nr: p ? p.nr : undefined, legMax: p ? p.legMax : undefined, rd, puH });
+}
+
+// ---------- tiny SVG helpers ----------
+const NS = "http://www.w3.org/2000/svg";
+function svg(w, h) { const e = document.createElementNS(NS, "svg"); e.setAttribute("viewBox", `0 0 ${w} ${h}`); e.setAttribute("role", "img"); return e; }
+function el(p, tag, a, txt) { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; p.appendChild(e); return e; }
+const line = (p, x1, y1, x2, y2, st, w = 1, dash) => el(p, "line", { x1, y1, x2, y2, stroke: st, "stroke-width": w, ...(dash ? { "stroke-dasharray": dash } : {}) });
+const text = (p, x, y, s, o = {}) => el(p, "text", { x, y, "font-size": o.size || 11, fill: o.fill || css("--fg"), "text-anchor": o.anchor || "middle", ...(o.rot ? { transform: `rotate(${o.rot} ${x} ${y})` } : {}) }, s);
+const poly = (p, pts, fill, st, w = 0.6) => el(p, "polygon", { points: pts.map(q => q.join(",")).join(" "), fill, stroke: st || "none", "stroke-width": w });
+function dimH(p, x1, x2, y, label) {
+  const c = css("--dim"); line(p, x1, y, x2, y, c, 0.8);
+  [x1, x2].forEach(x => line(p, x, y - 4, x, y + 4, c, 0.8));
+  text(p, (x1 + x2) / 2, y - 4, label, { fill: c, size: 10.5 });
+}
+function dimV(p, x, y1, y2, label) {
+  const c = css("--dim"); line(p, x, y1, x, y2, c, 0.8);
+  [y1, y2].forEach(y => line(p, x - 4, y, x + 4, y, c, 0.8));
+  text(p, x - 5, (y1 + y2) / 2, label, { fill: c, size: 10.5, rot: -90 });
+}
+function ladder(p, ax, ay, bx, by, depthPx, step, st, w) { // two chords + rungs, depth offset perpendicular
+  const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy), nx = -dy / len * depthPx, ny = dx / len * depthPx;
+  line(p, ax, ay, bx, by, st, w); line(p, ax + nx, ay + ny, bx + nx, by + ny, st, w);
+  const n = Math.max(1, Math.round(len / step)); for (let i = 0; i <= n; i++) { const x = ax + dx * i / n, y = ay + dy * i / n; line(p, x, y, x + nx, y + ny, st, w * 0.7); }
+}
+
+// One frame's ladder rafter in (y, z) metres, with a U at every walkway. seg(y1, z1, y2, z2, weight) draws one line.
+function rafterLines(g, seg) {   // drawn with the real depth, rung spacing and diagonals of the picked design
+  const b = curBest(), rd = b ? (2 * ACH[b.raf.ch].H + b.raf.gap) / 1000 : RD;
+  APTDRAW.rafterLines(g, seg, rd, b ? b.raf.a / 1000 : 0.6, !!(b && b.raf.diag));
+}
+
+// ---------- isometric ----------
+function drawIso(g) {
+  const box = $("iso"); box.innerHTML = "";
+  const P = (x, y, z) => [x * 0.88 + y * 0.62, -z + x * 0.30 - y * 0.42]; // x east, y north (horizontal), z up from roof slab
+  const pts = []; [[0, 0], [g.W, 0], [0, g.Lh], [g.W, g.Lh]].forEach(([x, y]) => { pts.push(P(x, y, 0)); pts.push(P(x, y, Math.max(...g.gSpans.map(q => g.zP(q.s1))) + 1.2)); });
+  const minX = Math.min(...pts.map(q => q[0])), maxX = Math.max(...pts.map(q => q[0])), minY = Math.min(...pts.map(q => q[1])), maxY = Math.max(...pts.map(q => q[1]));
+  const k = Math.min(1100 / (maxX - minX), 620 / (maxY - minY)), W = (maxX - minX) * k + 60, H = (maxY - minY) * k + 50;
+  const s = svg(W, H), T = (x, y, z) => { const q = P(x, y, z); return [(q[0] - minX) * k + 30, (q[1] - minY) * k + 25]; };
+  const steel = css("--steel"), yOf = g.yOf;
+  poly(s, [T(-0.5, -0.5, 0), T(g.W + 0.5, -0.5, 0), T(g.W + 0.5, g.Lh + 0.5, 0), T(-0.5, g.Lh + 0.5, 0)], "none", css("--ground"), 0.8).setAttribute("stroke-dasharray", "4 3");
+  [...g.xs].reverse().forEach(x => {
+    [...g.ss].reverse().forEach(sv => {
+      const y = yOf(sv), top = g.legTop(sv), a = T(x, y, 0), b = T(x, y, PED);
+      poly(s, [T(x - 0.18, y - 0.18, PED), T(x + 0.18, y - 0.18, PED), T(x + 0.18, y + 0.18, PED), T(x - 0.18, y + 0.18, PED)], css("--sheet"), css("--ground"));
+      line(s, ...a, ...b, css("--ground"), 2);
+      line(s, ...T(x - 0.1, y, PED), ...T(x - 0.1, y, top), steel, 1); line(s, ...T(x + 0.1, y, PED), ...T(x + 0.1, y, top), steel, 1);
+      for (let z = PED + 0.5; z < top; z += 0.6) line(s, ...T(x - 0.1, y, z), ...T(x + 0.1, y, z), steel, 0.6);
+      if (!g.walkAt(sv)) [-1, 1].forEach(d => { const s2 = sv + d * 0.7; if (!g.braceOK(sv, s2)) return; line(s, ...T(x, y, g.zr(sv) - 0.6), ...T(x, yOf(s2), g.zr(s2)), steel, 0.7); });
+    });
+    rafterLines(g, (y1, z1, y2, z2, w) => line(s, ...T(x, y1, z1), ...T(x, y2, z2), steel, w));
+  });
+  // panels (back rows first) and level walkways in their U
+  const items = [...g.rowsS.map(r => ({ ...r, kind: "p" })), ...g.walks.map(w => ({ ...w, kind: "w" }))].sort((a, b) => b.s0 - a.s0);
+  items.forEach(it => {
+    const y0 = yOf(it.s0), y1 = yOf(it.s1);
+    if (it.kind === "w") { poly(s, [T(0, y0, it.zW), T(g.W, y0, it.zW), T(g.W, y1, it.zW), T(0, y1, it.zW)], css("--walkFill"), css("--walk"), 1); return; }
+    const z0 = g.zP(it.s0), z1 = g.zP(it.s1);
+    for (let i = g.cols - 1; i >= 0; i--) { const xa = i * (PW + GAP), xb = xa + PW; poly(s, [T(xa, y0, z0), T(xb, y0, z0), T(xb, y1, z1), T(xa, y1, z1)], css("--panelFill"), css("--panel"), 0.4); }
+  });
+  line(s, ...T(g.W + 1.2, g.Lh + 0.5, 0), ...T(g.W + 1.2, g.Lh + 3, 0), css("--fg"), 1.2);
+  const nT = T(g.W + 1.2, g.Lh + 3.6, 0); text(s, nT[0], nT[1], "N", { size: 13 });
+  const sT = T(g.W / 2, -2.2, 0); text(s, sT[0], sT[1], "SOUTH · low edge · front legs " + f1(g.H) + " m", { fill: css("--muted"), size: 11 });
+  g.walks.forEach((w, i) => { const q = T(-0.6, yOf(w.mid), w.zW); text(s, q[0] - 4, q[1] + 4, "walkway " + (i + 1), { fill: css("--walk"), anchor: "end", size: 11 }); });
+  box.appendChild(s);
+}
+
+// ---------- section through one frame ----------
+function drawSection(g) {
+  const box = $("sec"); box.innerHTML = "";
+  const zTopMax = Math.max(...g.gSpans.map(q => g.zP(q.s1))) + 0.2;
+  const k = Math.min(1040 / (g.Lh + 2), 440 / (zTopMax + 0.6)), W = (g.Lh + 2) * k + 80, H = (zTopMax + 0.6) * k + 70;
+  const s = svg(W, H), X = y => 60 + (y + 1) * k, Z = z => H - 45 - z * k, steel = css("--steel"), yOf = g.yOf;
+  line(s, X(-1), Z(0), X(g.Lh + 1), Z(0), css("--ground"), 1.5);
+  text(s, X(-0.6), Z(0) + 16, "S", { size: 12 }); text(s, X(g.Lh + 0.6), Z(0) + 16, "N", { size: 12 });
+  g.ss.forEach((sv, i) => {
+    const y = yOf(sv), top = g.legTop(sv);
+    el(s, "rect", { x: X(y) - 0.18 * k, y: Z(PED), width: 0.36 * k, height: PED * k, fill: css("--sheet"), stroke: css("--ground") });
+    ladder(s, X(y) - 0.1 * k, Z(PED), X(y) - 0.1 * k, Z(top), -0.2 * k, 0.6 * k, steel, 1.1);
+    if (!g.walkAt(sv)) [-1, 1].forEach(d => { const s2 = sv + d * 0.7; if (!g.braceOK(sv, s2)) return; line(s, X(y + d * 0.1), Z(g.zr(sv) - 0.6), X(yOf(s2)), Z(g.zr(s2)), steel, 0.9); });
+    if (i === 0 || i === g.ss.length - 1) dimV(s, X(y) + (i === 0 ? -18 : 26), Z(PED), Z(top), f2(top - PED) + " m");
+  });
+  rafterLines(g, (y1, z1, y2, z2, w) => line(s, X(y1), Z(z1), X(y2), Z(z2), steel, w * 1.1));
+  g.rowsS.forEach(r => line(s, X(yOf(r.s0)), Z(g.zP(r.s0)), X(yOf(r.s1)), Z(g.zP(r.s1)), css("--panel"), 4));
+  g.walks.forEach(w => {
+    line(s, X(yOf(w.s0)) + 1, Z(w.zW), X(yOf(w.s1)) - 1, Z(w.zW), css("--walk"), 4);
+    text(s, X(yOf(w.mid)), Z(Math.max(g.zP(w.s1), g.zP(w.s0))) - 12, "walkway", { fill: css("--walk"), size: 10.5 });
+    if (w.sun) {
+      line(s, X(w.sun.yB), Z(w.sun.zB), X(w.sun.y), Z(w.sun.z), css("--dim"), 0.9, "4 3");
+      text(s, X(w.sun.y) + 14, Z(w.sun.z) - 26, w.shade > 0 ? "Dec noon shadow " + f2(w.shade) + " m" : "no shadow at Dec noon", { fill: css("--dim"), size: 10, anchor: "start" });
+    }
+  });
+  dimH(s, X(0), X(g.Lh), Z(0) + 32, "plan depth " + f2(g.Lh) + " m");
+  const sp = g.ss.slice(1).map((v, i) => v - g.ss[i]), iMax = sp.indexOf(Math.max(...sp));
+  dimH(s, X(yOf(g.ss[iMax])), X(yOf(g.ss[iMax + 1])), Z(0) + 14, f2(sp[iMax] * g.ct) + " m");
+  text(s, X(g.Lh / 2), Z(zTopMax) - 6, g.stepped ? `${g.groups.length} stepped tables (${g.groups.join(" + ")} rows), ${f1(g.t * 180 / Math.PI)}°, each starts again at ${f2(g.H)} m` : `${g.rows} panels on one slope, ${f1(g.t * 180 / Math.PI)}°, ladder rafter ${f2(g.L)} m along the slope`, { fill: css("--muted"), size: 11 });
+  box.appendChild(s);
+  const back = Math.max(...g.ss.map(v => g.legTop(v))) - PED;
+  $("secCap").textContent = `Same for every frame. ${g.nc} legs per frame, no more than ${f2(Math.max(...sp) * g.ct)} m apart${g.legUnder && g.nw ? ", one under the middle of every walkway" : ""}. 40×40 knee braces at the other legs. Front leg ${f2(g.H)} m, tallest leg ${f2(back)} m.` + (g.stepped ? " Red dashed line: the winter (December) noon sun over the high edge of each group." : "");
+  const b = curBest();
+  if (b) $("secCap").textContent += ` Members: purlins ${purlinSec(b.purlin).name}; rafter ${rafText(b.raf)}; legs (${ORI[b.orient].toLowerCase()}) ${legText(b.leg)}.`;
+}
+
+// ---------- plan ----------
+function drawPlan(g) {
+  const box = $("plan"); box.innerHTML = "";
+  const ct = g.ct, k = Math.min(1040 / (g.W + 3), 640 / (g.Lh + 3)), W = Math.max(1100, (g.W + 3) * k + 40), H = (g.Lh + 3) * k + 30;
+  const s = svg(W, H), X = x => 50 + x * k, Y = y => H - 50 - y * k, steel = css("--steel");
+  g.rowsS.forEach(r => { for (let i = 0; i < g.cols; i++) { const xa = i * (PW + GAP); el(s, "rect", { x: X(xa), y: Y(r.s1 * ct), width: PW * k, height: (r.s1 - r.s0) * ct * k, fill: css("--panelFill"), stroke: css("--panel"), "stroke-width": 0.4, opacity: 0.55 }); } });
+  g.walks.forEach((w, i) => {
+    el(s, "rect", { x: X(0), y: Y(w.s1 * ct), width: g.W * k, height: (w.s1 - w.s0) * ct * k, fill: css("--walkFill"), stroke: css("--walk") });
+    text(s, X(g.W / 2), Y(w.mid * ct) + 4, "WALKWAY " + (i + 1) + "  ·  " + f2(g.wW) + " m", { fill: css("--walk"), size: 10.5 });
+  });
+  g.xs.forEach(x => {
+    line(s, X(x), Y(0), X(x), Y(g.Lh), steel, 1.2);
+    g.ss.forEach(sv => el(s, "rect", { x: X(x) - 3.5, y: Y(sv * ct) - 3.5, width: 7, height: 7, fill: steel }));
+  });
+  dimH(s, X(0), X(g.W), Y(0) + 26, f2(g.W) + " m  ·  " + g.cols + " panels");
+  dimH(s, X(g.xs[0]), X(g.xs[1]), Y(0) + 12, f2(g.xs[1] - g.xs[0]) + " m");
+  dimV(s, X(0) - 18, Y(0), Y(g.Lh), f2(g.Lh) + " m");
+  g.groups.forEach((n, i) => { const rs = g.rowsS.filter(r => r.g === i); const m = (rs[0].s0 + rs[rs.length - 1].s1) / 2 * ct; text(s, X(g.W) + 10, Y(m) + 4, n + " rows", { anchor: "start", fill: css("--muted"), size: 10.5 }); });
+  line(s, X(g.W) + 40, Y(g.Lh) + 30, X(g.W) + 40, Y(g.Lh), css("--fg"), 1.2); poly(s, [[X(g.W) + 35, Y(g.Lh) + 8], [X(g.W) + 45, Y(g.Lh) + 8], [X(g.W) + 40, Y(g.Lh) - 2]], css("--fg"));
+  text(s, X(g.W) + 40, Y(g.Lh) - 8, "N", { size: 12 });
+  box.appendChild(s);
+}
+
+// ---------- leg options ----------
+function drawLegs() {
+  const box = $("legs"); box.innerHTML = "";
+  const s = svg(540, 300), st_ = css("--steel"), m = css("--muted"), sel = st.pick ? st.pick.orient : null;
+  [["A  chords E–W", 0, "A", "stiff against", "sideways (E–W) sway"], ["B  chords N–S", 180, "B", "stiff in the plane", "of the rafter (N–S)"], ["Box  4 chords", 360, "box", "stiff both ways,", "rungs on 4 faces"]].forEach(([t, x0, k, l1, l2]) => {
+    const on = sel === k;
+    if (on) el(s, "rect", { x: x0 + 4, y: 4, width: 172, height: 290, fill: "none", stroke: css("--accent"), "stroke-width": 1.5, rx: 4 });
+    text(s, x0 + 90, 24, t, { size: 12, fill: on ? css("--accent") : css("--fg") });
+    ladder(s, x0 + 30, 250, x0 + 30, 50, 30, 30, st_, 1.3);
+    const cx = x0 + 120, cy = 120;
+    el(s, "rect", { x: cx - 36, y: cy - 36, width: 72, height: 72, fill: "none", stroke: css("--rule"), "stroke-dasharray": "3 3" });
+    const ch = (x, y) => el(s, "rect", { x: x - 7, y: y - 7, width: 14, height: 14, fill: st_ });
+    if (k === "A") { ch(cx - 22, cy); ch(cx + 22, cy); line(s, cx - 15, cy, cx + 15, cy, st_, 1); }
+    else if (k === "B") { ch(cx, cy - 22); ch(cx, cy + 22); line(s, cx, cy - 15, cx, cy + 15, st_, 1); }
+    else { [[-22, -22], [22, -22], [22, 22], [-22, 22]].forEach(([dx, dy]) => ch(cx + dx, cy + dy)); line(s, cx - 15, cy - 22, cx + 15, cy - 22, st_, 1); line(s, cx - 15, cy + 22, cx + 15, cy + 22, st_, 1); line(s, cx - 22, cy - 15, cx - 22, cy + 15, st_, 1); line(s, cx + 22, cy - 15, cx + 22, cy + 15, st_, 1); }
+    text(s, cx, cy - 44, "plan, N ↑", { fill: m, size: 10 });
+    text(s, x0 + 100, 200, l1, { fill: m, size: 10 }); text(s, x0 + 100, 214, l2, { fill: m, size: 10 });
+    const r = curBest(k);
+    if (r) { text(s, x0 + 90, 268, r.pass ? "passes" : "fails", { fill: r.pass ? css("--ok") : css("--dim"), size: 11 }); text(s, x0 + 90, 284, `${sz(r.leg.ch).replace("×2", "")} · ${r.leg.gap} gap · @${r.leg.a}`, { fill: m, size: 10 }); }
+  });
+  box.appendChild(s);
+}
+
+// ---------- walkway section (three variants) ----------
+function drawWalk(g) {
+  const box = $("walk"); box.innerHTML = "";
+  const s = svg(520, 340), st = css("--steel"), m = css("--muted"), wk = css("--walk"), pn = css("--panel");
+  const k = Math.min(330, 190 / g.wW), dz = g.drop * k, rd = RD * k, i0 = 260 - g.wW * k / 2, i1 = 260 + g.wW * k / 2;
+  const L = (x1, y1, x2, y2, w = 1.2) => line(s, x1, y1, x2, y2, st, w);
+  const ladderH = (a, b, top, w = 28) => { L(a, top, b, top); L(a, top + rd, b, top + rd); for (let x = a; x <= b + 0.1; x += w) L(x, top, x, top + rd, 0.7); };
+  const call = (x, y, tx, ty, t, c, anc) => { line(s, x, y, tx, ty, css("--rule"), 0.8); text(s, tx + (anc === "end" ? -4 : anc === "start" ? 4 : 0), ty + (anc === "middle" ? -4 : 4), t, { fill: c || m, size: 10.5, anchor: anc }); };
+  const plate = (zW, a = i0, b = i1) => {
+    [a + 8, b - 22].forEach(x => el(s, "rect", { x, y: zW + 1, width: 14, height: 8, fill: st }));
+    el(s, "rect", { x: a + 4, y: zW - 5, width: b - a - 8, height: 6, fill: css("--walkFill"), stroke: wk, "stroke-width": 1.2 });
+    call((a + b) / 2, zW - 5, (a + b) / 2, 34, "walkway plate", wk, "middle");
+    call(b - 15, zW + 5, b + 60, zW + 34, "2 E–W pipes", m, "start");
+  };
+  const legV = (x, y0, y1) => { L(x - 10, y0, x - 10, y1); L(x + 10, y0, x + 10, y1); for (let y = y0 + 18; y < y1; y += 22) L(x - 10, y, x + 10, y, 0.7); };
+  dimH(s, i0, i1, 14, "walkway " + f2(g.wW) + " m");
+  if (g.stepped) {
+    // left: back (high) edge of the group below; right: front (low) edge of the next group
+    const zL = 70, zR = 150, zW = zR - 8 + Math.min(dz, 90), xb = i0 - 40, xf = i1 + 40, cm = rd * 0.6;
+    ladderH(10, i0 - 6, zL); line(s, 10, zL - 8, i0 - 6, zL - 8, pn, 5);
+    ladderH(i1 + 6, 510, zR); line(s, i1 + 6, zR - 8, 510, zR - 8, pn, 5);
+    legV(xb, zL + rd, 335); legV(xf, zR + rd, 335);
+    L(xb + 10, zW + 9, xf - 10, zW + 9); L(xb + 10, zW + 9 + cm, xf - 10, zW + 9 + cm);
+    for (let x = xb + 10; x <= xf - 10; x += 22) L(x, zW + 9, x, zW + 9 + cm, 0.7);
+    plate(zW);
+    call(40, zL - 8, 40, 46, "group below, high edge", pn, "start");
+    call(490, zR - 8, 490, zR - 34, "next group, low edge", pn, "end");
+    call(xb, 300, xb - 50, 300, "back leg", m, "end"); call(xf, 300, xf + 50, 300, "front leg", m, "start");
+    call((xb + xf) / 2, zW + 9 + cm, (xb + xf) / 2, 326, "cross member, leg to leg", m, "middle");
+  } else if (g.wType === "straight") {
+    const zr = 120, zP = zr - 8;
+    ladderH(10, 510, zr); line(s, 10, zP, i0 - 4, zP, pn, 5); line(s, i1 + 4, zP, 510, zP, pn, 5);
+    const w = g.walks[0] || { onTop: false };
+    if (w.onTop) {
+      const zW = zr - 14; plate(zW);
+      call(80, zr + rd / 2, 20, zr + 60, "ladder rafter (straight)", m, "start");
+      text(s, 260, zr + rd + 40, "walkway too shallow to pass under: it sits on the rafter", { fill: m, size: 10.5 });
+    } else {
+      const zW = zP + dz, zIn = zW + 9, zOut = zIn + rd * 0.6;
+      L(i0, zr + rd, i0, zOut); L(i1, zr + rd, i1, zOut);
+      L(i0, zIn, i1, zIn); L(i0, zOut, i1, zOut); for (let x = i0; x <= i1; x += 24) L(x, zIn, x, zOut, 0.7);
+      plate(zW);
+      if (g.legUnder) legV(260, zOut, 335);
+      call(80, zr + rd / 2, 20, zr + 60, "ladder rafter (straight)", m, "start");
+      call(i0, (zr + rd + zIn) / 2, i0 - 60, (zr + rd + zIn) / 2 + 30, "hanger", m, "end");
+      const so = (w.stepOver || 0);
+      dimV(s, i1 + 50, zr, zW - 2, "step over " + f2(so) + " m");
+      line(s, i1, zr, i1 + 54, zr, css("--dim"), 0.4, "2 2"); line(s, i1 - 4, zW - 2, i1 + 54, zW - 2, css("--dim"), 0.4, "2 2");
+    }
+  } else {
+    const zr = 120, zP = zr - rd - 8, zW = zP + dz, zIn = zW + 9, zOut = zIn + rd;
+    [[10, i0], [i1, 510]].forEach(([a, b]) => { L(a, zr, b, zr); L(a, zr - rd, b, zr - rd); for (let x = a; x <= b; x += 28) L(x, zr, x, zr - rd, 0.7); });
+    L(i0, zr - rd, i0, zIn); L(i0, zIn, i1, zIn); L(i1, zIn, i1, zr - rd);
+    L(i0 - rd, zr, i0 - rd, zOut); L(i0 - rd, zOut, i1 + rd, zOut); L(i1 + rd, zOut, i1 + rd, zr);
+    for (let y = zr; y <= zIn; y += 22) { L(i0 - rd, y, i0, y, 0.7); L(i1, y, i1 + rd, y, 0.7); }
+    for (let x = i0; x <= i1; x += 24) L(x, zIn, x, zOut, 0.7);
+    [[i0 - 22, 10, i0 - 6], [i1 + 8, i1 + 6, 510]].forEach(([px, a, b]) => { el(s, "rect", { x: px, y: zr - rd - 14, width: 14, height: 14, fill: st }); line(s, a, zP - 6, b, zP - 6, pn, 5); });
+    plate(zW);
+    if (g.legUnder) legV(260, zOut, 335);
+    call(80, zr - rd / 2, 60, zr + 50, "ladder rafter", m, "middle");
+    call(i0 + 30, zOut - 4, i0 - 70, zOut + 40, "bottom of U", m, "end");
+    dimV(s, i1 + rd + 40, zP - 3, zW - 2, "drop " + f2(g.drop) + " m");
+    line(s, i1 + 8, zP - 3, i1 + rd + 44, zP - 3, css("--dim"), 0.4, "2 2"); line(s, i1 - 4, zW - 2, i1 + rd + 44, zW - 2, css("--dim"), 0.4, "2 2");
+  }
+  box.appendChild(s);
+  $("walkCap").textContent = g.stepped
+    ? "Stepped slope: each group is its own table. The walkway sits between the back legs of one group and the front legs of the next, on a cross member from leg to leg, with the two east–west pipes and the plate on top. Nothing to step over."
+    : g.wType === "straight"
+      ? "Rafter runs straight through, which keeps the frame strongest. The walkway hangs just under it on two hangers per frame; people step over the rafter at every frame."
+      : "The ladder rafter drops into a U between the panel groups. The bottom of the U is the cross member, two east–west pipes sit on it, and the walkway plate rests on the two pipes. Nothing crosses the walkway.";
+}
+
+function facts(g) {
+  const backH = Math.max(...g.ss.map(v => g.legTop(v))) - PED, frameGap = g.xs[1] - g.xs[0];
+  const w0 = g.walks[0], shadeMax = Math.max(0, ...g.walks.map(w => w.shade || 0));
+  const walkFact = !w0 ? ["Walkway", "none", ""] : g.stepped ? ["Winter shadow", f2(shadeMax) + " m", "Dec noon, onto the next group"]
+    : g.wType === "straight" ? ["Walkway", w0.onTop ? "on rafter" : "step " + f2(w0.stepOver) + " m", w0.onTop ? "sits on the rafters" : "over the rafter at each frame"]
+    : ["Walkway", "in a U", f2(g.drop) + " m below the panels"];
+  const F = [
+    ["Panels", g.rows * g.cols, g.rows + " rows × " + g.cols],
+    ["Panel groups", g.groups.join(" + "), g.nw + " walkway" + (g.nw === 1 ? "" : "s") + " in between"],
+    ["Footprint", f1(g.W) + " × " + f1(g.Lh), "m, east–west × north–south"],
+    ["Frames", g.nr, "ladder rafters, " + f2(frameGap) + " m apart"],
+    ["Legs", g.nr * g.nc, g.nc + " per frame = pedestals"],
+    ["Leg heights", f2(g.H) + " → " + f2(backH), "m, front to tallest"],
+    walkFact
+  ];
+  $("facts").innerHTML = F.map(([k, v, s]) => `<div class="fact"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  $("assume").innerHTML = [
+    "Panels in portrait (2.35 m up the slope), 20 mm gaps, one continuous slope at the chosen tilt, as you described.",
+    g.stepped ? `Stepped slope: every panel group is its own table starting again at the ${f2(g.H)} m front leg. Walkway ${f2(g.wW)} m wide, level, ${f2(g.drop)} m below the low edge of the next group.`
+      : g.wType === "straight" ? `Walkway ${f2(g.wW)} m wide, level, ${f2(g.drop)} m below the panels, hung under a straight ladder rafter. People step over the rafter at each frame.`
+      : `Walkway ${f2(g.wW)} m wide, level, ${f2(g.drop)} m below the panels. The ladder rafter drops into a U at each walkway, so nothing crosses the walkway.`,
+    'Rows are split as evenly as possible; type your own split in "Rows per group", e.g. 4,5.',
+    "Frames (ladder rafters) no more than 2.4 m apart east–west, end frames 0.3 m in from the edge, same as your normal tables.",
+    `Ladder legs no more than about 4 m apart along each rafter, first and last leg 0.4 m in from the panel edges${g.legUnder ? ", plus one leg under the middle of each U, because the U is the weakest point of the rafter" : ""}.`,
+    "Purlins are not drawn in the plan to keep it readable; they run east–west under each panel edge as usual.",
+    g.stepped
+      ? `<span class="warn">Stepped: the high edge of each group throws a shadow on the next. At ${f1(g.lat)}° N the December noon sun is ${f1(g.alt * 180 / Math.PI)}° high, so ${shadeMax > 0 ? f2(shadeMax) + " m of the next group's front row is shaded at noon, more in the morning and evening. A wider walkway or fewer rows per group reduces this." : "the walkway is wide enough to clear the shadow at noon (mornings and evenings are longer)."}</span>`
+      : `<span class="warn">With one long slope the back legs get tall: ${f2(backH)} m here. On a ${g.rows}-row array at 8–14 floors this is the main thing to watch once we do the wind check.</span>`
+  ].map(x => "<li>" + x + "</li>").join("");
+}
+
+
+// ---------- strength and weight ----------
+const SCEN = [
+  { key: "u", name: "One slope, walkway in a U", stepped: false, wType: "u" },
+  { key: "straight", name: "One slope, straight rafter, step over", stepped: false, wType: "straight" },
+  { key: "step", name: "Steps down at each walkway", stepped: true, wType: "u" }];
+const ORI = { A: "Ladder, chords E–W", B: "Ladder, chords N–S", box: "Box, 4 chords" };
+const MEM = { purlin: "purlins", purlinDefl: "purlin sag", rafter: "rafters", rafterDefl: "rafter sag", legs: "legs", walkway: "walkway pipes" };
+const sz = k => k.replace(/x/g, "×");
+const rafText = r => `2×${sz(r.ch)}, ${r.gap} mm gap, rungs ${r.rung && r.rung !== "40x40x2" ? sz(r.rung) + " " : ""}@${r.a}${r.diag ? " + " + sz(r.diag) + " diagonals" : ""}`;
+const legText = l => `${sz(l.ch)} chords, ${l.gap} mm apart, rungs @${l.a}`;
+const maxU = b => Math.max(...Object.values(b.util));
+function calcInputs() {
+  return { floors: +$("floors").value || 0, storeyH: +$("storeyH").value || 3, cat: +$("cat").value || 2, V: +$("V").value || 150, fy: +$("fy").value || 210,
+    watt: +$("watt").value || 590, panelKg: +$("pkg").value || 30, plateKg: +$("plate").value || 0, LL: +$("LL").value || 0,
+    legKg: Math.max(0, +$("legKg").value || 0), rafDiag: $("rafWeb").value === "diag", frameGap: Math.max(0, +$("fGap").value || 0), legSpace: Math.max(0, +$("lSpace").value || 0) };
+}
+function bestOf(r) { const arr = Object.values(r.best); const ok = arr.filter(b => b.pass).sort((a, b) => a.total - b.total); return ok[0] || [...arr].sort((a, b) => maxU(a) - maxU(b))[0]; }
+function curEntry() { return st.results ? st.results.find(x => x.sc.key === curKey()) : null; }
+function curBest(orient) { const e = curEntry(); if (!e) return null; const o = orient || (st.pick && st.pick.key === e.sc.key ? st.pick.orient : bestOf(e.r).orient); return e.r.best[o]; }
+let calcTimer = null, calcRun = 0;
+function scheduleCalc() { clearTimeout(calcTimer); $("calcState").textContent = "Calculating…"; calcTimer = setTimeout(runCalc, 250); }
+function runCalc() {
+  const id = ++calcRun, gi = geomInputs(), inp = { ...gi, ...calcInputs() };
+  const list = gi.nw ? SCEN : [{ ...SCEN[0], name: "One slope (no walkway)" }];
+  const out = []; let i = 0;
+  const step = () => {
+    if (id !== calcRun) return;
+    const sc = list[i]; out.push({ sc, r: aptDesign(inp, { stepped: sc.stepped, wType: sc.wType, legUnder: gi.legUnder }) });
+    if (++i < list.length) { setTimeout(step, 0); return; }
+    st.results = out; const e = curEntry();
+    if (e && (!st.pick || st.pick.key !== e.sc.key)) { const b = bestOf(e.r); st.pick = { key: e.sc.key, orient: b.orient, nr: b.nr, legMax: b.legMax }; }
+    else if (e && st.pick) { const b = e.r.best[st.pick.orient]; st.pick = { ...st.pick, nr: b.nr, legMax: b.legMax }; }
+    $("calcState").textContent = ""; renderCalc(); render();
+  };
+  setTimeout(step, 0);
+}
+function failText(b, V) {
+  if (b.pass) return `<span class="pill ok">Passes</span><span class="why">gives way at about ${Math.round(b.bendSpeed)} km/h</span>`;
+  const [k, u] = Object.entries(b.util).sort((a, c) => c[1] - a[1])[0];
+  const why = k === "legs" && b.leg.lam > 250 ? `legs too slender (${Math.round(b.leg.lam)} > 250)` : k === "rafter" && b.raf.lam > 250 ? "rafter chord too slender" : `${MEM[k]} at ${Math.round(u * 100)}%`;
+  return `<span class="pill bad">Fails at ${V} km/h</span><span class="why">${why}</span>`;
+}
+function renderCalc() {
+  const res = st.results; if (!res) return;
+  const ci = calcInputs(), w = res[0].r.wind, q0 = 0.81 * 0.6 * (ci.V / 3.6) ** 2 / 1000;
+  $("windLine").innerHTML = `Panels about <b>${f1(w.z)} m</b> above ground (${ci.floors} floors × ${f1(ci.storeyH)} m plus the structure). At ${ci.V} km/h the wind pressure up there is <b>${f2(w.q)} kN/m²</b> (k2 = ${f2(w.k2)}), <b>${f1(w.q / q0)}×</b> what the same table feels on a low roof.`;
+  let lightest = null; res.forEach(e => Object.values(e.r.best).forEach(b => { if (b.pass && (!lightest || b.total < lightest.total)) lightest = b; }));
+  let html = '<thead><tr><th>Leg type</th><th>Result</th><th class="num">Steel</th><th class="num">kg/kW</th><th class="num">Legs</th><th class="num">Frames</th><th>Members</th></tr></thead><tbody>';
+  res.forEach(e => {
+    html += `<tr class="grp"><td colspan="7">${e.sc.name} · tallest leg ${f2(Math.max(...Object.values(e.r.best).map(b => b.tallest)))} m</td></tr>`;
+    ["A", "B", "box"].forEach(o => {
+      const b = e.r.best[o], on = st.pick && st.pick.key === e.sc.key && st.pick.orient === o;
+      html += `<tr class="row" tabindex="0" data-k="${e.sc.key}" data-o="${o}" aria-selected="${on}"><td>${ORI[o]}${b === lightest ? '<span class="tag">lightest</span>' : ""}</td><td>${failText(b, ci.V)}</td>`
+        + `<td class="num">${(b.total / 1000).toFixed(2)} t</td><td class="num">${b.kgkW.toFixed(1)}</td><td class="num">${b.pedestals}</td><td class="num">${b.nr} @ ${f2(b.spacing)} m</td>`
+        + `<td class="mem">Purlin ${purlinSec(b.purlin).name} · Rafter ${rafText(b.raf)}<br>Legs ${legText(b.leg)}, ${b.nc} per frame, ≤ ${f1(b.legMax)} m apart</td></tr>`;
+    });
+  });
+  $("rt").innerHTML = html + "</tbody>";
+  $("rt").querySelectorAll("tr.row").forEach(tr => {
+    const go = () => pickRow(tr.dataset.k, tr.dataset.o);
+    tr.addEventListener("click", go); tr.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } });
+  });
+  renderDetail();
+}
+function pickRow(k, o) {
+  const e = st.results.find(x => x.sc.key === k), b = e.r.best[o];
+  if (k === "step") $("slope").value = "step"; else { $("slope").value = "one"; $("wtype").value = k; }
+  st.pick = { key: k, orient: o, nr: b.nr, legMax: b.legMax };
+  renderCalc(); render();
+}
+function renderDetail() {
+  const b = curBest(); if (!b) { $("calcDetail").innerHTML = ""; return; }
+  const e = curEntry(), col = u => u > 1 ? css("--dim") : u > 0.7 ? css("--amber") : css("--ok");
+  const bars = Object.entries(b.util).filter(([k]) => k !== "walkway" || b.kg.walkway > 0).map(([k, u]) => `<div class="barrow"><span>${MEM[k][0].toUpperCase() + MEM[k].slice(1)}</span><div class="bar"><i style="width:${Math.min(100, u * 66.6)}%;background:${col(u)}"></i></div><span class="pc">${Math.round(u * 100)}%</span></div>`).join("");
+  const kg = b.kg, kv = [["Purlins", kg.purlin], ["Ladder rafters" + (e.sc.key === "u" ? " (with U)" : ""), kg.rafter], ["Legs", kg.legs], ["Knee braces", kg.knee], ["Walkway steel", kg.walkway]].filter(x => x[1] > 0);
+  $("calcDetail").innerHTML = `<div><h3>${e.sc.name} · ${ORI[b.orient]}</h3><div class="bars">${bars}</div><p class="cap" style="margin-top:8px">100% = the pipe just starts to bend permanently at ${calcInputs().V} km/h. The tick marks 100%, the bar is drawn to 150%.</p></div>`
+    + `<div><h3>Weight and loads</h3><div class="kv">${kv.map(([k, v]) => `<span>${k}</span><span>${Math.round(v)} kg</span>`).join("")}<span><b>Structure total</b></span><span><b>${Math.round(b.total)} kg · ${b.kgkW.toFixed(1)} kg/kW</b></span>`
+    + `<span>Walkway plate (extra, not in total)</span><span>${Math.round(b.plateKg)} kg</span><span>Legs = pedestals</span><span>${b.pedestals}</span><span>Uplift on the worst leg</span><span>${f1(b.uplift)} kN</span><span>Tallest leg</span><span>${f2(b.tallest)} m</span><span>Array size</span><span>${f1(b.kW)} kW</span></div></div>`;
+}
+// ---------- 3D view ----------
+const V3 = { ok: false, panels: true, stress: true, labels: true, view: "3d" };
+function init3D() {
+  if (!window.THREE) { $("viewer").innerHTML = '<p class="cap" style="padding:16px">The 3D view could not load (no connection to the 3D library). Calculations and drawings still work.</p>'; return; }
+  const T = THREE, viewer = $("viewer"), canvas = $("c3d");
+  const renderer = new T.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+  const scene = new T.Scene(), camera = new T.PerspectiveCamera(40, 1, 0.1, 600);
+  scene.add(new T.HemisphereLight(0xffffff, 0x667080, 0.8));
+  const sun = new T.DirectionalLight(0xffffff, 0.75); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); scene.add(sun); scene.add(sun.target);
+  const matFloor = new T.MeshStandardMaterial({ roughness: 1 });
+  const matInst = new T.MeshStandardMaterial({ color: 0xffffff, metalness: 0.25, roughness: 0.5 });
+  const matConc = new T.MeshStandardMaterial({ color: 0xd8d4cc, roughness: 0.95 });
+  const matPlate = new T.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.5, roughness: 0.55 });
+  const pc = document.createElement("canvas"); pc.width = 384; pc.height = 768; const gx = pc.getContext("2d");
+  gx.fillStyle = "#c9cfd6"; gx.fillRect(0, 0, 384, 768); gx.fillStyle = "#1a2846"; gx.fillRect(8, 8, 368, 752);
+  gx.strokeStyle = "#5d6f8f"; gx.lineWidth = 2;
+  for (let i = 1; i < 6; i++) { const x = 8 + i * 368 / 6; gx.beginPath(); gx.moveTo(x, 8); gx.lineTo(x, 760); gx.stroke(); }
+  for (let j = 1; j < 12; j++) { const y = 8 + j * 752 / 12; gx.beginPath(); gx.moveTo(8, y); gx.lineTo(376, y); gx.stroke(); }
+  const matPanel = new T.MeshStandardMaterial({ map: new T.CanvasTexture(pc), metalness: 0.2, roughness: 0.35, transparent: true, opacity: 0.9 });
+  function applyTheme() { scene.background = new T.Color(css("--scene")); matFloor.color.set(css("--floor")); }
+  applyTheme();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { applyTheme(); if (V3.last) build3D(...V3.last); });
+  new MutationObserver(() => { applyTheme(); if (V3.last) build3D(...V3.last); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  const floor = new T.Mesh(new T.PlaneGeometry(400, 400), matFloor); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const grid = new T.GridHelper(400, 200, 0x000000, 0x000000); grid.material.opacity = 0.06; grid.material.transparent = true; grid.position.y = 0.002; scene.add(grid);
+  const target = new T.Vector3(0, 3, 0), sph = { r: 40, th: 0.7, ph: 1.2 }, goal = { r: 40, th: 0.7, ph: 1.2 };
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  Object.assign(V3, { ok: true, T, scene, camera, renderer, sun, matInst, matConc, matPlate, matPanel, target, sph, goal, reduce, group: null, labels: [], baseR: 40 });
+  const ptrs = new Map(); let pinch = 0, panMode = false;
+  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); panMode = e.shiftKey || e.button === 2; });
+  canvas.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const p = ptrs.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], dist = Math.hypot(a.x - b.x, a.y - b.y); if (pinch) goal.r = sph.r = Math.min(V3.baseR * 3, Math.max(3, sph.r * pinch / dist)); pinch = dist; return; }
+    if (panMode) { const right = new T.Vector3().setFromMatrixColumn(camera.matrix, 0), upv = new T.Vector3().setFromMatrixColumn(camera.matrix, 1), f = sph.r * 0.0015; target.addScaledVector(right, -dx * f).addScaledVector(upv, dy * f); }
+    else { sph.th -= dx * 0.006; sph.ph = Math.min(1.55, Math.max(0.05, sph.ph - dy * 0.006)); goal.th = sph.th; goal.ph = sph.ph; setView3("free"); }
+  });
+  const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; };
+  canvas.addEventListener("pointerup", endPtr); canvas.addEventListener("pointercancel", endPtr);
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("wheel", e => { e.preventDefault(); goal.r = sph.r = Math.min(V3.baseR * 3, Math.max(3, sph.r * (1 + e.deltaY * 0.001))); }, { passive: false });
+  function resize() { const w = viewer.clientWidth, h = viewer.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(viewer); resize();
+  function loop() {
+    const k = reduce ? 1 : 0.15;
+    sph.r += (goal.r - sph.r) * k; sph.th += (goal.th - sph.th) * k; sph.ph += (goal.ph - sph.ph) * k;
+    camera.position.set(target.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th), target.y + sph.r * Math.cos(sph.ph), target.z + sph.r * Math.sin(sph.ph) * Math.cos(sph.th));
+    camera.lookAt(target); renderer.render(scene, camera); placeLabels(); requestAnimationFrame(loop);
+  }
+  loop();
+}
+const VIEWS3 = () => ({ "3d": { r: V3.baseR, th: 0.7, ph: 1.15 }, front: { r: V3.baseR, th: 0, ph: 1.45 }, side: { r: V3.baseR, th: Math.PI / 2, ph: 1.45 }, top: { r: V3.baseR * 1.1, th: 0, ph: 0.06 } });
+function setView3(v, instant) {
+  V3.view = v; if (VIEWS3()[v]) Object.assign(V3.goal, VIEWS3()[v]);
+  if (instant || V3.reduce) Object.assign(V3.sph, V3.goal);
+  ["3d", "front", "side", "top"].forEach(k => $("v" + k).setAttribute("aria-pressed", String(k === v)));
+}
+const uCol = u => u > 1 ? 0xd8402f : u >= 0.7 ? 0xe0a21a : 0x2f9a64;
+function build3D(g, b) {
+  if (!V3.ok) return;
+  V3.last = [g, b];
+  const T = V3.T, scene = V3.scene;
+  if (V3.group) { scene.remove(V3.group); V3.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  const group = new T.Group(); V3.group = group; scene.add(group); V3.labels = [];
+  const K = APTDRAW.parts(g, b, {}), RC = K.RC, PU = K.PU;
+  const P = (x, y, z) => new T.Vector3(x - g.W / 2, z, g.Lh / 2 - y);    // x east, y north, z up -> three.js
+  const mem = [];                                                       // [a, b, h, w, kind]
+  const add = (a, c, h, w, kind) => mem.push([a, c, h, w, kind]);
+  const rdC = (RC.H + b.raf.gap) / 1000, rH = RC.H / 1000;
+  // legs
+  g.xs.forEach(x => g.ss.forEach(sv => {
+    const y = g.yOf(sv), top = g.legTop(sv), d = K.d / 1000;
+    K.chordsAt.forEach(([ox, oy]) => add(P(x + ox / 1000, y + oy / 1000, 0.3), P(x + ox / 1000, y + oy / 1000, top), K.chNS / 1000, K.chEW / 1000, "leg"));
+    for (let z = 0.3 + b.leg.a / 1000; z < top - 0.05; z += b.leg.a / 1000) {
+      if (b.orient !== "B") (b.orient === "box" ? [-d / 2, d / 2] : [0]).forEach(oy => add(P(x - d / 2, y + oy, z), P(x + d / 2, y + oy, z), 0.04, 0.04, "leg"));
+      if (b.orient !== "A") (b.orient === "box" ? [-d / 2, d / 2] : [0]).forEach(ox => add(P(x + ox, y - d / 2, z), P(x + ox, y + d / 2, z), 0.04, 0.04, "leg"));
+    }
+    if (!g.walkAt(sv)) [-1, 1].forEach(dd => { const s2 = sv + dd * 0.7; if (g.braceOK(sv, s2)) add(P(x, y, g.zr(sv) - 0.6), P(x, g.yOf(s2), g.zr(s2)), 0.04, 0.04, "knee"); });
+  }));
+  // ladder rafters (+ walkway steel)
+  const DG = b.raf.diag ? ACH[b.raf.diag] : null;
+  g.xs.forEach(x => APTDRAW.rafterLines(g, (y1, z1, y2, z2, k) => add(P(x, y1, z1 + rH / 2), P(x, y2, z2 + rH / 2),
+    k === 1 ? rH : k === 0.5 ? DG.H / 1000 : K.RG.B / 1000, k === 1 ? RC.B / 1000 : k === 0.5 ? DG.B / 1000 : K.RG.H / 1000, "raf"), rdC, b.raf.a / 1000, !!b.raf.diag));
+  // purlins, two per panel row
+  const zTopRaf = s => g.zr(s) + rdC + rH;
+  g.rowsS.forEach(r => [0.25, 0.75].forEach(f => {
+    const s = r.s0 + 2.35 * f, y = g.yOf(s), z0 = zTopRaf(s);
+    if (!PU.ladder) { add(P(-0.02, y, z0 + PU.H / 2000), P(g.W + 0.02, y, z0 + PU.H / 2000), PU.H / 1000, PU.B / 1000, "purlin"); return; }
+    const ch = PU.c.H / 1000, gp = PU.gap / 1000;
+    add(P(-0.02, y, z0 + ch / 2), P(g.W + 0.02, y, z0 + ch / 2), ch, PU.B / 1000, "purlin");
+    add(P(-0.02, y, z0 + ch * 1.5 + gp), P(g.W + 0.02, y, z0 + ch * 1.5 + gp), ch, PU.B / 1000, "purlin");
+    for (let x = 0; x <= g.W + 1e-6; x += PU.a / 1000) add(P(x, y, z0 + ch), P(x, y, z0 + ch + gp), 0.04, 0.04, "purlin");
+  }));
+  // walkway pipes
+  g.walks.forEach(w => [w.s0 + 0.05, w.s1 - 0.05].forEach(s => add(P(0, g.yOf(s), w.zW - K.WP.H / 2000), P(g.W, g.yOf(s), w.zW - K.WP.H / 2000), K.WP.H / 1000, K.WP.B / 1000, "walk")));
+  // instanced steel
+  const uOf = { leg: b.util.legs, raf: Math.max(b.util.rafter, b.util.rafterDefl), purlin: Math.max(b.util.purlin, b.util.purlinDefl), walk: b.util.walkway, knee: null };
+  const steel = new T.Color(css("--steel3d")), box = new T.BoxGeometry(1, 1, 1);
+  const im = new T.InstancedMesh(box, V3.matInst, mem.length); im.castShadow = true; im.receiveShadow = true;
+  const Y = new T.Vector3(0, 1, 0), Zs = new T.Vector3(0, 0, 1), m4 = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), mid = new T.Vector3(), col = new T.Color();
+  mem.forEach(([a, c, h, w, kind], i) => {
+    const dir = c.clone().sub(a), len = dir.length() || 1e-4; dir.normalize();
+    const up = Math.abs(dir.y) > 0.95 ? Zs : Y;
+    const u = up.clone().sub(dir.clone().multiplyScalar(up.dot(dir))).normalize(), s = new T.Vector3().crossVectors(dir, u);
+    q.setFromRotationMatrix(new T.Matrix4().makeBasis(dir, u, s)); mid.copy(a).add(c).multiplyScalar(0.5); sc.set(len, h, w);
+    m4.compose(mid, q, sc); im.setMatrixAt(i, m4);
+    const uu = uOf[kind]; col.set(V3.stress && uu != null ? uCol(uu) : steel); im.setColorAt(i, col);
+  });
+  group.add(im);
+  // pedestals
+  const nPed = g.xs.length * g.ss.length, ped = new T.InstancedMesh(box, V3.matConc, nPed); let pi = 0;
+  g.xs.forEach(x => g.ss.forEach(sv => { m4.compose(P(x, g.yOf(sv), 0.15), new T.Quaternion(), new T.Vector3(K.pedEW / 1000, 0.3, K.pedNS / 1000)); ped.setMatrixAt(pi++, m4); }));
+  ped.castShadow = ped.receiveShadow = true; group.add(ped);
+  // walkway plates
+  g.walks.forEach(w => { const m = new T.Mesh(new T.BoxGeometry(g.W, 0.006, (w.s1 - w.s0) * g.ct), V3.matPlate); m.position.copy(P(g.W / 2, g.yOf(w.mid), w.zW - 0.003)); m.castShadow = m.receiveShadow = true; group.add(m); });
+  // panels
+  if (V3.panels) {
+    const n = g.rowsS.length * g.cols, pm = new T.InstancedMesh(new T.BoxGeometry(1.15, 0.035, 2.35), V3.matPanel, n); let k = 0;
+    const qp = new T.Quaternion().setFromEuler(new T.Euler(g.t, 0, 0)), one = new T.Vector3(1, 1, 1);
+    g.rowsS.forEach(r => { const s = (r.s0 + r.s1) / 2, z = K.pz(s) - 0.0175; for (let c = 0; c < g.cols; c++) { m4.compose(P(c * 1.17 + 0.575, g.yOf(s), z), qp, one); pm.setMatrixAt(k++, m4); } });
+    pm.castShadow = true; group.add(pm);
+  }
+  // labels
+  const lab = (text, pos, cls) => V3.labels.push({ text, pos, cls });
+  const worst = Object.entries(b.util).sort((a, c) => c[1] - a[1])[0];
+  const wpos = worst[0].startsWith("leg") ? P(g.xs[Math.floor(g.xs.length / 2)], g.yOf(g.ss[g.ss.length - 1]), g.legTop(g.ss[g.ss.length - 1]) * 0.6)
+    : worst[0].startsWith("raf") ? P(g.xs[Math.floor(g.xs.length / 2)], g.Lh / 2, g.zr(g.L / 2) + 0.3)
+    : worst[0] === "walkway" && g.walks.length ? P(g.W / 2, g.yOf(g.walks[0].mid), g.walks[0].zW + 0.2) : P(g.W / 2, g.yOf(0.6), g.zP(0.6) + 0.3);
+  lab((worst[1] > 1 ? "Fails: " : "Most loaded: ") + MEM[worst[0]] + " " + Math.round(worst[1] * 100) + "%", wpos, worst[1] > 1 ? "crit" : "critok");
+  lab("Front leg " + f2(g.H) + " m", P(g.xs[0], g.yOf(g.ss[0]), 0.3 + g.H * 0.5), "dim");
+  const iT = g.ss.reduce((bi, v, i) => g.legTop(v) > g.legTop(g.ss[bi]) ? i : bi, 0);
+  lab("Tallest leg " + f2(g.legTop(g.ss[iT]) - 0.3) + " m", P(g.xs[0], g.yOf(g.ss[iT]), g.legTop(g.ss[iT]) * 0.55), "dim");
+  g.walks.forEach((w, i) => lab("Walkway " + (i + 1), P(g.W + 0.3, g.yOf(w.mid), w.zW + 0.1), "dim"));
+  lab("Frames " + f2(g.xs[1] - g.xs[0]) + " m apart", P((g.xs[g.xs.length - 2] + g.xs[g.xs.length - 1]) / 2, g.yOf(g.L), g.zP(g.L) + 0.4), "dim");
+  lab("SOUTH · low edge", P(g.W / 2, -2.5, 0.02), "compass");
+  const le = $("labels3d"); le.innerHTML = "";
+  V3.labels.forEach(l => { const el = document.createElement("div"); el.className = "lbl " + l.cls; el.textContent = l.text; le.appendChild(el); l.el = el; });
+  // camera + sun follow the array size
+  const size = Math.max(g.W, g.Lh, 8), hTop = Math.max(...g.gSpans.map(q2 => K.pz(q2.s1)));
+  const first = !V3.baseSet; V3.baseR = size * 1.35 + 6; V3.baseSet = true;
+  V3.target.set(0, hTop * 0.45, 0);
+  V3.sun.position.set(size * 0.5, size * 1.2, size * 0.8); V3.sun.target.position.set(0, 0, 0);
+  Object.assign(V3.sun.shadow.camera, { left: -size, right: size, top: size, bottom: -size, near: 1, far: size * 4 }); V3.sun.shadow.camera.updateProjectionMatrix();
+  setView3(V3.view === "free" && !first ? "free" : V3.view === "free" ? "3d" : V3.view, first);
+}
+function placeLabels() {
+  const le = $("labels3d"); le.hidden = !V3.labels || !V3.labelsOn; if (le.hidden) return;
+  const w = $("viewer").clientWidth, h = $("viewer").clientHeight;
+  V3.labels.forEach(l => { const v = l.pos.clone().project(V3.camera); if (v.z > 1 || v.z < -1) { l.el.style.display = "none"; return; } l.el.style.display = ""; l.el.style.left = ((v.x + 1) / 2 * w) + "px"; l.el.style.top = ((1 - v.y) / 2 * h) + "px"; });
+}
+V3.labelsOn = true;
+
+// ---------- fabrication drawing ----------
+const LOGO = { w: 260, h: 252, url: "data:image/jpeg;base64," + LOGO_B64, hex: null };
+const logoHex = () => { if (!LOGO.hex) { const s = atob(LOGO_B64); let h = ""; for (let i = 0; i < s.length; i++) h += s.charCodeAt(i).toString(16).padStart(2, "0"); LOGO.hex = h; } return LOGO.hex; };
+const today = () => { const d = new Date(); return String(d.getDate()).padStart(2, "0") + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + d.getFullYear(); };
+const txt = (id, d) => { const v = $(id).value.trim(); return v || d; };
+const initials = n => n.split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase()).join("");
+function drgNo(g, e, b) { return txt("dNo", "NRG-APT-" + g.rows + "R" + g.cols + "C-" + ({ u: "U", straight: "S", step: "T" }[e.sc.key]) + ({ A: "A", B: "B", box: "X" }[b.orient])); }
+function sheets() {
+  const e = curEntry(), b = curBest(); if (!e || !b) return null;
+  const g = layout(), ci = calcInputs(), w = e.r.wind, drawn = txt("dDrawn", "Narayan Chawda");
+  const ctx = {
+    drgNo: drgNo(g, e, b), rev: txt("dRev", "0"), revText: txt("dRevTxt", "First issue"), ref: "Apartments v1.3", date: today(),
+    descr1: "Elevated GI solar structure " + g.rows + " x " + g.cols + " (" + b.kW.toFixed(1) + " kW)",
+    descr2: txt("dProj", e.sc.name + " - " + ORI[b.orient].toLowerCase() + " legs"),
+    names: { drawn, checked: txt("dChk", "Chaitanya Yardi"), approved: txt("dApp", "Narendra Yardi"), drawnInit: initials(drawn) },
+    weightTxt: Math.round(b.total) + " kg  (" + b.kgkW.toFixed(1) + " kg/kW)", windTxt: ci.V + " km/h @ " + Math.round(w.z) + " m - " + { 210: "YSt 210", 240: "YSt 240", 310: "YSt 310" }[ci.fy],
+    grade: { 210: "YSt 210", 240: "YSt 240", 310: "YSt 310" }[ci.fy], zTxt: Math.round(w.z) + " m", k2: w.k2, q: w.q, option: e.sc.name + ", " + ORI[b.orient].toLowerCase(), logo: { w: LOGO.w, h: LOGO.h }
+  };
+  const inp = { ...geomInputs(), ...ci };
+  return { list: [APTDRAW.sheet1(g, b, inp, ctx), APTDRAW.sheet2(g, b, inp, ctx)], base: ctx.drgNo.replace(/[^A-Za-z0-9._-]+/g, "-") + "_Rev" + ctx.rev.replace(/[^A-Za-z0-9]+/g, "") };
+}
+function renderDrawing() {
+  const sh = sheets();
+  if (!sh) { $("dwg").innerHTML = '<p class="cap">The drawing appears once the calculation has finished.</p>'; return; }
+  const col = layer => layer === "DIM" ? css("--dim") : layer === "PURLIN" ? css("--panel") : layer === "BRACE" ? css("--ok") : layer === "CENTER" ? css("--amber") : layer === "PANEL" || layer === "HIDDEN" || layer === "CONC" ? css("--muted") : layer === "FILL" ? css("--fg") : css("--fg");
+  $("dwg").innerHTML = sh.list.map((D, i) => '<figure class="sheet"><figcaption>Sheet ' + (i + 1) + (i ? " · details" : " · general arrangement") + '</figcaption>' + APTDRAW.toSVG(D, col, null, LOGO.url) + "</figure>").join("");
+}
+async function offer(filename, data) {
+  const msg = $("dlMsg");
+  const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+  if (dl) {
+    try { const res = await dl.save({ filename, data }); msg.textContent = res.status === "saved" ? "Saved " + filename : "Sent " + filename; }
+    catch (err) { const code = err && err.code; msg.textContent = code === "declined" ? "Download cancelled." : code === "rate_limited" ? "A save is already waiting for your answer." : "This view can't save files. Open the page in claude.ai."; }
+    return;
+  }
+  const blob = data instanceof Blob ? data : new Blob([data]), url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  msg.textContent = "Downloaded " + filename;
+}
+
+function render() { $("legU").disabled = $("slope").value === "step"; $("wtype").disabled = $("slope").value === "step"; const g = layout(); facts(g); drawIso(g); drawSection(g); drawPlan(g); drawLegs(); drawWalk(g); const bb = curBest(); if (bb) build3D(g, bb); renderDrawing(); }
+function preset(r, c, w, b) {
+  $("rows").value = r; $("cols").value = c; $("ww").value = w; $("split").value = ""; $("H").value = 4;
+  $("p1").setAttribute("aria-pressed", String(b === 1)); $("p2").setAttribute("aria-pressed", String(b === 2)); st.pick = null; render(); scheduleCalc();
+}
+$("p1").onclick = () => preset(9, 25, 1, 1);
+$("p2").onclick = () => preset(12, 20, 2, 2);
+document.querySelectorAll("input, select").forEach(i => i.addEventListener("input", () => {
+  if (i.closest("#dwgCard")) { renderDrawing(); return; }
+  if (!i.closest("#calcCard")) { $("p1").setAttribute("aria-pressed", "false"); $("p2").setAttribute("aria-pressed", "false"); }
+  if (["slope", "wtype"].includes(i.id)) { const e = curEntry(); if (e) { const b = bestOf(e.r); st.pick = { key: e.sc.key, orient: b.orient, nr: b.nr, legMax: b.legMax }; renderCalc(); } render(); return; }
+  st.pick = null; render(); scheduleCalc();
+}));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(() => { render(); renderDetail(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+["3d", "front", "side", "top"].forEach(k => { $("v" + k).onclick = () => setView3(k); });
+$("tPanels").onclick = e => { V3.panels = !V3.panels; e.currentTarget.setAttribute("aria-pressed", String(V3.panels)); if (V3.last) build3D(...V3.last); };
+$("tStress").onclick = e => { V3.stress = !V3.stress; e.currentTarget.setAttribute("aria-pressed", String(V3.stress)); if (V3.last) build3D(...V3.last); };
+$("tLabels").onclick = e => { V3.labelsOn = !V3.labelsOn; e.currentTarget.setAttribute("aria-pressed", String(V3.labelsOn)); };
+$("dlPdf").addEventListener("click", () => { const sh = sheets(); if (!sh) { $("dlMsg").textContent = "Wait for the calculation to finish."; return; } offer(sh.base + ".pdf", APTDRAW.toPDF(sh.list, { w: LOGO.w, h: LOGO.h, hex: logoHex() })); });
+init3D();
+render(); scheduleCalc();
+</script>
+
+</body></html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<!-- NRG SolarConnect · Design Lab — UI mock-up v1 (2026-10-31). Clickable prototype for the owner to freeze the UI.
+     Sample data: Pluga Pumps & Motors (300 kWp). Not wired to anything: buttons only move between screens. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design Lab Mock-up</title>
+<style>
+:root{--bg:#f6f8ff;--card:#fff;--line:#e7e9f3;--ink:#161a2e;--muted:#6b7280;--brand:#1f3bb8;--lab:#0e7490;--lab-tint:#0e749018;--ok:#1f9d63;--ok-tint:#1f9d6318;--warn:#b45309;--warn-tint:#b4530918;--red:#c53030}
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+.shell{display:flex;min-height:100vh}
+/* sidebar — same look as app-sidebar.tsx */
+.side{width:248px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow:auto;padding:14px 10px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;padding:4px 8px 14px}
+.brand .b{width:28px;height:28px;border-radius:8px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:13px}
+.si{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:#374151;font-weight:600;font-size:13.5px;cursor:default}
+.si.on{background:var(--lab-tint);color:var(--lab)}
+.si .tag{margin-left:auto;font-size:10px;font-weight:700;background:var(--lab);color:#fff;border-radius:999px;padding:2px 7px}
+.si.dim{opacity:.55}
+.main{flex:1;min-width:0;padding:22px 26px 60px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:22px;margin:0}
+.crumb{color:var(--muted);font-size:13px}
+.pill{font-size:11.5px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--lab-tint);color:var(--lab)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 13px;font:600 13px inherit;font-family:inherit;cursor:pointer;color:var(--ink)}
+.btn.p{background:var(--lab);border-color:var(--lab);color:#fff}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.sm{padding:5px 10px;font-size:12px}
+.muted{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+tr.click{cursor:pointer} tr.click:hover{background:#f9fafb}
+.st{font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.st.ok{background:var(--ok-tint);color:var(--ok)} .st.wip{background:var(--warn-tint);color:var(--warn)} .st.todo{background:#f3f4f6;color:var(--muted)}
+/* stepper */
+.steps{display:flex;gap:6px;overflow:auto;padding:2px 0 12px;margin-bottom:6px}
+.step{flex-shrink:0;display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px 6px 6px;font-size:12.5px;font-weight:600;cursor:pointer;color:#374151}
+.step .n{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;font-size:11px;background:#f3f4f6;color:var(--muted)}
+.step.done .n{background:var(--ok);color:#fff} .step.cur{border-color:var(--lab);color:var(--lab)} .step.cur .n{background:var(--lab);color:#fff}
+.step.off{display:none}
+/* stage layout */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+@media(max-width:1000px){.stage{grid-template-columns:1fr}.side{display:none}.main{padding:14px}}
+.canvas{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#e5e7eb}
+.canvas img{display:block;width:100%}
+.mk{position:absolute;transform:translate(-50%,-50%);font:700 11px inherit;font-family:inherit;color:#fff;border-radius:6px;padding:3px 7px;box-shadow:0 1px 4px #0005;white-space:nowrap}
+.tool{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tool .btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.panel h3{margin:0 0 8px;font-size:14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.kv b{font-weight:600}
+.gate{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.ver{font:600 11.5px ui-monospace,Menlo,monospace;color:var(--muted)}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+label.f input,label.f select{font:14px inherit;font-family:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff}
+.chk input{width:18px;height:18px;margin-top:2px;accent-color:var(--lab)}
+.chk.core{background:#f9fafb;cursor:default}
+.chk small{display:block;color:var(--muted);font-weight:400}
+.chk b{font-size:13.5px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.thumbs img{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+.opt{border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;background:#fff}
+.opt.sel{border-color:var(--lab);box-shadow:0 0 0 3px var(--lab-tint)}
+.opt img{width:100%;border-radius:8px;display:block}
+.note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 12px;font-size:13px}
+.qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.roofrow td:first-child{font-weight:700}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.banner{background:var(--ink);color:#fff;border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.banner b{color:#7dd3fc}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="b">N</span>NRG SolarConnect</div>
+    <div class="si dim">🏠 My Dashboard</div>
+    <div class="si dim">💼 Sales</div>
+    <div class="si dim">🧭 Sales Help</div>
+    <div class="si on">📐 Design Lab <span class="tag">OWNER</span></div>
+    <div class="si dim">🛠️ Service</div>
+    <div class="si dim">🏗️ Projects</div>
+    <div class="si dim">📦 Purchase</div>
+    <div class="si dim">💰 Finance</div>
+    <div class="si dim">✅ Tasks</div>
+    <div class="si dim">🧰 Hardware</div>
+    <div class="si dim">🤝 Connect</div>
+    <div class="si dim">📱 Social Media</div>
+    <div class="si dim">🕒 Attendance</div>
+    <div class="si dim">🔐 Admin</div>
+    <p class="muted" style="font-size:11.5px;padding:10px 8px">Design Lab is added as one new menu entry, visible only to the owner. Nothing else in the menu changes.</p>
+  </aside>
+
+  <main class="main">
+    <div class="banner"><span>MOCK-UP v1 — for freezing the screens. Sample project: <b>Pluga Pumps & Motors, Savli</b> (300 kWp). Click around: every screen is reachable.</span></div>
+    <div id="view"></div>
+  </main>
+</div>
+
+<script>
+// ------------------------------------------------------------------ data (sample)
+const STAGES = [
+  { key:'site',      n:1, title:'Site & marks',     core:true,  desc:'Google Maps screenshot, scale, inverter / meter / transformer marked' },
+  { key:'questions', n:2, title:'Site questions',   core:true,  desc:'Building type, heights, roof type, parapet, cabins, existing solar, bill' },
+  { key:'sizing',    n:3, title:'Sizing',           core:true,  desc:'kW needed from the bill (uses the existing Bill Analyser)' },
+  { key:'roofs',     n:4, title:'Roof design',      core:true,  desc:'Roofs, slopes, setbacks, ventilators, skylights, shade check' },
+  { key:'panels',    n:5, title:'Panel placement',  core:true,  desc:'Layout options, kWp, generation, comparison' },
+  { key:'structure', n:6, title:'Structure',        core:false, desc:'Flush rails / elevated frame, leg spacing, member list' },
+  { key:'stringing', n:7, title:'Stringing',        core:false, desc:'Inverter, strings per MPPT, wiring, cable routes' },
+  { key:'bom',       n:8, title:'Bill of material', core:false, desc:'DC cable, MC4, tray, walkway, structure — Excel' },
+  { key:'views',     n:9, title:'3D views',         core:false, desc:'Interactive 3D + still pictures' },
+  { key:'video',     n:10,title:'Walk-around video',core:false, desc:'MP4 + WhatsApp copy (renders in the background, ~45 min)' },
+  { key:'sld',       n:11,title:'SLD',              core:false, desc:'Single line diagram (PDF)' },
+  { key:'ceig',      n:12,title:'CEIG drawing set', core:false, desc:'Equipment, earthing, walkway, cable tray, stringing sheets' },
+  { key:'pack',      n:13,title:'Client pack',      core:false, desc:'Email draft + chosen images, ready to send' },
+];
+let PICK = { structure:true, stringing:true, bom:true, views:true, video:false, sld:false, ceig:false, pack:true };
+const DONE = { site:true, questions:true, sizing:true, roofs:true };
+let CUR = 'panels';
+const PROJECTS = [
+  { name:'Pluga Pumps & Motors', place:'Savli, Vadodara', kw:'300 kWp', link:'Lead · L-2026-0412', stage:'Panel placement', st:'wip', when:'today' },
+  { name:'Jain Granite & Marble', place:'Vadodara', kw:'100 kWp', link:'Project · P-2026-0187', stage:'Complete · CEIG set issued', st:'ok', when:'28 Oct' },
+  { name:'Mrs. Sejal Parikh Residence', place:'Vadodara', kw:'42.48 kWp', link:'Quote · Q-2026-1093', stage:'3D views', st:'ok', when:'29 Oct' },
+  { name:"Architect's Residence", place:'—', kw:'15 modules', link:'Lead · L-2026-0430', stage:'Structure', st:'wip', when:'30 Oct' },
+];
+const $ = (s, el=document) => el.querySelector(s);
+const view = $('#view');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const active = () => STAGES.filter(s => s.core || PICK[s.key]);
+
+// ------------------------------------------------------------------ routing (#name only)
+function go(h){ if (location.hash !== '#'+h) location.hash = h; else render(); }
+window.addEventListener('hashchange', render);
+
+function render(){
+  const h = (location.hash || '#projects').slice(1);
+  if (h === 'projects' || !h) return projectsView();
+  if (h === 'new') return newView();
+  if (STAGES.some(s => s.key === h)) { CUR = h; return stageView(h); }
+  projectsView();
+}
+
+// ------------------------------------------------------------------ project list
+function projectsView(){
+  view.innerHTML = `
+  <div class="top"><h1>📐 Design Lab</h1><span class="pill">Owner only</span><span style="flex:1"></span>
+    <button class="btn p" onclick="go('new')">+ New design</button></div>
+  <div class="card" style="padding:0;overflow:auto">
+    <table><thead><tr><th>Design</th><th>Size</th><th>Linked to</th><th>Where it is</th><th>Updated</th></tr></thead><tbody>
+    ${PROJECTS.map((p,i)=>`<tr class="click" onclick="${i===0?"go('panels')":"go('projects')"}">
+      <td><b>${esc(p.name)}</b><div class="muted" style="font-size:12px">${esc(p.place)}</div></td>
+      <td>${p.kw}</td><td class="muted">${p.link}</td>
+      <td><span class="st ${p.st}">${p.stage}</span></td><td class="muted">${p.when}</td></tr>`).join('')}
+    </tbody></table></div>
+  <p class="muted" style="font-size:12.5px">Each design can be linked to a Lead, Quote or Project already in SolarConnect, or stand alone. Every stage keeps its versions (v1, v2 …).</p>`;
+}
+
+// ------------------------------------------------------------------ new design + deliverables checklist
+function newView(){
+  view.innerHTML = `
+  <div class="top"><span class="crumb"><a href="#projects">Design Lab</a> ›</span><h1>New design</h1></div>
+  <div class="grid g2">
+    <div class="card grid" style="gap:12px;align-content:start">
+      <h3 style="margin:0">1 · Project</h3>
+      <label class="f">Client / site name<input value="Pluga Pumps & Motors Pvt. Ltd."></label>
+      <label class="f">Link to (optional)<select><option>Lead · L-2026-0412 — Pluga Pumps</option><option>Quote …</option><option>Project …</option><option>Not linked</option></select></label>
+      <label class="f">Google Maps screenshot (satellite, north up, scale bar visible)<input type="file"></label>
+      <label class="f">Site photos (optional)<input type="file" multiple></label>
+      <label class="f">Electricity bill (PDF / photo)<input type="file"></label>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 4px">2 · What do you need for this design?</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:12.5px">Tick only what this job needs — unticked stages are skipped. You can change this later.</p>
+      <div class="grid" style="gap:8px">
+        <div class="chk core"><input type="checkbox" checked disabled><div><b>Site → questions → sizing → roof design → panel placement</b><small>Always included — the core of every design</small></div></div>
+        ${STAGES.filter(s=>!s.core).map(s=>`<label class="chk"><input type="checkbox" data-k="${s.key}" ${PICK[s.key]?'checked':''}><div><b>${s.title}</b><small>${s.desc}</small></div></label>`).join('')}
+      </div>
+      <div class="gate"><button class="btn p" onclick="go('site')">Create &amp; start →</button><button class="btn" onclick="go('projects')">Cancel</button></div>
+    </div>
+  </div>`;
+  view.querySelectorAll('[data-k]').forEach(c => c.addEventListener('change', () => { PICK[c.dataset.k] = c.checked; }));
+}
+
+// ------------------------------------------------------------------ stage frame (stepper + gate)
+function stepper(){
+  return `<div class="steps">${active().map((s,i)=>`<div class="step ${DONE[s.key]?'done':''} ${s.key===CUR?'cur':''}" onclick="go('${s.key}')"><span class="n">${DONE[s.key]?'✓':i+1}</span>${s.title}</div>`).join('')}
+  <div class="step" onclick="editPick()" title="Change what this design needs" style="border-style:dashed">⚙︎ Deliverables</div></div>`;
+}
+function editPick(){ go('new'); }
+function gate(next, extra=''){
+  const list = active(); const i = list.findIndex(s=>s.key===CUR); const nx = list[i+1];
+  return `<div class="gate">${extra}<button class="btn ok" onclick="DONE['${CUR}']=true;go('${nx?nx.key:'projects'}')">✓ Approve${nx?` → ${nx.title}`:' · finish'}</button>
+    <button class="btn" onclick="alert0()">Request changes</button><span class="ver" style="margin-left:auto;align-self:center">this stage: v3 · history v1 v2 v3</span></div>`;
+}
+function alert0(){ const n = $('#chg'); if (n) n.style.display='block'; }
+function changeBox(){ return `<div id="chg" style="display:none;margin-top:10px"><label class="f">What should change?<input placeholder="e.g. roof 3 is a gable — its south half and roof 5 are one slope"></label><button class="btn p sm" style="margin-top:6px">Send — makes v4</button></div>`; }
+function frame(title, left, right, extraGate=''){
+  view.innerHTML = `
+  <div class="top"><span class="crumb"><a href="#projects">Design Lab</a> › Pluga Pumps &amp; Motors ›</span><h1>${title}</h1><span class="pill">300 kWp</span></div>
+  ${stepper()}
+  <div class="stage"><div class="grid" style="gap:14px">${left}</div>
+    <div class="card panel">${right}${gate(null, extraGate)}${changeBox()}</div></div>`;
+}
+
+// ------------------------------------------------------------------ stages
+const MK = (x,y,t,c) => `<span class="mk" style="left:${x}%;top:${y}%;background:${c}">${t}</span>`;
+function stageView(k){
+  const V = {
+    site(){ frame('Site & marks', `
+      <div class="card"><div class="tool">
+        <button class="btn sm on">📏 Scale (from Google's bar)</button><button class="btn sm">🟧 Inverter</button><button class="btn sm">⚡ Meter</button>
+        <button class="btn sm">🟥 Transformer</button><button class="btn sm">🧭 North</button><button class="btn sm">✋ Move</button></div>
+        <div class="canvas"><img src="img/site.jpg" alt="Google Maps screenshot">
+          ${MK(60,50,'INVERTER','#ea580c')}${MK(70,56,'TRANSFORMER','#dc2626')}${MK(72,44,'METER','#7c3aed')}${MK(90,97.5,'20 m = 215 px','#0e7490')}</div></div>`,
+      `<h3>Marks</h3><div class="kv"><span>Scale</span><b>20 m = 215 px · 10.75 px/m</b><span>North</span><b>Up</b><span>Inverter</span><b>Roof 1, SE corner</b><span>Transformer</span><b>Next to inverter</b><span>Meter</span><b>East wall</b></div>
+       <p class="muted" style="font-size:12.5px">Click a tool, then click on the screenshot. Drag to move.</p>`); },
+    questions(){ frame('Site questions', `
+      <div class="card"><p class="muted" style="margin-top:0">Asked every time a screenshot is uploaded. Nothing is assumed silently — anything left blank shows as “assumed” on every drawing.</p>
+      <div class="qa">
+        <label class="f">Building type<select><option>Industrial</option><option>Commercial</option><option>Residential</option></select></label>
+        <label class="f">Floors / height<input value="Single-storey shed, 8 m eave"></label>
+        <label class="f">Roof type<select><option>Sloping sheet (gable)</option><option>Flat RCC</option><option>Mixed</option></select></label>
+        <label class="f">Parapet height<input value="— (sheet roof)"></label>
+        <label class="f">Staircase cabin / tank / lift room heights<input value="None on roof 1"></label>
+        <label class="f">Roofs NOT to use<input value="2, 4, 6"></label>
+        <label class="f">Existing solar<input value="≈ 90–95 kWp on roof 1 south"></label>
+        <label class="f">Neighbouring taller buildings<input value="New PEB west of roofs 3/5, 12.35 m"></label>
+        <label class="f">Mounting preference<select><option>Flush on sheet</option><option>Elevated structure</option><option>Decide per roof</option></select></label>
+        <label class="f">Module<select><option>625 Wp · 2382 × 1134 mm</option><option>720 Wp · 2384 × 1303 mm</option></select></label>
+      </div></div>`,
+      `<h3>Uploaded</h3><div class="kv"><span>Screenshot</span><b>✓</b><span>Photos</span><b>3</b><span>Drawings</span><b>2 PDF</b><span>Bill</span><b>Oct 2026, MGVCL HT</b></div>`); },
+    sizing(){ frame('Sizing from the bill', `
+      <div class="card"><div class="grid g3">
+        <div><div class="muted">Plant consumption</div><div style="font-size:22px;font-weight:800">56,200 units/mo</div><div class="muted" style="font-size:12px">44,397 grid + 11,840 existing solar</div></div>
+        <div><div class="muted">Recommended addition</div><div style="font-size:22px;font-weight:800;color:var(--lab)">300 kWp</div><div class="muted" style="font-size:12px">cap ≈ 385 kWp total (monthly settlement)</div></div>
+        <div><div class="muted">Savings</div><div style="font-size:22px;font-weight:800">≈ ₹26–27 lakh/yr</div><div class="muted" style="font-size:12px">≈ ₹6.1 per solar unit after banking charge</div></div></div></div>
+      <div class="note">Reads the bill with the existing <b>Bill Analyser</b> (Sales Help) — no second copy of that logic.</div>`,
+      `<h3>Inputs read from the bill</h3><div class="kv"><span>Tariff</span><b>HTP-I, 11 kV</b><span>Contract demand</span><b>225 kVA</b><span>Surplus rate</span><b>₹1.99</b><span>Banking</span><b>₹1.50/unit</b></div>
+       <label class="f" style="margin-top:10px">Override size (kWp)<input value="300"></label>`); },
+    roofs(){ frame('Roof design', `
+      <div class="card"><div class="tool"><button class="btn sm on">▭ Roof</button><button class="btn sm">⟂ Ridge</button><button class="btn sm">◯ Ventilator</button><button class="btn sm">▭ Skylight</button><button class="btn sm">⬛ Cabin / tank</button><button class="btn sm">🌗 Shade map</button></div>
+        <div class="canvas"><img src="img/roofs.jpg" alt="Roofs identified"></div></div>`,
+      `<h3>Roofs</h3><table><tbody>
+        <tr class="roofrow"><td><span class="sw" style="background:#ef4444"></span>1</td><td>Main shed · gable · 75×46 m · eave 8 m</td></tr>
+        <tr class="roofrow"><td><span class="sw" style="background:#22c55e"></span>3</td><td>Gable · N half not used · S half + roof 5 one slope</td></tr>
+        <tr class="roofrow"><td><span class="sw" style="background:#0ea5e9"></span>N/S</td><td>New building 28×46 m · 12.35 m</td></tr>
+        <tr class="roofrow"><td><span class="sw" style="background:#9ca3af"></span>2,4,6</td><td>Not for solar</td></tr></tbody></table>
+       <div class="kv" style="margin-top:10px"><span>Edge setback</span><b>1.0 m</b><span>Ridge clearance</span><b>2.6 m</b><span>Shade check</span><b>21 Dec, 9 am–3 pm</b><span>Ventilators</span><b>9 kept clear</b><span>Skylights</span><b>11 kept free</b></div>`); },
+    panels(){ const opt = (n,img,t,a,b) => `<div class="opt ${n===3?'sel':''}" onclick="this.parentNode.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));this.classList.add('sel')"><img src="img/${img}" alt=""><div style="margin-top:8px;font-weight:700">Option ${n} · ${t}</div><div class="muted" style="font-size:12.5px">${a}</div><div style="font-size:12.5px">${b}</div></div>`;
+      frame('Panel placement', `
+      <div class="grid g2">${opt(1,'option1.jpg','S-facing → new bldg N → roof 1 N','143 / 157 kWp S/N','4.40 lakh kWh · cable ≈ 5,160 m')}
+        ${opt(2,'option2.jpg','S-facing → roof 1 N','143 / 157 kWp S/N','4.40 lakh kWh · cable ≈ 3,860 m')}
+        ${opt(3,'option3.jpg','Roof 1 only','70 / 230 kWp S/N','4.35 lakh kWh · cable ≈ 3,640 m')}</div>`,
+      `<h3>Settings</h3><div class="kv"><span>Module</span><b>625 Wp, 480 nos</b><span>Orientation</span><b>Auto (upright / sideways per band)</b><span>Walkways</span><b>0.8 m, every 7 × 4</b><span>Fill order</span><b>per option</b></div>
+       <p class="muted" style="font-size:12.5px">Pick an option (highlighted) and approve. Approving locks the layout for structure, stringing and BOM.</p>`,
+      `<button class="btn" onclick="">Compare sheet ↓</button>`); },
+    structure(){ frame('Structure', `
+      <div class="card"><div class="canvas"><img src="img/structure.jpg" alt="Structure"></div></div>`,
+      `<h3>Structure</h3><label class="f">Type<select><option>Flush rails on sheet</option><option>Elevated — legs on slab</option><option>Elevated — on parapet / walls</option></select></label>
+       <div class="kv" style="margin-top:10px"><span>Rafter</span><b>Ladder, rungs + diagonals</b><span>Leg spacing</span><b>≤ 5.8 m</b><span>Steel</span><b>9.7 t</b><span>Legs</span><b>45</b><span>Uplift / leg</span><b>45–70 kN (engineer to confirm)</b></div>
+       <p class="muted" style="font-size:12.5px">From the Solar Structure Design tool (v1.3), fed with this layout.</p>`); },
+    stringing(){ frame('Stringing', `
+      <div class="card"><div class="canvas"><img src="img/stringing.jpg" alt="Stringing"></div><p class="muted" style="font-size:12px;margin:8px 0 0">Sample sheet shown from Jain Granite (L-01).</p></div>`,
+      `<h3>Electrical</h3><label class="f">Inverter<select><option>2 × GoodWe GW125K-HT</option><option>3 × 80 kW</option></select></label>
+       <div class="kv" style="margin-top:10px"><span>Strings</span><b>24 × 20</b><span>Per MPPT</span><b>2 (Y-connector)</b><span>DC cable</span><b>≈ 3,640 m, 4 sq mm</b><span>Home runs</span><b>12 × 6 sq mm</b></div>`); },
+    bom(){ frame('Bill of material', `
+      <div class="card" style="overflow:auto"><table><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
+        <tr><td>DC cable 4 sq mm</td><td>3,820</td><td>m</td><td>₹58</td><td>₹2,21,560</td></tr>
+        <tr><td>DC cable 6 sq mm (home runs)</td><td>1,450</td><td>m</td><td>₹84</td><td>₹1,21,800</td></tr>
+        <tr><td>MC4 pairs</td><td>72</td><td>nos</td><td>₹95</td><td>₹6,840</td></tr>
+        <tr><td>Y-connector pairs</td><td>12</td><td>nos</td><td>₹420</td><td>₹5,040</td></tr>
+        <tr><td>Cable tray 100 mm</td><td>186</td><td>m</td><td>₹310</td><td>₹57,660</td></tr>
+        <tr><td>Walkway 300 mm</td><td>240</td><td>m</td><td>₹650</td><td>₹1,56,000</td></tr>
+        <tr><td>Mounting rails (flush)</td><td>480</td><td>sets</td><td>₹167</td><td>₹80,160</td></tr>
+      </tbody></table><p class="muted" style="font-size:12px">Sample figures for the mock-up. Rates come from SolarConnect's Rates / Reference Tables.</p></div>`,
+      `<h3>Export</h3><button class="btn">⬇ Excel (.xlsx)</button><p class="muted" style="font-size:12.5px">Quantities come from the same layout as the drawings — they always agree.</p>`); },
+    views(){ frame('3D views', `
+      <div class="card"><div class="thumbs"><img src="img/v-aerial.jpg" alt=""><img src="img/v-plan.jpg" alt=""><img src="img/v-inverter.jpg" alt=""><img src="img/v-newbldg.jpg" alt=""></div></div>`,
+      `<h3>3D</h3><button class="btn p">Open interactive 3D</button><p class="muted" style="font-size:12.5px">Tick the views to include in the client pack.</p>
+       <div class="grid" style="gap:6px"><label class="chk"><input type="checkbox" checked><b>Aerial SE</b></label><label class="chk"><input type="checkbox" checked><b>Top view</b></label><label class="chk"><input type="checkbox"><b>Inverter + transformer</b></label></div>`); },
+    video(){ frame('Walk-around video', `
+      <div class="card"><div class="canvas"><img src="img/v-aerial.jpg" alt=""><span class="mk" style="left:50%;top:50%;background:#0008;font-size:15px;padding:10px 16px">▶ 52 s · rendering 62 %</span></div></div>`,
+      `<h3>Video</h3><div class="kv"><span>Status</span><b>Rendering in the background</b><span>Time left</span><b>≈ 17 min</b><span>Outputs</span><b>1080p + WhatsApp 720p</b></div><p class="muted" style="font-size:12.5px">You can leave this page; it continues.</p>`); },
+    sld(){ frame('SLD', `<div class="card"><div class="canvas"><img src="img/sld.jpg" alt="SLD"></div><p class="muted" style="font-size:12px;margin:8px 0 0">Sample: Jain Granite SLD v7.</p></div>`,
+      `<h3>SLD</h3><div class="kv"><span>Format</span><b>A3 PDF, NRG title block</b><span>Meter</span><b>From the site marks</b></div><button class="btn" style="margin-top:10px">⬇ PDF</button>`); },
+    ceig(){ frame('CEIG drawing set', `<div class="card"><table><tbody>
+        <tr><td>01</td><td>Single line diagram</td><td><span class="st ok">ready</span></td></tr><tr><td>02</td><td>Equipment layout</td><td><span class="st ok">ready</span></td></tr>
+        <tr><td>03</td><td>Earthing layout</td><td><span class="st ok">ready</span></td></tr><tr><td>04</td><td>Walkway layout</td><td><span class="st ok">ready</span></td></tr>
+        <tr><td>05</td><td>Cable tray layout</td><td><span class="st ok">ready</span></td></tr><tr><td>06</td><td>Stringing layout</td><td><span class="st ok">ready</span></td></tr></tbody></table></div>`,
+      `<h3>CEIG set</h3><button class="btn">⬇ All sheets (PDF)</button><p class="muted" style="font-size:12.5px">Saved to the project's Drive folder → Engineering Drawings.</p>`); },
+    pack(){ frame('Client pack', `<div class="card"><div class="kv"><span>To</span><b>client@…</b><span>Subject</span><b>Pluga Pumps &amp; Motors — 300 kWp rooftop solar, 3 layout options</b></div>
+        <p style="margin:12px 0 6px;font-weight:600">Attachments</p><div class="thumbs"><img src="img/option3.jpg" alt=""><img src="img/option2.jpg" alt=""><img src="img/option1.jpg" alt=""><img src="img/v-aerial.jpg" alt=""></div></div>`,
+      `<h3>Send</h3><button class="btn p">Create Gmail draft</button><button class="btn" style="margin-top:6px">Send on WhatsApp</button>`); },
+  };
+  (V[k] || V.panels)();
+}
+render();
+</script>
+</body>
+</html>
