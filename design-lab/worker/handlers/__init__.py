@@ -1,4 +1,4 @@
-# Design Lab worker v1.14.0 (2026-11-02) — what the Mac can do, stage by stage.
+# Design Lab worker v1.14.1 (2026-11-02) — what the Mac can do, stage by stage.
 #
 # Each handler gets a Job (nrg/jobs.py), files its drawings with
 # job.file_output(...) and returns {'summary': '...', ...data}. The data
@@ -10,10 +10,26 @@
 # pretending — the Design Lab shows it on the stage.
 from nrg.jobs import Job, NotBuiltYet
 
-from handlers import cad as _cad, roofs as _roofs, panels as _panels, views as _views, video as _video, structure as _structure, stringing as _stringing, layouts as _layouts, sld as _sld, ceig as _ceig, proposal as _proposal, base as _base
+from handlers import cad as _cad, roofs as _roofs, panels as _panels, views as _views, video as _video, structure as _structure, stringing as _stringing, layouts as _layouts, sld as _sld, ceig as _ceig, proposal as _proposal
+
+# v1.14.1: Base design needs scipy + pymupdf. If they are not installed yet the rest of the worker still runs, and a
+# Base design job fails with the reason instead of the whole worker stopping.
+try:
+    from handlers import base as _base
+    _base_run = _base.run
+except Exception as _e:                                     # noqa: BLE001
+    import os as _os
+    _why = f'{type(_e).__name__}: {_e}'
+    _p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'logs', 'packages-error.txt')
+    if _os.path.exists(_p):
+        _why += ' — pip said: ' + open(_p).read().replace('\n', ' | ')[:400]
+
+    def _base_run(job, _why=_why):
+        raise RuntimeError(f'Base design can’t run on this Mac yet — a package it needs is missing ({_why}). '
+                           'Send this message to Claude.')
 
 HANDLERS: dict = {
-    'base': _base.run,      # v1.14.0: start from a base design (SolarEdge screenshot / AutoCAD PDF) — panels + roofs read off it
+    'base': _base_run,      # v1.14.0: start from a base design (SolarEdge screenshot / AutoCAD PDF) — panels + roofs read off it
     'cad': _cad.run,        # phase 2: AutoCAD → plan picture with scale + roof suggestions
     'roofs': _roofs.run,    # phase 3: roof & shade report
     'panels': _panels.run,  # phase 3: panel layout options for the quote

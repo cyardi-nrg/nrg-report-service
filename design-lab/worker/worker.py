@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Design Lab worker v1.9.0 (2026-10-31) — runs on the owner's Mac.
+# Design Lab worker v1.14.1 (2026-11-02) — runs on the owner's Mac.
+# v1.14.1: a package that fails to install no longer stops the worker (it used to exit and never come back).
 #
 # Owner's own asks: "heavy work ... on my Mac"; the video "scheduled for
 # work after 9 PM or 10 PM when my MacBook will be on ... generated
@@ -238,14 +239,27 @@ def sync_packages() -> None:
     if os.path.exists(stamp) and open(stamp).read() == open(req).read():
         return
     log.info('Installing the Python packages this version needs…')
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', '-r', req], check=True)
+    # v1.14.1: a package that will not install must never stop the worker — every stage that does not need it keeps
+    # working, and the reason is kept (logs/packages-error.txt) for the stage that does (handlers/__init__.py)
+    err = os.path.join(HERE, 'logs', 'packages-error.txt')
+    r = subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', '--prefer-binary', '-r', req], capture_output=True, text=True)
+    if r.returncode != 0:
+        tail = (r.stderr or r.stdout or '').strip().splitlines()[-6:]
+        log.error('Could not install the packages: %s', ' | '.join(tail))
+        open(err, 'w').write('\n'.join(tail))
+        return
+    if os.path.exists(err):
+        os.remove(err)
     if 'playwright' in open(req).read():
         subprocess.run([sys.executable, '-m', 'playwright', 'install', 'chromium'], check=False)   # 3D pictures / video (phase 4)
     open(stamp, 'w').write(open(req).read())
 
 
 if __name__ == '__main__':
-    sync_packages()
+    try:
+        sync_packages()
+    except Exception as e:                       # never let this keep the worker from starting
+        logging.getLogger('designlab').error('Package check failed: %s', e)
     ap = argparse.ArgumentParser()
     ap.add_argument('--once', action='store_true')
     ap.add_argument('--selftest', action='store_true')
