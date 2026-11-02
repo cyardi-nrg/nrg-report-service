@@ -1,4 +1,4 @@
-# Design Lab worker v1.14.0 (2026-11-02) — read a BASE DESIGN picture: where every panel is.
+# Design Lab worker v1.14.3 (2026-11-02) — read a BASE DESIGN picture: where every panel is.
 #
 # Owner (Nov 2026): "give an option of start from scratch or upload basic 3D design" — a SolarEdge Designer
 # screenshot (solid blue panels split by thin light lines, on a satellite picture) or an AutoCAD drawing as a PDF /
@@ -18,7 +18,7 @@ ASPECT = 2.1               # panel long / short side (2.382 × 1.134 m for 600�
 
 def _blue(a):
     r, g, b = a[..., 0].astype(int), a[..., 1].astype(int), a[..., 2].astype(int)
-    return (b > r + 45) & (b > g + 15) & (g < 125)                 # panel navy / CAD blue — not sky-blue icons
+    return (b > r + 45) & (b > g + 32) & (g < 125)                 # panel navy / CAD blue — not sky-blue icons, not a blue-tinted satellite picture (v1.14.3)
 
 
 def _axes(ys, xs):
@@ -118,6 +118,16 @@ def _filled_tables(blue):
             pv = _peak(rsc, k) if rsc[k] > 0.03 else (pu * ASPECT)
         else:
             pv = pu * ASPECT
+    # v1.14.3: the pitch read off thin lines is ± half a pixel on a small screenshot — fine-tune it (± 8 %) so every
+    # table's length is closest to a whole number of panels (Express Cranes: 161 px tables read as 12, not 13, panels)
+    def tune(p, key_a, key_b):
+        if not p:
+            return p
+        Ls = [t[key_b] - t[key_a] for t in tables]
+        cands = np.linspace(0.92 * p, 1.08 * p, 161)
+        cost = [sum((L / c - round(L / c)) ** 2 for L in Ls) + 0.5 * ((c - p) / p) ** 2 for c in cands]
+        return float(cands[int(np.argmin(cost))])
+    pu = tune(pu, 'ua', 'ub')          # along the rows only: rows are foreshortened differently on each roof's slope
     out = []
     for t in tables:
         L, Hh = t['ub'] - t['ua'], t['vb'] - t['va']
@@ -133,7 +143,7 @@ def _scores(profiles, lo=4, hi=90):
     acs = []
     for pr in profiles:
         x = np.asarray(pr, float)
-        if len(x) >= 2 * lo:
+        if len(x) >= max(2 * lo, 12):          # a tiny blob (noise) has no pattern to read
             acs.append(x - np.convolve(x, np.ones(9) / 9, mode='same'))      # keep only the thin dips
     sc = {}
     for lag in range(lo, hi):
