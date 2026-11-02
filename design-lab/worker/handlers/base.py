@@ -103,6 +103,11 @@ def _roofs(tables_m: list, a: dict) -> list:
 
 
 def run(job) -> dict:
+    if not job.input.get('document_id'):         # "request changes" re-runs the stage: same file and settings as last time
+        last = ((job.latest_version('base', None) or {}).get('data') or {})
+        if last.get('documentId'):
+            job.row['input'] = {**job.input, 'document_id': last['documentId'], 'north': last.get('north') or 'up',
+                                'tiltDeg': last.get('tiltDeg'), 'panelWp': last.get('panelWp')}
     doc_id = job.input.get('document_id')
     if not doc_id:
         raise RuntimeError('Pick the base design picture / PDF in the Base design stage first.')
