@@ -1,4 +1,4 @@
-# Design Lab worker v1.14.2 (2026-11-02) — what the Mac can do, stage by stage.
+# Design Lab worker v1.15.0 (2026-11-02) — what the Mac can do, stage by stage.
 #
 # Each handler gets a Job (nrg/jobs.py), files its drawings with
 # job.file_output(...) and returns {'summary': '...', ...data}. The data

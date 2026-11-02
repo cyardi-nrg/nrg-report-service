@@ -1,4 +1,5 @@
-# Design Lab worker v1.11.0 (2026-11-01) — stage 'roofs' on the Mac: the roof &
+# Design Lab worker v1.15.0 (2026-11-02) — stage 'roofs' (v1.15.0: roofs in 3D drawn as real buildings)
+# (v1.11.0) stage 'roofs' on the Mac: the roof &
 # shade report for the roofs the owner drew. Usable area of each roof
 # after setbacks and obstacles, how much of it the winter sun shades
 # (21 Dec, 9 am – 3 pm), and how many 625 Wp panels it could take. The
@@ -58,7 +59,7 @@ def run(job) -> dict:
     views3d = 0
     try:
         note = f"Roofs as drawn (Roof design v{v['version']}) — heights as entered; approve Roof design when they are right"
-        sc = scenemod.build_scene(site, None, [], {'wp': 0, 'make': None}, job.customer, base, note)
+        sc = scenemod.build_scene(site, None, [], {'wp': 0, 'make': None}, job.customer, base, note, style=answers(job).get('buildingType'))
         html = os.path.join(job.workdir, 'Roofs-3D.html')
         scenemod.write_viewer(sc, html)
         job.file_output(html, 'design_3d_view', title='Roofs as drawn — interactive 3D (open in a browser)')

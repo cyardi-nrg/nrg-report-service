@@ -1,4 +1,5 @@
-# Design Lab worker v1.3.0 (2026-10-31) — stage 'video' (per quote / layout): the
+# Design Lab worker v1.15.0 (2026-11-02) — stage 'video' (v1.15.0: realistic buildings, as 'views')
+# (v1.3.0) stage 'video' (per quote / layout): the
 # walk-around video of the chosen panel layout option. Owner's own ask: render it
 # "after 9 PM or 10 PM when my MacBook will be on ... overnight ... send it to the
 # client the next day morning" — the Design Lab queues it for tonight by default.
@@ -8,6 +9,7 @@ import os
 
 from handlers import panels, views
 from nrg import scene as scenemod, shots
+from nrg.inputs import answers
 
 log = logging.getLogger('designlab')
 
@@ -18,7 +20,8 @@ def run(job) -> dict:
     base = panels.base_picture(job, P['model'])
     note = (f"Concept visualisation from the NRG Design Lab · roofs as drawn (Roof design v{P['roof_v']['version']}); "
             'heights as entered — verify on site')
-    sc = scenemod.build_scene(P['site'], opt, mods, P['spec'], job.customer, base, note)
+    sc = scenemod.build_scene(P['site'], opt, mods, P['spec'], job.customer, base, note,
+                              style=answers(job).get('buildingType'), walkways=views.walkways_3d(P['site'], opt))
     html = os.path.join(job.workdir, 'walkaround.html')
     scenemod.write_viewer(sc, html)
     fps = int(job.input.get('fps') or 30)

@@ -1,4 +1,8 @@
-# Design Lab worker v1.11.0 (2026-11-01) — the 3D scene for viewer/viewer.template.html,
+# Design Lab worker v1.15.0 (2026-11-02) — the 3D scene for viewer/viewer.template.html,
+# v1.15.0 (owner: "make it look more professional, industrial shed look with GI sheets visible ... what you did in Jain
+#   Granite ... build it into the design lab also, even for residences"): the scene also carries each BUILDING (outline,
+#   eave / slab height, the level it stands on, parapet, roof kind), the building style (residential / commercial /
+#   industrial — Site questions) and the walkways, so the viewer draws GI-clad sheds and plastered houses with windows.
 # built from the drawn roofs (nrg/site.py) and the chosen panel option.
 # v1.11.0 (owner: "first show me the 3d views of the roof so i can approve that before panel placement"):
 #   option=None builds the roofs alone (Roof design stage).
@@ -23,7 +27,39 @@ def _roof_z(site, x, y) -> float:
     return best
 
 
-def build_scene(site, option: dict | None, mods: list, spec: dict, customer: str, base_path: str | None, note: str) -> dict:
+def _style(site, style: str | None) -> str:
+    """residential / commercial / industrial: the Site questions' building type, else a guess from the roofs."""
+    if style in ('residential', 'commercial', 'industrial'):
+        return style
+    if any(r.get('kind', '').startswith('sheet') for r in site.roofs):
+        return 'industrial'
+    area = sum(r['poly'].area for r in site.roofs if not r.get('onRoofId'))
+    return 'residential' if area < 450 else 'commercial'
+
+
+def _buildings(site) -> list:
+    """One entry per drawn roof: its outline, the height of the roof edge, and the level it stands on."""
+    by_id = {r.get('id'): r for r in site.roofs}
+    out = []
+    for r in site.roofs:
+        poly = r['poly']
+        if poly.is_empty or poly.geom_type != 'Polygon':
+            continue
+        on = by_id.get(r.get('onRoofId')) if r.get('onRoofId') else None
+        base = float(on.get('heightM') or 0) if on is not None and on is not r else 0.0
+        pts = list(poly.exterior.coords)[:-1]
+        if poly.exterior.is_ccw:            # clockwise in the site frame (x east, y south) = anticlockwise seen from above
+            pts = pts[::-1]
+        kind = 'sheet' if str(r.get('kind', '')).startswith('sheet') else 'flat'
+        out.append({'no': r.get('no'), 'name': r.get('name') or f"Roof {r.get('no')}", 'kind': kind,
+                    'outline': [[round(x, 3), round(y, 3)] for x, y in pts], 'h': round(float(r.get('heightM') or 0), 3),
+                    'base': round(base, 3), 'parapet': round(float(r.get('parapetM') or 0), 3), 'used': bool(r.get('use', True)),
+                    'onRoof': on is not None, 'faces': [f.key for f in r.get('faces', [])]})
+    return out
+
+
+def build_scene(site, option: dict | None, mods: list, spec: dict, customer: str, base_path: str | None, note: str,
+                style: str | None = None, walkways: list | None = None) -> dict:
     roofs_only = option is None
     if roofs_only:
         option = {'name': 'Roofs as drawn', 'kwp': 0, 'modules': 0, 'arrays': [], 'annualKwh': 0}
@@ -32,7 +68,8 @@ def build_scene(site, option: dict | None, mods: list, spec: dict, customer: str
     for r in site.roofs:
         for f in r.get('faces', []):
             pts = list(f.poly.exterior.coords)[:-1]
-            faces.append({'key': f.key, 'kind': f.kind, 'used': f.key in used, 'parapet': f.parapet,
+            faces.append({'key': f.key, 'kind': f.kind, 'used': f.key in used, 'parapet': f.parapet, 'roof': r.get('no'),
+                          'down': [round(f.down[0], 3), round(f.down[1], 3)],
                           'poly': [[round(x, 3), round(y, 3), round(f.height_at(x, y), 3)] for x, y in pts]})
     obstacles = []
     for kind, poly, hgt, _ in site.obstacles:
@@ -45,7 +82,7 @@ def build_scene(site, option: dict | None, mods: list, spec: dict, customer: str
     modules = []
     for m in mods:
         f = face_kind.get(m.face)
-        modules.append({'c': [[round(x, 3), round(y, 3), round(z, 3)] for (x, y), z in zip(m.corners, m.z)], 'o': m.orient,
+        modules.append({'c': [[round(x, 3), round(y, 3), round(z, 3)] for (x, y), z in zip(m.corners, m.z)], 'o': m.orient, 'k': f.kind if f is not None else None,
                         'base': round(f.height_at(0, 0), 3) if f is not None and f.kind == 'flat' else None})
 
     xs = [p[0] for F in faces for p in F['poly']] + [p[0] for o in obstacles for p in o['poly']]
@@ -94,6 +131,8 @@ def build_scene(site, option: dict | None, mods: list, spec: dict, customer: str
         'note': note,
         'center': [round(cx, 3), round(cy, 3)], 'extent': round(extent, 2), 'focus': [round(v, 3) for v in focus], 'roofMid': round(roof_mid, 2),
         'ground': ground, 'faces': faces, 'obstacles': obstacles, 'modules': modules,
+        'style': _style(site, style), 'buildings': _buildings(site),
+        'walkways': [{'a': [round(v, 3) for v in a], 'b': [round(v, 3) for v in b], 'w': 0.3} for a, b in (walkways or [])],
         'inverter': [round(v, 3) for v in site.inverter] if site.inverter else None,
         'labels': labels, 'timeline': timeline, 'duration': 40,
         'capAll': 'Roofs as drawn' if roofs_only else f"{option['kwp']} kWp on {len(option['arrays'])} roof face{'s' if len(option['arrays']) != 1 else ''}",

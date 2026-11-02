@@ -1,10 +1,13 @@
-# Design Lab worker v1.3.0 (2026-10-31) — stage 'views' (per quote / layout): 3D of the
+# Design Lab worker v1.15.0 (2026-11-02) — stage 'views' (per quote / layout): 3D of the
+# v1.15.0: building style from Site questions + walkways on sheet roofs, for the realistic viewer.
+# (v1.3.0) 3D of the
 # chosen panel layout option — one interactive 3D file (opens offline in any browser,
 # to send to the client) + still pictures from five views.
 import os
 
 from handlers import panels
 from nrg import scene as scenemod, shots
+from nrg.inputs import answers
 
 VIEW_TITLE = {'aerial_se': 'Aerial from the south-east', 'aerial_sw': 'Aerial from the south-west', 'top': 'Top view',
               'south': 'From the south', 'close': 'Close-up'}
@@ -28,13 +31,28 @@ def chosen_option(job, P: dict) -> tuple[dict, list]:
     return max(built, key=lambda b: b[0]['annualKwh'])
 
 
+def walkways_3d(site, opt: dict) -> list:
+    """Walkway centre lines between row groups on sheet roofs, at the roof surface (x, y, z)."""
+    from handlers.layouts import _walkways
+    faces = {f.key: f for f in site.faces}
+    out = []
+    for a in opt.get('arrays', []):
+        f = faces.get(a.get('face'))
+        if f is None or '_pack' not in a:
+            continue
+        for (x0, y0), (x1, y1) in _walkways(a):
+            out.append(((x0, y0, f.height_at(x0, y0)), (x1, y1, f.height_at(x1, y1))))
+    return out
+
+
 def run(job) -> dict:
     P = panels.plan(job)
     opt, mods = chosen_option(job, P)
     base = panels.base_picture(job, P['model'])
     note = (f"Concept visualisation from the NRG Design Lab · roofs as drawn (Roof design v{P['roof_v']['version']}); "
             'heights as entered — verify on site')
-    sc = scenemod.build_scene(P['site'], opt, mods, P['spec'], job.customer, base, note)
+    sc = scenemod.build_scene(P['site'], opt, mods, P['spec'], job.customer, base, note,
+                              style=answers(job).get('buildingType'), walkways=walkways_3d(P['site'], opt))
     html = os.path.join(job.workdir, '3D-viewer.html')
     scenemod.write_viewer(sc, html)
     job.file_output(html, 'design_3d_view', title=f"{opt['name'].split(' · ')[0]} — interactive 3D (open in a browser)")
