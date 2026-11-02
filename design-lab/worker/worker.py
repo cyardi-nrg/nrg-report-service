@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Design Lab worker v1.14.1 (2026-11-02) — runs on the owner's Mac.
+# Design Lab worker v1.14.2 (2026-11-02) — runs on the owner's Mac.
+# v1.14.2: new packages are installed BEFORE the stages load (always into the worker's own .venv).
 # v1.14.1: a package that fails to install no longer stops the worker (it used to exit and never come back).
 #
 # Owner's own asks: "heavy work ... on my Mac"; the video "scheduled for
@@ -32,6 +33,43 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+
+
+
+def sync_packages() -> None:
+    """After an update that needs new Python packages, install them into the worker's own .venv. Runs BEFORE the
+    stages are loaded (v1.14.2 — in 1.14.1 it ran after, so a new package was never there in time). A package that
+    will not install never stops the worker: the reason is kept in logs/packages-error.txt for the stage that needs it."""
+    req, venv = os.path.join(HERE, 'requirements.txt'), os.path.join(HERE, '.venv')
+    py = os.path.join(venv, 'bin', 'python3')
+    stamp, err = os.path.join(venv, '.requirements-installed'), os.path.join(HERE, 'logs', 'packages-error.txt')
+    if not os.path.exists(py):
+        return
+    want = open(req).read()
+    if os.path.exists(stamp) and open(stamp).read() == want:
+        return
+    os.makedirs(os.path.join(HERE, 'logs'), exist_ok=True)
+    print('Installing the Python packages this version needs…', flush=True)
+    try:
+        r = subprocess.run([py, '-m', 'pip', 'install', '--quiet', '--prefer-binary', '-r', req], capture_output=True, text=True, timeout=1800)
+        ok, out = r.returncode == 0, (r.stderr or r.stdout or '')
+    except Exception as e:                                  # noqa: BLE001
+        ok, out = False, f'{type(e).__name__}: {e}'
+    if not ok:
+        tail = out.strip().splitlines()[-6:]
+        print('Could not install the packages: ' + ' | '.join(tail), flush=True)
+        open(err, 'w').write('\n'.join(tail) or 'pip failed without a message')
+        return
+    if os.path.exists(err):
+        os.remove(err)
+    if 'playwright' in want:
+        subprocess.run([py, '-m', 'playwright', 'install', 'chromium'], check=False)   # 3D pictures / video (phase 4)
+    open(stamp, 'w').write(want)
+    print('Packages installed.', flush=True)
+
+
+if __name__ == '__main__':
+    sync_packages()
 
 from nrg import config as cfgmod                       # noqa: E402
 from nrg.supa import Supa                              # noqa: E402
@@ -231,35 +269,7 @@ def selftest(cfg) -> int:
     return 0 if ok else 1
 
 
-def sync_packages() -> None:
-    """After an update that needs new Python packages, install them into the worker's own .venv."""
-    req, stamp = os.path.join(HERE, 'requirements.txt'), os.path.join(HERE, '.venv', '.requirements-installed')
-    if not os.path.isdir(os.path.join(HERE, '.venv')) or not sys.prefix.startswith(os.path.join(HERE, '.venv')):
-        return
-    if os.path.exists(stamp) and open(stamp).read() == open(req).read():
-        return
-    log.info('Installing the Python packages this version needs…')
-    # v1.14.1: a package that will not install must never stop the worker — every stage that does not need it keeps
-    # working, and the reason is kept (logs/packages-error.txt) for the stage that does (handlers/__init__.py)
-    err = os.path.join(HERE, 'logs', 'packages-error.txt')
-    r = subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', '--prefer-binary', '-r', req], capture_output=True, text=True)
-    if r.returncode != 0:
-        tail = (r.stderr or r.stdout or '').strip().splitlines()[-6:]
-        log.error('Could not install the packages: %s', ' | '.join(tail))
-        open(err, 'w').write('\n'.join(tail))
-        return
-    if os.path.exists(err):
-        os.remove(err)
-    if 'playwright' in open(req).read():
-        subprocess.run([sys.executable, '-m', 'playwright', 'install', 'chromium'], check=False)   # 3D pictures / video (phase 4)
-    open(stamp, 'w').write(open(req).read())
-
-
 if __name__ == '__main__':
-    try:
-        sync_packages()
-    except Exception as e:                       # never let this keep the worker from starting
-        logging.getLogger('designlab').error('Package check failed: %s', e)
     ap = argparse.ArgumentParser()
     ap.add_argument('--once', action='store_true')
     ap.add_argument('--selftest', action='store_true')
