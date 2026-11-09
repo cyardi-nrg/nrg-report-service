@@ -1,6 +1,7 @@
 # SolarConnect: Easy Setup, Customer Branding, and Custom Features Without Forking
 
-> **Version:** v1.0 · **Date:** 2026-11-09 · **Status:** Design proposal for owner review. No code changed.
+> **Version:** v1.1 · **Date:** 2026-11-09 · **Status:** Design proposal for owner review. No code changed.
+> **Changes from v1.0:** added Part 5 (will one shared app be slow at 100 companies?). Corrected the Telegram chat count to six.
 > **Answers three owner questions:** (1) how a new customer gets set up, as close to "by themselves" as possible; (2) how each customer gets their own logo, colours, details, letterheads and quote cover; (3) how to build one customer's special request without touching the others, while still being able to change everyone at once.
 > **Companion to:** `docs/productization-plan.md` v1.1. **Revises** that plan's hosting idea (§1 below explains why).
 > **Based on:** the live app repo `cyardi-nrg/nrg-solar-connect-app` (`main`, confirmed current by the owner on 2026-11-09).
@@ -234,6 +235,51 @@ Each item keeps NRG's live system working and invisible to NRG unless stated.
 
 ---
 
+## Part 5: Will one shared app be slow at 100 companies?
+
+**Short answer: no, if three specific things are handled. Separate deployments wouldn't make any single user faster anyway.**
+
+### 5.1 "One app" means one code, not one machine
+"One shared app" means **one codebase and one deploy**. It can run as 1, 3 or 10 identical copies behind the web address, and the hosting platform spreads users across them. When it gets busy, you add copies. Nothing in the code changes.
+
+### 5.2 The heavy work isn't in the shared app
+Most of the time a page takes is spent **in the database**: searching, adding up stock, margins, reports. Each customer has **their own database**, so 100 customers means the load is spread over 100 separate database servers. ABC Solar running a big report doesn't slow NRG's database at all. The app also talks to Supabase over ordinary web requests (`supabase-js`), so 100 databases doesn't mean 100 permanently open connections clogging the app.
+
+### 5.3 Rough numbers (an estimate, not a measurement)
+- 100 companies × about 10 staff = about **1,000 users**.
+- At the busiest hour, perhaps 10–20% are active at the same moment, each clicking every few seconds. That's **tens of page loads per second**, maybe up to about 100.
+- A normal web server copy handles that order of load for ordinary pages, and 2–4 copies give plenty of headroom. **This must be measured with a load test before going past roughly 20 customers, not assumed.**
+
+### 5.4 The three things that *would* make it slow, and the fix for each
+
+| Risk | Why | Fix |
+|---|---|---|
+| **1. PDF generation** (the real bottleneck) | Every quote, BOM, DC and receipt PDF is made by starting a **real Chrome browser inside the app** (`lib/html-to-pdf.ts`, Playwright). That's very heavy on memory and CPU. Ten people generating quotes at the same moment can slow the page for everyone on that copy. | Move PDF generation to a **separate PDF service** with a queue: the app asks for a PDF and the service makes them one after another (or a few at a time) without slowing normal pages. NRG already ran a separate PDF server before (`nrg-pdf-server`). **This is worth doing even for NRG alone**, and it's the most important item in this part. |
+| **2. Scheduled jobs** (morning digest, daily backup, activity digests, Tally sync, TDS report) | Today each runs once, for NRG. With 100 customers, the 8 a.m. digest becomes 100 digests at 8 a.m. | A job runner that goes through customers **in a queue** and spreads them over a time window, so one customer's failure doesn't stop the rest. |
+| **3. Google Drive and AI limits** | If one robot Google account and one AI key serve every customer, Google's and OpenAI's per-account **rate limits are shared** by all 100. | Count usage per customer. Give each customer their own Google Cloud project/robot account if limits are hit. Put AI document reading in a queue, with a fair-use limit per customer. |
+
+Two smaller points:
+- **One customer doing something huge** (importing 5,000 rows, re-reading 500 documents) shouldn't freeze other people's pages. Big jobs run in the background queue, never while a page waits.
+- **Location matters more than customer count.** Keep the app and every customer's database in the **same region (Mumbai)**. A page that makes 10 database calls from the wrong continent is slow even with one customer.
+
+### 5.5 Splitting into groups ("cells") as you grow
+Around 30–50 customers, run **2–3 groups**: the same code, each group serving a share of the customers. The customer registry decides which group a web address goes to. Two benefits:
+- **Speed:** load is split.
+- **Safety:** if one group has a problem, only that group's customers are affected, not all 100. This also answers the earlier "if the one app is down, it's down for everyone" trade-off (Part 1.2).
+
+A very large customer can get **their own group** (a dedicated copy of the same code), as a premium option. Updates still go out together, group by group (demo → NRG → the rest).
+
+### 5.6 What this adds to the build order (Part 4)
+- **Before the first outside customer:** move PDF generation to a separate PDF service with a queue. This helps NRG today too.
+- **Before about 10 customers:** a job queue for scheduled jobs and big imports; usage counting per customer.
+- **Before about 20 customers:** a real load test (e.g. 200 simulated users), and the region check.
+- **Around 30–50 customers:** split into groups (cells).
+
+### 5.7 Cost to keep in mind
+The real cost that grows with customer count isn't the app; it's **100 Supabase projects**. Each separate database is a paid project. That cost per customer has to be inside the monthly price (plan §9). Check Supabase's current pricing when setting prices.
+
+---
+
 ## Decisions needed from the owner
 
 1. **Hosting:** "separate database per customer, one shared app" (recommended), or a fully separate deployment per customer?
@@ -241,3 +287,4 @@ Each item keeps NRG's live system working and invisible to NRG unless stated.
 3. **Drive:** start with Shared Drive + robot email (Workspace customers only), and ask in interviews how many use Gmail?
 4. **Quote cover:** customer uploads their own picture and drags text boxes into place, plus 3–4 ready-made designs. Agreed?
 5. **Custom work policy:** built into the shared code behind a switch, charged, and owned by the new company. Agreed?
+6. **PDF service:** move PDF generation out of the main app into its own service with a queue, starting with NRG's own system?
