@@ -1,0 +1,735 @@
+<!doctype html>
+<!--
+  Jain Granite & Marble — 100 kWp rooftop solar — 3D viewer + walk-around path
+  Version: v2 (2026-10-28) · NRG Technologists — v2: real NRG logo in the brand box (v1 had a placeholder sun mark)
+  Geometry: CEIG drawing set v6 (Jain-Granite_02 Equipment / 04 Walkway / 05 Cable-tray layouts)
+            + client layout photo (north up, roof sloping east-west) + owner: warehouse 8 m high.
+  Built by build.mjs, which inlines three.js r158 (THREE placeholder) and the logo (LOGO placeholder), so the
+  output HTML is a single file that opens offline (double-click, or send on WhatsApp/Drive).
+  URL options:  ?capture=1  -> no buttons, used by render.mjs for the video + stills
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Jain Granite 3D</title>
+<style>
+  :root { --ink:#0f172a; --muted:#475569; --accent:#f59e0b; --panel:#ffffffee; --line:#e2e8f0; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:#cfdcea; font-family:"Liberation Sans", Arial, Helvetica, sans-serif; color:var(--ink); overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #c { display:block; width:100%; height:100%; touch-action:none; }
+  #labels { position:absolute; inset:0; pointer-events:none; }
+  .lbl { position:absolute; transform:translate(-50%,-100%); white-space:nowrap; font-size:clamp(10px,1.35vh,15px);
+         font-weight:700; color:#fff; background:#0f172acc; padding:.3em .6em; border-radius:.4em; border-left:3px solid var(--accent); }
+  .lbl::after { content:""; position:absolute; left:50%; top:100%; width:1px; height:1.1em; background:#0f172acc; }
+  .lbl small { display:block; font-weight:400; opacity:.85; font-size:.85em; }
+
+  /* opaque and at least 37.5vh wide: render.mjs --rebrand lays this box over older renders, so it must hide the old one */
+  #brand { position:absolute; left:2.2vh; top:2.2vh; display:flex; align-items:center; gap:1.6vh; background:#fff; min-width:37.5vh;
+           padding:1vh 2vh 1vh 1.2vh; border-radius:1vh; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #brand img { height:10.5vh; width:auto; display:block; }
+  #brand .n { font-weight:800; font-size:2.6vh; letter-spacing:.08em; line-height:1; color:#0000fe; }
+  #brand .s { font-size:1.4vh; color:var(--muted); letter-spacing:.12em; margin-top:.7vh; }
+
+  #caption { position:absolute; left:2.2vh; bottom:3vh; max-width:70%; background:#0f172ad9; color:#fff; padding:1.4vh 2.2vh 1.5vh;
+             border-radius:1vh; border-left:.6vh solid var(--accent); transition:opacity .5s; }
+  #caption .t { font-weight:800; font-size:3vh; line-height:1.15; }
+  #caption .s { font-size:1.8vh; opacity:.9; margin-top:.6vh; line-height:1.35; }
+
+  #spec { position:absolute; right:2.2vh; top:2.2vh; background:#ffffffe8; border-radius:1vh; padding:1.2vh 1.6vh; font-size:1.45vh;
+          line-height:1.55; box-shadow:0 .4vh 1.6vh #0f172a22; }
+  #spec b { font-size:1.75vh; }
+  #compass { position:absolute; right:2.6vh; bottom:3vh; width:8vh; height:8vh; }
+  #note { position:absolute; right:12vh; bottom:3.4vh; font-size:1.15vh; color:#0f172a; background:#fff; padding:.4vh .8vh; border-radius:.5vh; }
+
+  #ui { position:fixed; left:50%; transform:translateX(-50%); top:1.6vh; display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
+        max-width:min(760px, calc(100% - 32px)); }
+  #ui button { font:600 13px/1 "Liberation Sans", Arial, sans-serif; border:1px solid var(--line); background:var(--panel);
+               padding:8px 11px; border-radius:8px; cursor:pointer; color:var(--ink); box-shadow:0 2px 6px #0f172a1a; }
+  #ui button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  #ui button.play { background:var(--accent); border-color:#d97706; color:#111; }
+  #help { position:fixed; left:50%; transform:translateX(-50%); bottom:1.2vh; font-size:12px; color:#334155; background:#ffffffc0;
+          padding:4px 10px; border-radius:6px; }
+  body.capture #ui, body.capture #help { display:none; }
+  @media (max-width: 700px) {
+    #spec { display:none; }
+    #brand { top:auto; bottom:17vh; min-width:0; }
+    #brand img { height:8vh; }
+    #ui { top:8px; }
+    #ui button { padding:7px 8px; font-size:12px; }
+    #caption { max-width:calc(100% - 4vh); bottom:2vh; }
+    #compass { bottom:auto; top:190px; width:56px; height:56px; right:12px; }
+    #note, #help { display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div id="brand">
+    <img src="/*__LOGO__*/" alt="NRG Technologists Pvt. Ltd.">
+    <div><div class="n">SOLAR EPC</div><div class="s">VADODARA · GUJARAT</div></div>
+  </div>
+  <div id="spec">
+    <b>Jain Granite &amp; Marble</b><br>
+    100.00 kWp DC · 80 kW AC<br>
+    160 × Adani 625 Wp N-TOPCon<br>
+    GoodWe GW80K-MT · 8 strings × 20<br>
+    Warehouse, 8 m eave · E–W sheet roof
+  </div>
+  <div id="caption"><div class="t"></div><div class="s"></div></div>
+  <svg id="compass" viewBox="-50 -50 100 100" aria-label="North arrow">
+    <circle r="46" fill="#ffffffd8" stroke="#0f172a33" stroke-width="2"/>
+    <g id="needle">
+      <path d="M0,-38 L11,4 L0,-3 L-11,4 Z" fill="#dc2626"/>
+      <path d="M0,38 L11,4 L0,-3 L-11,4 Z" fill="#94a3b8"/>
+    </g>
+    <text id="nlabel" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="800" fill="#0f172a">N</text>
+  </svg>
+  <div id="note">Concept visualisation · roof size &amp; equipment positions scaled from layout — verify on site · v2</div>
+</div>
+
+<div id="ui">
+  <button class="play" id="play">▶ Walk-around</button>
+  <button data-view="aerial">Aerial</button>
+  <button data-view="plan">Top view</button>
+  <button data-view="west">West slope</button>
+  <button data-view="east">East slope</button>
+  <button data-view="walkway">Walkway</button>
+  <button data-view="inverter">Inverter</button>
+  <button data-view="ground">Ground</button>
+  <button id="tgLabels" class="on">Labels</button>
+  <button id="tgBos" class="on">Walkways &amp; trays</button>
+</div>
+<div id="help">Drag to rotate · right-drag / two fingers to pan · scroll / pinch to zoom</div>
+
+<script>/*__THREE__*/</script>
+<script>
+(function () {
+'use strict';
+var VERSION = 'v2';
+var Q = new URLSearchParams(location.search);
+var CAPTURE = Q.has('capture');
+if (CAPTURE) document.body.classList.add('capture');
+
+// ======================================================================= site data (metres)
+// plan x = east from the west eave, plan y = south from the north eave (same as the CEIG sheets)
+var MOD_W = 1.134, MOD_L = 2.382, MOD_T = 0.035, MGAP = 0.02;
+var BW = 5 * MOD_W + 4 * MGAP, BL = 8 * MOD_L + 7 * MGAP;
+var BLOCK_X = [0.65, 7.0, 16.85, 23.2], BLOCK_Y = 1.5;
+var ROOF_W = 29.8, ROOF_L = 36.0, RIDGE_X = 14.8;
+var EAVE_H = 8.0;            // owner: warehouse height 8 m (taken as eave height)
+var RISE = 1.5;              // ASSUMED 1:10 PEB roof slope -> ridge about 9.5 m
+var OVERHANG = 0.3;          // roof sheet past the wall line
+var STANDOFF = 0.12;         // module underside above the sheet (short rail on trapezoidal sheet)
+var WALK_W = 0.30, TRAY_W = 0.10;
+var ARRAY_END = BLOCK_Y + BL, CON_Y0 = ARRAY_END + 0.15, SOUTH_Y0 = ROOF_L - 0.90;
+var TRAY_GAP_X = [BLOCK_X[0] + BW + 0.05, BLOCK_X[2] + BW + 0.05], TRAY_GAP_END = 19.6, TRAY_HY = 0.25;
+var INV_Y = 4.2, LA = [RIDGE_X, 1.0], LA_MAST = 5.0;
+var PITS = [['EP-1 (DC)', 8.0], ['EP-2 (AC)', 10.5], ['EP-3 (LA)', 14.5]];
+var WALL_X0 = OVERHANG, WALL_X1 = ROOF_W - OVERHANG, WALL_Y0 = OVERHANG, WALL_Y1 = ROOF_L - OVERHANG;
+
+var aW = Math.atan2(RISE, RIDGE_X), aE = Math.atan2(RISE, ROOF_W - RIDGE_X);
+function roofH(x) {
+  x = Math.max(0, Math.min(ROOF_W, x));
+  return x <= RIDGE_X ? EAVE_H + x / RIDGE_X * RISE : EAVE_H + (ROOF_W - x) / (ROOF_W - RIDGE_X) * RISE;
+}
+function V(x, y, h) { return new THREE.Vector3(x - ROOF_W / 2, h, y - ROOF_L / 2); }   // plan -> world (X east, Z south, Y up)
+
+// ======================================================================= renderer / scene
+var canvas = document.getElementById('c');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: CAPTURE });
+renderer.setPixelRatio(CAPTURE ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 2000);
+
+// sky dome (also used to build the reflection environment, so the glass reflects a real sky)
+function skyMesh(radius) {
+  var g = new THREE.SphereGeometry(radius, 48, 24);
+  var pos = g.attributes.position, col = [];
+  var top = new THREE.Color('#4f86cc'), hor = new THREE.Color('#e4ecf2'), gnd = new THREE.Color('#9c977f');
+  for (var i = 0; i < pos.count; i++) {
+    var y = pos.getY(i) / radius, c = new THREE.Color();
+    if (y >= 0) c.copy(hor).lerp(top, Math.pow(Math.min(1, y / 0.9), 0.55));
+    else c.copy(hor).lerp(gnd, Math.min(1, -y * 8));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+}
+scene.add(skyMesh(900));
+(function () {
+  var envScene = new THREE.Scene();
+  envScene.add(skyMesh(50));
+  var pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+})();
+scene.fog = new THREE.Fog('#dfe7ee', 160, 700);
+
+scene.add(new THREE.HemisphereLight('#dceaff', '#8a826c', 0.55));
+var sun = new THREE.DirectionalLight('#fff4e2', 2.6);
+// late-morning sun from the south-east (Vadodara ~22°N): az 125°, elevation 52°
+(function () {
+  var az = THREE.MathUtils.degToRad(125), el = THREE.MathUtils.degToRad(52), d = 120;
+  sun.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d);
+})();
+sun.castShadow = true;
+sun.shadow.mapSize.set(CAPTURE ? 4096 : 2048, CAPTURE ? 4096 : 2048);
+var sc = sun.shadow.camera; sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 20; sc.far = 260;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun); scene.add(sun.target);
+
+// ======================================================================= procedural textures
+function canvasTex(w, h, draw, rx, ry) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  var t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx || 1, ry || 1);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+// module face: 6 x 22 half-cut cells (132-cell 625 Wp TOPCon), silver frame lip, white backsheet gaps
+var panelTex = canvasTex(240, 504, function (g, w, h) {
+  g.fillStyle = '#d7dbe0'; g.fillRect(0, 0, w, h);
+  var fr = 7; g.fillStyle = '#e9edf2'; g.fillRect(fr, fr, w - 2 * fr, h - 2 * fr);
+  var cols = 6, rows = 22, gx = 2, gy = 2, mid = 6;
+  var cw = (w - 2 * fr - 8 - (cols - 1) * gx) / cols, ch = (h - 2 * fr - 8 - (rows - 1) * gy - mid) / rows;
+  for (var i = 0; i < cols; i++) for (var j = 0; j < rows; j++) {
+    var x = fr + 4 + i * (cw + gx), y = fr + 4 + j * (ch + gy) + (j >= rows / 2 ? mid : 0);
+    var gr = g.createLinearGradient(x, y, x + cw, y + ch);
+    gr.addColorStop(0, '#15213d'); gr.addColorStop(1, '#0b1226');
+    g.fillStyle = gr; g.fillRect(x, y, cw, ch);
+    g.fillStyle = '#3a4a6e';
+    for (var b = 1; b <= 3; b++) g.fillRect(x + b * cw / 4 - 0.5, y, 1, ch);   // busbars
+  }
+});
+var roofTex = canvasTex(16, 64, function (g, w, h) {           // trapezoidal sheet ribs, one rib per tile
+  g.fillStyle = '#d8d3c8'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#efebe3'; g.fillRect(0, 0, w, 10);
+  g.fillStyle = '#b9b3a6'; g.fillRect(0, 10, w, 4);
+  g.fillStyle = '#c9c3b7'; g.fillRect(0, 44, w, 3);
+}, 1, ROOF_L / 0.25);
+function wallTex(rx, ry) {
+  return canvasTex(64, 16, function (g, w, h) {                // vertical cladding ribs
+    g.fillStyle = '#c4ccd4'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#dde3e9'; g.fillRect(0, 0, 14, h);
+    g.fillStyle = '#9fa9b3'; g.fillRect(14, 0, 4, h);
+    g.fillStyle = '#b3bcc6'; g.fillRect(40, 0, 2, h);
+  }, rx, ry);
+}
+var shutterTex = canvasTex(8, 32, function (g, w, h) {
+  for (var y = 0; y < h; y += 4) { g.fillStyle = '#8f99a3'; g.fillRect(0, y, w, 3); g.fillStyle = '#6d7680'; g.fillRect(0, y + 3, w, 1); }
+}, 1, 30);
+var gratingTex = canvasTex(32, 32, function (g, w, h) {
+  g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#c9ced3';
+  for (var i = 0; i < w; i += 8) g.fillRect(i, 0, 3, h);
+  for (var j = 0; j < h; j += 8) g.fillRect(0, j, w, 2);
+}, 1, 1);
+var groundTex = canvasTex(256, 256, function (g, w, h) {
+  g.fillStyle = '#a39b7c'; g.fillRect(0, 0, w, h);
+  var r = mulberry(7);
+  for (var i = 0; i < 3500; i++) {
+    var v = r();
+    g.fillStyle = v < 0.33 ? '#8f8a63' : v < 0.66 ? '#b2a98a' : '#7f8a55';
+    g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 3);
+  }
+}, 60, 60);
+var concreteTex = canvasTex(128, 128, function (g, w, h) {
+  g.fillStyle = '#bdb8ae'; g.fillRect(0, 0, w, h);
+  var r = mulberry(3);
+  for (var i = 0; i < 1500; i++) { g.fillStyle = r() < 0.5 ? '#b2ada3' : '#c7c2b8'; g.fillRect(r() * w, r() * h, 1.5, 1.5); }
+  g.fillStyle = '#a19c93'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h);   // 3 m panel joints
+}, 1, 1);
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ======================================================================= materials
+var M = {
+  glass: new THREE.MeshPhysicalMaterial({ map: panelTex, roughness: 0.3, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.12, envMapIntensity: 0.55 }),
+  frame: new THREE.MeshStandardMaterial({ color: '#c7ccd3', metalness: 0.85, roughness: 0.35 }),
+  back:  new THREE.MeshStandardMaterial({ color: '#e8e8e4', roughness: 0.8 }),
+  rail:  new THREE.MeshStandardMaterial({ color: '#b8bec6', metalness: 0.8, roughness: 0.4 }),
+  roof:  new THREE.MeshStandardMaterial({ map: roofTex, metalness: 0.45, roughness: 0.5 }),
+  trim:  new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.6, roughness: 0.45 }),
+  plinth:new THREE.MeshStandardMaterial({ color: '#a59f94', roughness: 0.95 }),
+  shutter:new THREE.MeshStandardMaterial({ map: shutterTex, metalness: 0.5, roughness: 0.5 }),
+  walk:  new THREE.MeshStandardMaterial({ map: gratingTex, color: '#fcd34d', metalness: 0.2, roughness: 0.7 }),
+  tray:  new THREE.MeshStandardMaterial({ color: '#aeb6bf', metalness: 0.75, roughness: 0.35 }),
+  ground:new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1 }),
+  concrete:new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.95 }),
+  cwall: new THREE.MeshStandardMaterial({ color: '#e6dccb', roughness: 0.95 }),
+  inv:   new THREE.MeshStandardMaterial({ color: '#f4f5f6', roughness: 0.45 }),
+  invFace:new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.4 }),
+  acdb:  new THREE.MeshStandardMaterial({ color: '#c9cdd2', roughness: 0.55, metalness: 0.2 }),
+  red:   new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.5 }),
+  copper:new THREE.MeshStandardMaterial({ color: '#b8733a', metalness: 0.8, roughness: 0.35 }),
+  steel: new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.85, roughness: 0.3 }),
+  pit:   new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.7 }),
+  ladder:new THREE.MeshStandardMaterial({ color: '#facc15', metalness: 0.3, roughness: 0.5 }),
+  trunk: new THREE.MeshStandardMaterial({ color: '#6b4f3a', roughness: 1 }),
+  leaf:  new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true }),
+  cable: new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.6 }),
+};
+
+function box(w, h, d, mat, cast, recv) {
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = cast !== false; m.receiveShadow = recv !== false;
+  return m;
+}
+function tube(points, r, mat) {          // straight-segment cable / conductor through world points
+  var path = new THREE.CurvePath();
+  for (var i = 0; i < points.length - 1; i++) path.add(new THREE.LineCurve3(points[i], points[i + 1]));
+  var m = new THREE.Mesh(new THREE.TubeGeometry(path, points.length * 8, r, 8, false), mat);
+  m.castShadow = true; return m;
+}
+
+var site = new THREE.Group(), bos = new THREE.Group();   // bos = walkways + trays (toggle)
+scene.add(site); scene.add(bos);
+
+// ======================================================================= ground + yard
+(function () {
+  var g = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), M.ground);
+  g.rotation.x = -Math.PI / 2; g.receiveShadow = true; site.add(g);
+  // concrete apron / yard (wider on the west — paved area in the layout photo)
+  var ax0 = -27, ax1 = 21, az0 = -24, az1 = 30;
+  var apron = new THREE.Mesh(new THREE.PlaneGeometry(ax1 - ax0, az1 - az0), M.concrete);
+  M.concrete.map.repeat.set((ax1 - ax0) / 3, (az1 - az0) / 3);
+  apron.rotation.x = -Math.PI / 2; apron.position.set((ax0 + ax1) / 2, 0.02, (az0 + az1) / 2); apron.receiveShadow = true; site.add(apron);
+  // compound wall with a south gate
+  var cx0 = -46, cx1 = 40, cz0 = -42, cz1 = 50, h = 2.1, t = 0.23;
+  [[cx0, cz0, cx1, cz0], [cx0, cz0, cx0, cz1], [cx1, cz0, cx1, cz1], [cx0, cz1, -16, cz1], [-4, cz1, cx1, cz1]].forEach(function (s) {
+    var len = Math.hypot(s[2] - s[0], s[3] - s[1]);
+    var w = box(s[0] === s[2] ? t : len, h, s[0] === s[2] ? len : t, M.cwall);
+    w.position.set((s[0] + s[2]) / 2, h / 2, (s[1] + s[3]) / 2); site.add(w);
+  });
+  // trees west and east of the shed (as in the layout photo), seeded so every render is identical
+  var r = mulberry(11), spots = [];
+  for (var i = 0; i < 16; i++) spots.push([-43 + r() * 12, -38 + i * 5.6 + r() * 2]);
+  for (i = 0; i < 10; i++) spots.push([31 + r() * 6, -36 + i * 7.2 + r() * 2]);
+  for (i = 0; i < 7; i++) spots.push([-40 + i * 11 + r() * 3, -39 + r() * 2]);
+  var trunkG = new THREE.CylinderGeometry(0.18, 0.28, 1, 7), leafG = new THREE.IcosahedronGeometry(1, 1);
+  var trunks = new THREE.InstancedMesh(trunkG, M.trunk, spots.length), leaves = new THREE.InstancedMesh(leafG, M.leaf, spots.length * 2);
+  trunks.castShadow = leaves.castShadow = true; leaves.receiveShadow = true;
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3(), col = new THREE.Color();
+  spots.forEach(function (p, k) {
+    var th = 3 + r() * 3, cr = 2.2 + r() * 1.8;
+    m4.compose(p3.set(p[0], th / 2, p[1]), q.identity(), s3.set(1, th, 1)); trunks.setMatrixAt(k, m4);
+    for (var j = 0; j < 2; j++) {
+      q.setFromEuler(new THREE.Euler(r(), r() * 6, r()));
+      m4.compose(p3.set(p[0] + (r() - 0.5) * 1.6, th + cr * (0.55 + j * 0.5), p[1] + (r() - 0.5) * 1.6), q, s3.set(cr * (1 - j * 0.25), cr * 0.8, cr * (1 - j * 0.25)));
+      leaves.setMatrixAt(k * 2 + j, m4);
+      leaves.setColorAt(k * 2 + j, col.setHSL(0.24 + r() * 0.06, 0.38, 0.24 + r() * 0.08));
+    }
+  });
+  site.add(trunks); site.add(leaves);
+})();
+
+// ======================================================================= warehouse
+(function () {
+  var wallT = 0.18;
+  // long walls (west / east) up to the eave
+  [WALL_X0, WALL_X1].forEach(function (x) {
+    var len = WALL_Y1 - WALL_Y0, h = roofH(x);
+    var w = new THREE.Mesh(new THREE.BoxGeometry(wallT, h, len), new THREE.MeshStandardMaterial({ map: wallTex(len / 0.33, 1), metalness: 0.35, roughness: 0.55 }));
+    w.castShadow = w.receiveShadow = true;
+    w.position.copy(V(x, (WALL_Y0 + WALL_Y1) / 2, h / 2)); site.add(w);
+  });
+  // gable walls (north / south) following the roof line
+  var shp = new THREE.Shape();
+  shp.moveTo(WALL_X0, 0); shp.lineTo(WALL_X1, 0); shp.lineTo(WALL_X1, roofH(WALL_X1)); shp.lineTo(RIDGE_X, EAVE_H + RISE); shp.lineTo(WALL_X0, roofH(WALL_X0)); shp.closePath();
+  var gableMat = new THREE.MeshStandardMaterial({ map: wallTex(1 / 0.33, 0.1), metalness: 0.35, roughness: 0.55 });
+  [WALL_Y0, WALL_Y1].forEach(function (y) {
+    var g = new THREE.ExtrudeGeometry(shp, { depth: wallT, bevelEnabled: false });
+    var m = new THREE.Mesh(g, gableMat); m.castShadow = m.receiveShadow = true;
+    m.position.set(-ROOF_W / 2, 0, y - ROOF_L / 2 - wallT / 2); site.add(m);
+  });
+  // plinth band all round
+  var ph = 1.1;
+  [[WALL_X0, WALL_X1, WALL_Y0, WALL_Y0], [WALL_X0, WALL_X1, WALL_Y1, WALL_Y1], [WALL_X0, WALL_X0, WALL_Y0, WALL_Y1], [WALL_X1, WALL_X1, WALL_Y0, WALL_Y1]].forEach(function (s) {
+    var horiz = s[2] === s[3], len = horiz ? s[1] - s[0] + 0.3 : s[3] - s[2] + 0.3;
+    var p = box(horiz ? len : 0.3, ph, horiz ? 0.3 : len, M.plinth);
+    p.position.copy(V((s[0] + s[1]) / 2, (s[2] + s[3]) / 2, ph / 2)); site.add(p);
+  });
+  // two rolling shutters on the south gable, one on the north
+  [[8.0, WALL_Y1, 1], [21.0, WALL_Y1, 1], [7.5, WALL_Y0, -1]].forEach(function (d) {
+    var s = box(4.5, 5.2, 0.08, M.shutter); s.position.copy(V(d[0], d[1] + d[2] * 0.14, 2.6 + 0.0)); site.add(s);
+    var hood = box(4.8, 0.45, 0.45, M.trim); hood.position.copy(V(d[0], d[1] + d[2] * 0.3, 5.45)); site.add(hood);
+  });
+  // high ventilation louvre bands on the long walls
+  [WALL_X0 - 0.1, WALL_X1 + 0.1].forEach(function (x) {
+    for (var y = 4; y < ROOF_L - 4; y += 6) {
+      var l = box(0.06, 0.9, 3.2, M.trim); l.position.copy(V(x, y + 1.6, EAVE_H - 1.6)); site.add(l);
+    }
+  });
+  // roof sheets: one plane per slope, top surface exactly on roofH()
+  [[0, RIDGE_X, aW], [RIDGE_X, ROOF_W, -aE]].forEach(function (s) {
+    var run = s[1] - s[0], len = run / Math.cos(Math.abs(s[2])), t = 0.06;
+    var r = box(len, t, ROOF_L, M.roof);
+    var xc = (s[0] + s[1]) / 2;
+    r.position.copy(V(xc, ROOF_L / 2, roofH(xc) - t / 2 / Math.cos(s[2])));
+    r.rotation.z = s[2]; site.add(r);
+  });
+  // ridge cap + eave gutters
+  var rc = box(0.5, 0.08, ROOF_L + 0.05, M.trim); rc.position.copy(V(RIDGE_X, ROOF_L / 2, EAVE_H + RISE + 0.03)); site.add(rc);
+  [0.05, ROOF_W - 0.05].forEach(function (x) {
+    var gt = box(0.22, 0.2, ROOF_L, M.trim); gt.position.copy(V(x, ROOF_L / 2, EAVE_H - 0.12)); site.add(gt);
+  });
+  // down-take pipes
+  [[0.05, 0.5], [0.05, 18], [0.05, 35.5], [ROOF_W - 0.05, 18], [ROOF_W - 0.05, 35.5]].forEach(function (p) {
+    var d = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, EAVE_H, 8), M.trim);
+    d.position.copy(V(p[0] < 1 ? WALL_X0 - 0.2 : WALL_X1 + 0.2, p[1], EAVE_H / 2)); d.castShadow = true; site.add(d);
+  });
+})();
+
+// ======================================================================= PV array: 4 blocks x 5 x 8 = 160 modules
+var blockCentres = [];
+(function () {
+  var geo = new THREE.BoxGeometry(MOD_W, MOD_T, MOD_L);
+  var mats = [M.frame, M.frame, M.glass, M.back, M.frame, M.frame];
+  var mods = new THREE.InstancedMesh(geo, mats, 160);
+  mods.castShadow = true; mods.receiveShadow = true;
+  var railGeo = new THREE.BoxGeometry(1, 0.05, 0.04);
+  var rails = new THREE.InstancedMesh(railGeo, M.rail, 4 * 8 * 2);
+  rails.castShadow = true;
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(1, 1, 1);
+  var k = 0, kr = 0;
+  BLOCK_X.forEach(function (bx, b) {
+    var ang = bx < RIDGE_X ? aW : -aE;
+    q.setFromEuler(e.set(0, 0, ang));
+    for (var r = 0; r < 8; r++) {
+      var yc = BLOCK_Y + r * (MOD_L + MGAP) + MOD_L / 2;
+      for (var c = 0; c < 5; c++) {
+        var xc = bx + c * (MOD_W + MGAP) + MOD_W / 2;
+        m4.compose(V(xc, yc, roofH(xc) + (STANDOFF + MOD_T / 2) / Math.cos(ang)), q, sc.set(1, 1, 1));
+        mods.setMatrixAt(k++, m4);
+      }
+      // two short rails per row, across the block (along the slope)
+      var xm = bx + BW / 2, rlen = BW / Math.cos(ang);
+      [-0.27, 0.27].forEach(function (f) {
+        m4.compose(V(xm, yc + f * MOD_L * 1.5, roofH(xm) + 0.05 / Math.cos(ang)), q, sc.set(rlen, 1, 1));
+        rails.setMatrixAt(kr++, m4);
+      });
+    }
+    blockCentres.push(V(bx + BW / 2, BLOCK_Y + BL / 2, roofH(bx + BW / 2) + 0.6));
+  });
+  site.add(mods); site.add(rails);
+})();
+
+// ======================================================================= walkways + cable trays (CEIG sheets 04 / 05)
+function drape(x1, x2, y1, y2, lift, thick, mat, group) {
+  var parts = (x1 < RIDGE_X && x2 > RIDGE_X) ? [[x1, RIDGE_X], [RIDGE_X, x2]] : [[x1, x2]];
+  parts.forEach(function (p) {
+    var xc = (p[0] + p[1]) / 2, ang = xc < RIDGE_X ? aW : -aE, len = (p[1] - p[0]) / Math.cos(ang);
+    var m = box(len, thick, y2 - y1, mat);
+    if (mat.map === gratingTex) { m.material = mat.clone(); m.material.map = gratingTex.clone(); m.material.map.needsUpdate = true; m.material.map.repeat.set(len / 0.3, (y2 - y1) / 0.3); }
+    m.position.copy(V(xc, (y1 + y2) / 2, roofH(xc) + (lift + thick / 2) / Math.cos(ang)));
+    m.rotation.z = ang; group.add(m);
+  });
+}
+var walkways = [];
+(function () {
+  var e0 = BLOCK_X[0] + BW, e2 = BLOCK_X[2] + BW;
+  var w1 = [e0 + 0.22, e0 + 0.22 + WALK_W], w2 = [e2 + 0.22, e2 + 0.22 + WALK_W];
+  walkways = [w1, w2];
+  var lift = 0.06, t = 0.04;
+  drape(w1[0], w1[1], BLOCK_Y, ARRAY_END, lift, t, M.walk, bos);                 // W1  (west slope, gap block 1/2)
+  drape(w2[0], w2[1], BLOCK_Y, ARRAY_END, lift, t, M.walk, bos);                 // W2  (east slope, gap block 3/4)
+  drape(w1[0], w2[1], CON_Y0, CON_Y0 + WALK_W, lift, t, M.walk, bos);           // WC  connector across the ridge
+  drape(w1[0], w1[1], CON_Y0 + WALK_W, SOUTH_Y0, lift, t, M.walk, bos);          // WA1 on to the south strip
+  drape(0.3, w1[1], SOUTH_Y0, SOUTH_Y0 + WALK_W, lift, t, M.walk, bos);          // WA2 along the south edge to the ladder
+  // trays T1 / T2 in the block gaps, T3 header along the north edge, over the ridge to the east eave
+  var tl = 0.10, th = 0.07;
+  TRAY_GAP_X.forEach(function (tx) { drape(tx - TRAY_W / 2, tx + TRAY_W / 2, TRAY_HY, TRAY_GAP_END, tl, th, M.tray, bos); });
+  drape(TRAY_GAP_X[0] - TRAY_W / 2, ROOF_W, TRAY_HY, TRAY_HY + TRAY_W, tl, th, M.tray, bos);
+  // T4: down the east wall and along it to the inverter
+  var wx = WALL_X1 + 0.12, yT = TRAY_HY + TRAY_W / 2;
+  var down = box(0.08, EAVE_H - 2.2, 0.12, M.tray); down.position.copy(V(wx, yT + 0.2, 2.2 + (EAVE_H - 2.2) / 2)); bos.add(down);
+  var along = box(0.08, 0.12, INV_Y - 0.55 - yT, M.tray); along.position.copy(V(wx, (yT + INV_Y - 0.55) / 2 + 0.1, 2.2)); bos.add(along);
+})();
+
+// ======================================================================= inverter, ACDB, DCDB, canopy, earth pits
+var invPos, ladderPos, pitPos, laTop;
+(function () {
+  var wx = WALL_X1 + 0.09;
+  var inv = box(0.32, 0.72, 0.9, M.inv); inv.position.copy(V(wx + 0.16, INV_Y, 1.55)); site.add(inv);
+  var face = box(0.01, 0.2, 0.42, M.invFace); face.position.copy(V(wx + 0.325, INV_Y, 1.7)); site.add(face);
+  var acdb = box(0.24, 0.8, 0.6, M.acdb); acdb.position.copy(V(wx + 0.12, INV_Y + 1.15, 1.55)); site.add(acdb);
+  var dcdb = box(0.2, 0.5, 0.42, M.acdb); dcdb.position.copy(V(wx + 0.1, INV_Y - 0.95, 1.7)); site.add(dcdb);
+  var canopy = box(1.0, 0.05, 3.3, M.trim); canopy.position.copy(V(wx + 0.5, INV_Y + 0.15, 2.55)); canopy.rotation.z = -0.12; site.add(canopy);
+  // AC cable from ACDB down into the ground (to the client LT panel)
+  site.add(tube([V(wx + 0.12, INV_Y + 1.15, 1.15), V(wx + 0.12, INV_Y + 1.15, 0.05)], 0.035, M.cable));
+  invPos = V(wx + 0.3, INV_Y + 0.1, 2.0);
+  // earth pits: concrete chamber + green cover
+  pitPos = [];
+  PITS.forEach(function (p) {
+    var c = box(0.6, 0.12, 0.6, M.plinth); c.position.copy(V(ROOF_W + 1.6, p[1], 0.06)); site.add(c);
+    var lid = box(0.4, 0.03, 0.4, M.pit); lid.position.copy(V(ROOF_W + 1.6, p[1], 0.135)); site.add(lid);
+    pitPos.push(V(ROOF_W + 1.6, p[1], 0.4));
+  });
+  // ESE lightning arrester on a 5 m mast at the north end of the ridge
+  var base = V(LA[0], LA[1], EAVE_H + RISE);
+  var plate = box(0.45, 0.05, 0.45, M.steel); plate.position.copy(base).add(new THREE.Vector3(0, 0.05, 0)); site.add(plate);
+  var mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, LA_MAST, 10), M.steel);
+  mast.position.copy(base).add(new THREE.Vector3(0, LA_MAST / 2, 0)); mast.castShadow = true; site.add(mast);
+  var head = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.5, 14), M.steel);
+  head.position.copy(base).add(new THREE.Vector3(0, LA_MAST + 0.25, 0)); head.castShadow = true; site.add(head);
+  var tip = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.4, 10), M.steel);
+  tip.position.copy(base).add(new THREE.Vector3(0, LA_MAST + 0.7, 0)); site.add(tip);
+  [-1, 1].forEach(function (s) {        // stay wires
+    site.add(tube([base.clone().add(new THREE.Vector3(0, LA_MAST * 0.6, 0)), V(LA[0] + s * 2.2, LA[1], roofH(LA[0] + s * 2.2) + 0.05)], 0.008, M.steel));
+  });
+  site.add(tube([base.clone().add(new THREE.Vector3(0, LA_MAST * 0.6, 0)), V(LA[0], LA[1] + 1.8, roofH(LA[0]) + 0.05)], 0.008, M.steel));
+  laTop = base.clone().add(new THREE.Vector3(0, LA_MAST + 0.9, 0));
+  // LA down conductor: along the roof at y 1.0 to the east eave, along the eave, down the wall to EP-3 (own route, clear of DC/AC)
+  var yL = LA[1], yP = PITS[2][1];
+  site.add(tube([V(LA[0], yL, EAVE_H + RISE + 0.04), V(ROOF_W - 0.1, yL, EAVE_H + 0.04), V(ROOF_W - 0.1, yP, EAVE_H + 0.04),
+                 V(WALL_X1 + 0.1, yP, EAVE_H - 0.3), V(WALL_X1 + 0.1, yP, 0.05), V(ROOF_W + 1.6, yP, 0.05)], 0.012, M.copper));
+  // caged access ladder at the south-west corner (west wall)
+  var lx = WALL_X0 - 0.45, ly = ROOF_L - 0.75, top = EAVE_H + 1.1;
+  [-0.22, 0.22].forEach(function (o) {
+    var rail = box(0.05, top, 0.05, M.ladder); rail.position.copy(V(lx, ly + o, top / 2)); site.add(rail);
+  });
+  var rungs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.03, 0.03, 0.44), M.ladder, 30), m4 = new THREE.Matrix4();
+  for (var i = 0; i < 30; i++) { var rp = V(lx, ly, 0.3 + i * 0.3); m4.makeTranslation(rp.x, rp.y, rp.z); rungs.setMatrixAt(i, m4); }
+  rungs.castShadow = true; site.add(rungs);
+  for (var h = 2.6; h < top; h += 0.9) {
+    var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.015, 6, 20, Math.PI), M.ladder);
+    hoop.position.copy(V(lx + 0.0, ly, h)); hoop.rotation.set(Math.PI / 2, 0, Math.PI / 2); site.add(hoop);
+  }
+  ladderPos = V(lx, ly, top + 0.4);
+})();
+
+// ======================================================================= labels
+var LABELS = {
+  b1: { p: blockCentres[0], t: 'Block 1', s: 'West slope · 40 modules' },
+  b2: { p: blockCentres[1], t: 'Block 2', s: 'West slope · 40 modules' },
+  b3: { p: blockCentres[2], t: 'Block 3', s: 'East slope · 40 modules' },
+  b4: { p: blockCentres[3], t: 'Block 4', s: 'East slope · 40 modules' },
+  ridge: { p: V(RIDGE_X, ROOF_L - 6, EAVE_H + RISE + 0.4), t: 'Ridge', s: '≈ 9.5 m' },
+  la: { p: laTop, t: 'Lightning arrester (ESE)', s: '5 m mast on the ridge' },
+  walk: { p: V(walkways[0][0] + 0.15, CON_Y0 + 4, roofH(walkways[0][0]) + 0.3), t: 'Walkway 300 mm', s: 'O&M access to every module' },
+  tray: { p: V(24, TRAY_HY, roofH(24) + 0.4), t: 'Cable tray', s: 'North edge → east wall' },
+  inv: { p: invPos, t: 'Inverter + ACDB', s: 'GoodWe GW80K-MT · 80 kW' },
+  pits: { p: pitPos[1], t: 'Earth pits', s: 'DC · AC · LA' },
+  ladder: { p: ladderPos, t: 'Roof ladder', s: 'South-west corner' },
+  eave: { p: V(WALL_X0, 2, EAVE_H * 0.55), t: 'Eave height 8 m', s: 'Warehouse' },
+};
+var labelBox = document.getElementById('labels');
+Object.keys(LABELS).forEach(function (k) {
+  var d = document.createElement('div'); d.className = 'lbl';
+  d.innerHTML = LABELS[k].t + (LABELS[k].s ? '<small>' + LABELS[k].s + '</small>' : '');
+  labelBox.appendChild(d); LABELS[k].el = d;
+});
+var labelsOn = true, visibleLabels = null;    // null = all
+var tmpV = new THREE.Vector3();
+function updateLabels() {
+  var w = canvas.clientWidth, h = canvas.clientHeight;
+  Object.keys(LABELS).forEach(function (k) {
+    var L = LABELS[k], show = labelsOn && (!visibleLabels || visibleLabels.indexOf(k) >= 0);
+    if (show) {
+      tmpV.copy(L.p).project(camera);
+      var dist = camera.position.distanceTo(L.p);
+      show = tmpV.z < 1 && Math.abs(tmpV.x) < 0.95 && Math.abs(tmpV.y) < 0.92 && dist < 140;
+      if (show) { L.el.style.left = ((tmpV.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - tmpV.y) / 2 * h - 14) + 'px'; }
+    }
+    L.el.style.display = show ? 'block' : 'none';
+  });
+}
+
+// ======================================================================= compass (projects true north on screen)
+var needle = document.getElementById('needle'), nlabel = document.getElementById('nlabel');
+var cTarget = new THREE.Vector3();
+function updateCompass() {
+  var a = cTarget.clone().project(camera), b = cTarget.clone().add(new THREE.Vector3(0, 0, -5)).project(camera);
+  var ang = Math.atan2((b.x - a.x) * camera.aspect, b.y - a.y);   // 0 = north is screen-up, clockwise positive
+  if (!isFinite(ang)) ang = 0;
+  needle.setAttribute('transform', 'rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')');
+  nlabel.setAttribute('x', (Math.sin(ang) * 39).toFixed(1)); nlabel.setAttribute('y', (-Math.cos(ang) * 39).toFixed(1));
+}
+
+// ======================================================================= captions
+var capEl = document.getElementById('caption'), capT = capEl.querySelector('.t'), capS = capEl.querySelector('.s');
+function setCaption(t, s) { capT.textContent = t || ''; capS.textContent = s || ''; capEl.style.opacity = t ? 1 : 0; }
+
+// ======================================================================= views (stills + buttons)
+var VIEWS = {
+  aerial:   { p: [42, 30, 52],    t: [0, 6, 0],   cap: ['Jain Granite & Marble — 100 kWp', 'Aerial view from the south-east'] },
+  aerialnw: { p: [-46, 32, -50],  t: [0, 6, 0],   cap: ['Jain Granite & Marble — 100 kWp', 'Aerial view from the north-west'] },
+  plan:     { p: [0, 92, 7],      t: [0, 8, -0.5], cap: ['Top view · north ↑', 'Matches the site layout: 4 blocks × 40 modules (5 × 8, portrait)'], lab: ['b1', 'b2', 'b3', 'b4'] },
+  west:     { p: [-40, 16, 6],    t: [-6, 8.5, -6], cap: ['West slope', 'Blocks 1 & 2 · 80 modules flush on the roof slope'], lab: ['b1', 'b2', 'eave', 'ladder'] },
+  east:     { p: [40, 16, 6],     t: [6, 8.5, -6],  cap: ['East slope', 'Blocks 3 & 4 · 80 modules flush on the roof slope'], lab: ['b3', 'b4', 'tray', 'inv'] },
+  walkway:  { p: [-8.13, 10.55, 4.5], t: [-8.13, 9.55, -5], cap: ['Rooftop walkway', '300 mm walkway between Blocks 1 & 2, cable tray alongside'], lab: ['b1', 'b2', 'la'] },
+  inverter: { p: [22.5, 2.7, -7.5], t: [14.6, 1.7, -13.8], cap: ['Inverter & ACDB', 'GoodWe GW80K-MT (80 kW) on the east wall, at ground level'], lab: ['inv', 'pits'] },
+  ground:   { p: [-26, 1.7, 44],  t: [0, 6.5, 0],   cap: ['Approach view', 'From the south-west gate at eye level'], lab: ['ladder', 'la'] },
+};
+
+// ======================================================================= walk-around camera path (seconds)
+// keyframes: [t, pos, target, stop?]  — cubic Hermite through them, zero velocity where stop = true
+var KF = [];
+function kf(t, p, tg, stop, vel) {    // vel: fixed velocity [x,y,z] m/s for both pos and target (straight walk)
+  KF.push({ t: t, p: new THREE.Vector3().fromArray(p), g: new THREE.Vector3().fromArray(tg), stop: !!stop, vel: vel ? new THREE.Vector3().fromArray(vel) : null });
+}
+kf(0, [74, 50, 88], [0, 5, 0], true);
+(function () {                         // 360° orbit, starting and ending in the south-east
+  var r = 60, h = 25, a0 = Math.atan2(52, 42), n = 12, t0 = 5, dur = 15;
+  for (var i = 0; i <= n; i++) {
+    var a = a0 - i / n * Math.PI * 2;
+    kf(t0 + i / n * dur, [Math.cos(a) * r, h + Math.sin(i / n * Math.PI) * 4, Math.sin(a) * r], [0, 6.5, 0]);
+  }
+})();
+kf(24, [0, 80, 14], [0, 8, -1], true);
+kf(27.5, [0, 74, 12], [0, 8, -1], true);
+kf(31, [-8.13, 15, 13], [-8.13, 9.3, 0]);
+kf(33, [-8.13, 10.55, 4.5], [-8.13, 9.55, -5], false, [0, 0, -17 / 6]);
+kf(39, [-8.13, 10.55, -12.5], [-8.13, 9.55, -22], false, [0, 0, -17 / 6]);
+kf(42, [5, 16, -36], [12, 3, -16]);
+kf(44.5, [26, 5.5, -24], [14.6, 2, -12]);
+kf(47, [23, 2.8, -6.5], [14.6, 1.7, -13.8], true);
+kf(49.5, [21.5, 2.5, -9], [14.6, 1.6, -13.8], true);
+kf(54, [-48, 34, 52], [0, 6, 0]);
+kf(58, [-44, 31, 47], [0, 6, 0], true);
+var DURATION = 58;
+(function tangents() {
+  ['p', 'g'].forEach(function (k) {
+    for (var i = 0; i < KF.length; i++) {
+      var m = new THREE.Vector3();
+      if (KF[i].vel) m.copy(KF[i].vel);
+      else if (!KF[i].stop && i > 0 && i < KF.length - 1) {
+        var a = KF[i][k].clone().sub(KF[i - 1][k]).divideScalar(KF[i].t - KF[i - 1].t);
+        var b = KF[i + 1][k].clone().sub(KF[i][k]).divideScalar(KF[i + 1].t - KF[i].t);
+        m.copy(a).add(b).multiplyScalar(0.5);
+      }
+      KF[i]['m' + k] = m;
+    }
+  });
+})();
+function pathAt(t) {
+  t = Math.max(0, Math.min(DURATION, t));
+  var i = 0; while (i < KF.length - 2 && KF[i + 1].t < t) i++;
+  var A = KF[i], B = KF[i + 1], h = B.t - A.t, s = h > 0 ? (t - A.t) / h : 0;
+  var s2 = s * s, s3 = s2 * s, h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
+  function H(k) { return A[k].clone().multiplyScalar(h00).add(A['m' + k].clone().multiplyScalar(h10 * h)).add(B[k].clone().multiplyScalar(h01)).add(B['m' + k].clone().multiplyScalar(h11 * h)); }
+  return { p: H('p'), g: H('g') };
+}
+var CAPS = [
+  [0, 5, 'Jain Granite & Marble', '100 kWp rooftop solar plant · 160 × Adani 625 Wp N-TOPCon', ['la']],
+  [5, 20, 'Warehouse · 8 m eave height', 'East–west sloping sheet roof · modules flush-mounted on both slopes', ['b1', 'b2', 'b3', 'b4', 'la', 'ladder']],
+  [20, 30, 'Top view · north ↑', 'Same as the site layout: 4 blocks × 40 modules (5 × 8, portrait)', ['b1', 'b2', 'b3', 'b4']],
+  [30, 41, 'Rooftop walkway', '300 mm walkways + cable trays for safe cleaning and O&M access', ['b1', 'b2', 'la', 'tray']],
+  [41, 50, 'Inverter & ACDB', 'GoodWe GW80K-MT (80 kW) on the east wall · DC, AC and LA earth pits', ['inv', 'pits']],
+  [50, 58.1, 'NRG Technologists', '100.00 kWp DC · 80 kW AC · 8 strings × 20 modules', []],
+];
+function captionAt(t) { for (var i = 0; i < CAPS.length; i++) if (t >= CAPS[i][0] && t < CAPS[i][1]) return CAPS[i]; return CAPS[CAPS.length - 1]; }
+
+// ======================================================================= orbit controls (mouse + touch)
+var ctl = { target: new THREE.Vector3(0, 6, 0), r: 70, th: 0.8, ph: 1.0 };
+function setFrom(pos, tg) {
+  ctl.target.copy(tg);
+  var d = pos.clone().sub(tg); ctl.r = d.length();
+  ctl.ph = Math.acos(Math.max(-1, Math.min(1, d.y / ctl.r))); ctl.th = Math.atan2(d.x, d.z);
+}
+function applyCtl() {
+  ctl.ph = Math.max(0.02, Math.min(1.54, ctl.ph)); ctl.r = Math.max(2.5, Math.min(260, ctl.r));
+  var s = Math.sin(ctl.ph);
+  camera.position.set(ctl.target.x + ctl.r * s * Math.sin(ctl.th), ctl.target.y + ctl.r * Math.cos(ctl.ph), ctl.target.z + ctl.r * s * Math.cos(ctl.th));
+  if (camera.position.y < 0.6) camera.position.y = 0.6;
+  camera.lookAt(ctl.target);
+  cTarget.copy(ctl.target);
+}
+var anim = null;       // {from:{p,g}, to:{p,g}, t0, dur} for button fly-to
+var playing = null;    // performance.now() start of a walk-around
+function stopAuto() { anim = null; if (playing !== null) { playing = null; document.getElementById('play').textContent = '▶ Walk-around'; visibleLabels = null; } }
+if (!CAPTURE) {
+  var ptrs = {}, last = null;
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  canvas.addEventListener('pointerdown', function (e) { stopAuto(); canvas.setPointerCapture(e.pointerId); ptrs[e.pointerId] = { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }; last = null; });
+  canvas.addEventListener('pointerup', function (e) { delete ptrs[e.pointerId]; last = null; });
+  canvas.addEventListener('pointercancel', function (e) { delete ptrs[e.pointerId]; last = null; });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = ptrs[e.pointerId]; if (!p) return;
+    var ids = Object.keys(ptrs), dx = e.clientX - p.x, dy = e.clientY - p.y;
+    if (ids.length === 1) {
+      if (p.b === 2 || p.sh) pan(dx, dy); else { ctl.th -= dx * 0.006; ctl.ph -= dy * 0.006; }
+    } else if (ids.length === 2) {
+      var o = ptrs[ids[0] == e.pointerId ? ids[1] : ids[0]];
+      var dist = Math.hypot(e.clientX - o.x, e.clientY - o.y), mid = { x: (e.clientX + o.x) / 2, y: (e.clientY + o.y) / 2 };
+      if (last) { ctl.r *= last.d / dist; pan(mid.x - last.m.x, mid.y - last.m.y); }
+      last = { d: dist, m: mid };
+    }
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  canvas.addEventListener('wheel', function (e) { e.preventDefault(); stopAuto(); ctl.r *= Math.exp(e.deltaY * 0.0012); }, { passive: false });
+}
+function pan(dx, dy) {
+  var k = ctl.r * 0.0016, right = new THREE.Vector3(), fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd); right.crossVectors(fwd, camera.up).normalize();
+  fwd.y = 0; fwd.normalize();
+  ctl.target.addScaledVector(right, -dx * k).addScaledVector(fwd, dy * k);
+}
+function flyTo(name) {
+  var v = VIEWS[name]; stopAuto();
+  anim = { from: { p: camera.position.clone(), g: ctl.target.clone() }, to: { p: new THREE.Vector3().fromArray(v.p), g: new THREE.Vector3().fromArray(v.t) }, t0: performance.now(), dur: 1400 };
+  setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || null;
+}
+
+// ======================================================================= frame / resize
+function resize() {
+  var w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+function setCam(p, g) { camera.position.copy(p); camera.lookAt(g); cTarget.copy(g); }
+function renderNow() { camera.updateMatrixWorld(); updateLabels(); updateCompass(); renderer.render(scene, camera); }
+function applyTime(t) {
+  var s = pathAt(t); setCam(s.p, s.g);
+  var c = captionAt(t); setCaption(c[2], c[3]); visibleLabels = c[4];
+}
+
+// capture hooks (render.mjs)
+window.__nrg3d = {
+  version: VERSION, duration: DURATION, views: Object.keys(VIEWS),
+  time: function (t) { applyTime(t); renderNow(); return true; },
+  view: function (name) { var v = VIEWS[name]; setCam(new THREE.Vector3().fromArray(v.p), new THREE.Vector3().fromArray(v.t)); setCaption(v.cap[0], v.cap[1]); visibleLabels = v.lab || []; renderNow(); return true; },
+};
+
+if (CAPTURE) {
+  applyTime(Number(Q.get('t') || 0)); renderNow();
+} else {
+  setFrom(new THREE.Vector3().fromArray(VIEWS.aerial.p), new THREE.Vector3().fromArray(VIEWS.aerial.t));
+  setCaption(VIEWS.aerial.cap[0], 'Drag to look around · tap ▶ Walk-around for the guided tour');
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.addEventListener('click', function () { flyTo(b.dataset.view); }); });
+  document.getElementById('play').addEventListener('click', function () {
+    if (playing !== null) { stopAuto(); return; }
+    anim = null; playing = performance.now(); this.textContent = '■ Stop';
+  });
+  document.getElementById('tgLabels').addEventListener('click', function () { labelsOn = !labelsOn; this.classList.toggle('on', labelsOn); });
+  document.getElementById('tgBos').addEventListener('click', function () { bos.visible = !bos.visible; this.classList.toggle('on', bos.visible); });
+  (function loop(now) {
+    if (playing !== null) {
+      var t = (now - playing) / 1000;
+      if (t > DURATION) { var s = pathAt(DURATION); setFrom(s.p, s.g); stopAuto(); }
+      else { applyTime(t); setFrom(camera.position.clone(), pathAt(t).g); }
+    } else if (anim) {
+      var u = Math.min(1, (now - anim.t0) / anim.dur), e = u * u * (3 - 2 * u);
+      var p = anim.from.p.clone().lerp(anim.to.p, e), g = anim.from.g.clone().lerp(anim.to.g, e);
+      setFrom(p, g); if (u >= 1) anim = null;
+    }
+    if (playing === null) applyCtl();
+    renderNow();
+    requestAnimationFrame(loop);
+  })(performance.now());
+}
+})();
+</script>
+</body>
+</html>
