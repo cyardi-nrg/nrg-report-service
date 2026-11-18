@@ -1,0 +1,5 @@
+# Design Lab worker — never commit keys, the private Python folder or logs.
+.env
+.venv/
+logs/
+__pycache__/
