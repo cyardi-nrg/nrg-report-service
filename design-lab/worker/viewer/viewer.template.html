@@ -1,6 +1,9 @@
 <!doctype html>
 <!--
-  NRG Design Lab — general 3D viewer · Version: v2.0 (2026-11-02) · NRG Technologists
+  NRG Design Lab — general 3D viewer · Version: v2.1 (2026-11-18) · NRG Technologists
+  v2.1 (worker v1.15.1, owner: "too many supports ... under each panel row one column only ... for every 2.5 panels one
+  frame with columns and rafter"): flat-roof GI tables are now frames — a rafter down the slope with one column under
+  each panel row, every ~2.5 panel widths along the table — instead of two legs under every module.
   v2.0 (worker v1.15.0, owner: "more professional, industrial shed look with GI sheets visible ... like Jain Granite ...
   even for residences"): sky + reflections, ribbed GI roof sheets, GI-clad sheds with shutters / louvres / gutters /
   ridge caps / down pipes / roof ladder, plastered houses and blocks with windows, slab bands, parapet coping and a door,
@@ -500,20 +503,81 @@ var MOD_T = 0.035;
     });
     scene.add(rails);
   }
-  // flat roofs: GI table — a purlin under the top and bottom edge of each module, square legs from the slab
+  // flat roofs: GI table (v2.1, owner: "under each panel row one column only ... one frame with columns and rafter for
+  // every 2.5 panels"). Purlins run under the top and bottom edge of every module; the modules are grouped into tables;
+  // across each table, every ~2.5 panel widths, a frame: one rafter down the slope with one column under each panel row.
   var tabs = all.filter(function (o) { return o.m.base != null; });
   if (tabs.length && !(S.steel && S.steel.length)) {
-    var pur = new THREE.InstancedMesh(geo, M.gi, tabs.length * 2), legs = new THREE.InstancedMesh(geo, M.gi, tabs.length * 2), pi = 0, li = 0;
-    pur.castShadow = legs.castShadow = true;
+    var pur = new THREE.InstancedMesh(geo, M.gi, tabs.length * 2), pi = 0;
+    pur.castShadow = true;
     tabs.forEach(function (o) {
       [-0.38, 0.38].forEach(function (f) {
         basis.makeBasis(o.ex, o.ey, o.ez); scl.makeScale(o.lx + 0.02, 0.04, 0.04); mt.copy(basis).multiply(scl);
-        var p = o.ctr.clone().addScaledVector(o.ez, f * o.lz).addScaledVector(o.ey, -0.05); mt.setPosition(p); pur.setMatrixAt(pi++, mt);
-        var floor = o.m.base, h = Math.max(0.05, p.y - floor);                  // a leg under the middle of each purlin
-        mt.makeScale(0.05, h, 0.05); mt.setPosition(p.x, floor + h / 2, p.z); legs.setMatrixAt(li++, mt);
+        mt.setPosition(o.ctr.clone().addScaledVector(o.ez, f * o.lz).addScaledVector(o.ey, -0.05)); pur.setMatrixAt(pi++, mt);
       });
     });
-    scene.add(pur); scene.add(legs);
+    scene.add(pur);
+    // group the modules into tables: neighbours along / across the row, on the same structure height
+    var par = tabs.map(function (_, i) { return i; });
+    function root(i) { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }
+    var cell = 3, grid = {};
+    tabs.forEach(function (o, i) { var k = Math.floor(o.ctr.x / cell) + ',' + Math.floor(o.ctr.z / cell); (grid[k] = grid[k] || []).push(i); });
+    tabs.forEach(function (o, i) {
+      var gx = Math.floor(o.ctr.x / cell), gz = Math.floor(o.ctr.z / cell);
+      for (var dx = -1; dx <= 1; dx++) for (var dz = -1; dz <= 1; dz++) (grid[(gx + dx) + ',' + (gz + dz)] || []).forEach(function (j) {
+        if (j <= i) return; var q = tabs[j];
+        if (Math.abs(q.m.base - o.m.base) > 0.05) return;
+        var d = q.ctr.clone().sub(o.ctr), du = Math.abs(d.dot(o.ex)), dw = Math.abs(d.dot(o.ez));
+        if (!(du < o.lx * 1.25 && dw < o.lz * 1.25 && Math.abs(o.ex.dot(q.ex)) > 0.98)) return;
+        // same table only if q lies on o's tilted plane (a separate table behind starts low again at its front edge)
+        var hz = Math.hypot(o.ez.x, o.ez.z) || 1, hx = Math.hypot(o.ex.x, o.ex.z) || 1;
+        var dwh = d.x * o.ez.x / hz + d.z * o.ez.z / hz, duh = d.x * o.ex.x / hx + d.z * o.ex.z / hx;
+        var pred = o.ctr.y + o.ez.y / hz * dwh + o.ex.y / hx * duh;
+        if (Math.abs(q.ctr.y - pred) < 0.06) par[root(j)] = root(i);
+      });
+    });
+    var groups = {};
+    tabs.forEach(function (o, i) { (groups[root(i)] = groups[root(i)] || []).push(o); });
+    var colsI = [], rafI = [];
+    Object.keys(groups).forEach(function (k) {
+      var G = groups[k], o0 = G[0];
+      var eu = new THREE.Vector3(o0.ex.x, 0, o0.ex.z).normalize(), ew = new THREE.Vector3(o0.ez.x, 0, o0.ez.z);
+      var hw = ew.length(); ew.normalize();                                     // hw: horizontal share of the slope
+      var gu = o0.ex.y / Math.max(1e-6, Math.hypot(o0.ex.x, o0.ex.z)), gw = o0.ez.y / Math.max(1e-6, hw);
+      var O = o0.ctr, plane = function (u, w) { return O.y + gu * u + gw * w - 0.03; };   // under-side of the modules
+      var L = G.map(function (o) { var d = o.ctr.clone().sub(O); return { u: d.dot(eu), w: d.dot(ew), lu: o.lx, lw: o.lz * hw, base: o.m.base }; });
+      // panel rows of this table (down the slope)
+      var ws = L.map(function (q) { return q.w; }).sort(function (a, b) { return a - b; }), rows = [];
+      ws.forEach(function (w) { if (!rows.length || w - rows[rows.length - 1] > o0.lz * hw * 0.5) rows.push(w); });
+      var umin = Math.min.apply(null, L.map(function (q) { return q.u - q.lu / 2; })), umax = Math.max.apply(null, L.map(function (q) { return q.u + q.lu / 2; }));
+      var span = 2.5 * o0.lx, inset = Math.min(0.3, (umax - umin) / 4), len = umax - umin - 2 * inset;
+      var nf = Math.max(2, Math.ceil(len / span) + 1);
+      for (var f = 0; f < nf; f++) {
+        var u = umin + inset + len * f / (nf - 1);
+        var here = rows.filter(function (rw) { return L.some(function (q) { return Math.abs(q.w - rw) < q.lw * 0.5 && Math.abs(q.u - u) <= q.lu / 2 + 0.35; }); });
+        if (!here.length) continue;
+        var lw = o0.lz * hw, wTop = here[0] - lw / 2 + 0.1, wBot = here[here.length - 1] + lw / 2 - 0.1, base = o0.m.base;
+        var P = function (w, dy) { return O.clone().addScaledVector(eu, u).addScaledVector(ew, w).setY(plane(u, w) - dy); };
+        rafI.push([P(wTop, 0.13), P(wBot, 0.13)]);                               // rafter under the purlins
+        here.forEach(function (rw) { var top = P(rw, 0.18); colsI.push([new THREE.Vector3(top.x, base, top.z), top]); });
+      }
+    });
+    function members(list, w, d) {
+      if (!list.length) return;
+      var im = new THREE.InstancedMesh(geo, M.gi, list.length), up = new THREE.Vector3(0, 1, 0), qn = new THREE.Quaternion(), sc = new THREE.Vector3();
+      im.castShadow = true;
+      list.forEach(function (ab, i) {
+        var a = ab[0], b = ab[1], dir = b.clone().sub(a), l = Math.max(0.05, dir.length());
+        qn.setFromUnitVectors(up, dir.normalize()); sc.set(w, l, d);
+        mt.compose(a.clone().add(b).multiplyScalar(0.5), qn, sc); im.setMatrixAt(i, mt);
+      });
+      scene.add(im);
+    }
+    members(colsI, 0.08, 0.08);                                                  // GI columns, ~75 mm square
+    members(rafI, 0.05, 0.1);                                                    // GI rafter
+    // base plates under the columns
+    var plates = colsI.map(function (ab) { return [ab[0].clone().setY(ab[0].y), ab[0].clone().setY(ab[0].y + 0.02)]; });
+    members(plates, 0.25, 0.25);
   }
 })();
 
