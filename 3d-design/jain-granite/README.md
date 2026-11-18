@@ -19,7 +19,7 @@ Standalone deliverable. **Not wired into the SolarConnect app yet**; that is a l
 
 - **Client layout photo** (top = north): 4 blocks, 2 on each slope, each 5 × 8 modules in portrait. 160 modules in total.
 - **Owner:** 100 kWp from 160 × 625 Wp panels. Warehouse height 8 m. Roof slopes east and west (ridge runs north–south).
-- **CEIG drawing set v6** (branch `claude/solar-electrical-design-stringing-jqozkz`, `stringing/ceig/generate_ceig_drawings.py`). These positions come from that set:
+- **CEIG drawing set v6** (branch `claude/solar-electrical-design-stringing-jqozkz`, `stringing/jain-granite/ceig/generate_ceig_drawings.py`). These positions come from that set:
   - Block positions, module size 2382 × 1134 mm, roof 29.8 × 36 m, ridge at 14.8 m.
   - Walkways W1 / W2 / WC / WA1 / WA2 (300 mm) and cable trays T1–T4.
   - ESE lightning arrester on a 5 m mast at the north end of the ridge.

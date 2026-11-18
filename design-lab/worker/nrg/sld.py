@@ -1,5 +1,5 @@
 # Design Lab worker v1.9.0 (2026-11-01) — the single line diagram (SLD), made general from the
-# owner-approved Jain Granite SLD (stringing/ceig/generate_ceig_drawings.py v7, sheet 01).
+# owner-approved Jain Granite SLD (stringing/jain-granite/ceig/generate_ceig_drawings.py v7, sheet 01).
 #
 # Everything on the sheet comes from the design:
 #   * strings, MPPTs, inputs and Y pairs  — the Stringing stage (nrg/stringing.py result)

@@ -1,6 +1,6 @@
 # Design Lab worker v1.8.0 (2026-10-31) — CEIG drawing kit: A3 frame, title block, symbols,
 # tables and the standard earthing details. Carried over from the owner-approved Jain Granite
-# CEIG set (stringing/ceig/generate_ceig_drawings.py v7 — NRG's own submission format: A3
+# CEIG set (stringing/jain-granite/ceig/generate_ceig_drawings.py v7 — NRG's own submission format: A3
 # landscape, title column on the right) and made general: every project value is passed in.
 # Sheets are SVG inside HTML; nrg/ceig_pdf.py prints them to A3 PDF with the worker's Chromium.
 import html
