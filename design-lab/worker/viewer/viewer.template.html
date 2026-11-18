@@ -1,6 +1,8 @@
 <!doctype html>
 <!--
-  NRG Design Lab — general 3D viewer · Version: v2.1 (2026-11-18) · NRG Technologists
+  NRG Design Lab — general 3D viewer · Version: v2.2 (2026-11-18) · NRG Technologists
+  v2.2 (worker v1.15.2, owner: "after every 2.5 panels take a rafter, you are taking every panel"): the light silver
+  border round every module looked like a rafter under each panel — modules now have a dark frame and dark cell gaps.
   v2.1 (worker v1.15.1, owner: "too many supports ... under each panel row one column only ... for every 2.5 panels one
   frame with columns and rafter"): flat-roof GI tables are now frames — a rafter down the slope with one column under
   each panel row, every ~2.5 panel widths along the table — instead of two legs under every module.
@@ -126,9 +128,10 @@ function canvasTex(w, h, draw, rx, ry) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx || 1, ry || rx || 1);
   return t;
 }
-var panelTex = canvasTex(240, 504, function (g, w, h) {     // 6 x 22 half-cut cells, silver frame lip (625 Wp TOPCon look)
-  g.fillStyle = '#d7dbe0'; g.fillRect(0, 0, w, h);
-  var fr = 7; g.fillStyle = '#e9edf2'; g.fillRect(fr, fr, w - 2 * fr, h - 2 * fr);
+var panelTex = canvasTex(240, 504, function (g, w, h) {     // 6 x 22 half-cut cells, dark frame lip (625 Wp TOPCon look)
+  // v2.2: dark frame and dark gaps between cells — the old light border read as a rafter under every panel
+  g.fillStyle = '#9aa1ab'; g.fillRect(0, 0, w, h);
+  var fr = 3; g.fillStyle = '#3b4763'; g.fillRect(fr, fr, w - 2 * fr, h - 2 * fr);
   var cols = 6, rows = 22, gx = 2, gy = 2, mid = 6;
   var cw = (w - 2 * fr - 8 - (cols - 1) * gx) / cols, ch = (h - 2 * fr - 8 - (rows - 1) * gy - mid) / rows;
   for (var i = 0; i < cols; i++) for (var j = 0; j < rows; j++) {
@@ -168,7 +171,7 @@ var tileTex = canvasTex(64, 64, function (g, w, h) { g.fillStyle = '#d8d3c9'; g.
 var M = {
   glass: new THREE.MeshPhysicalMaterial({ map: panelTex, roughness: 0.3, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.12, envMapIntensity: 0.55 }),
   glassL: new THREE.MeshPhysicalMaterial({ map: panelTexL, roughness: 0.3, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.12, envMapIntensity: 0.55 }),
-  frame: new THREE.MeshStandardMaterial({ color: '#c7ccd3', metalness: 0.85, roughness: 0.35 }),
+  frame: new THREE.MeshStandardMaterial({ color: '#4a515c', metalness: 0.7, roughness: 0.4 }),
   back: new THREE.MeshStandardMaterial({ color: '#e8e8e4', roughness: 0.8 }),
   rail: new THREE.MeshStandardMaterial({ color: '#b8bec6', metalness: 0.8, roughness: 0.4 }),
   gi: new THREE.MeshStandardMaterial({ color: '#b8bec6', metalness: 0.8, roughness: 0.35 }),
