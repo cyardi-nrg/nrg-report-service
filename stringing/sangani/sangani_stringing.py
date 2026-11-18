@@ -1,8 +1,10 @@
-# Version: v1 (2026-11-18) — Sangani Skyz (G+12, 48 flats) — per-flat stringing, DC and AC cable schedule
+# Version: v2 (2026-11-18) — DC lengths now follow NRG's routing (routes.py): rafter → edge purlin → across onto the
+#   cabin / lift room wall → along the wall → entry sleeve → inverter. Stringing and AC unchanged from v1.
+# Was v1 (2026-11-18) — Sangani Skyz (G+12, 48 flats) — per-flat stringing, DC and AC cable schedule
 # 192 x 545 Wp, 4 panels per flat = one string of 4 into one Solaryaan 2 kW single-phase inverter per flat.
 # Inverters inside the staircase cabin (terrace); AC down the staircase shaft to the meters beside the
 # staircase on the ground floor. Geometry from the approved 2D layout v1.2 (geom.py).
-#   python3 sangani_stringing.py   ->  Sangani-Skyz_Stringing-Plan_v1.png + Sangani-Skyz_Cable-Schedule_v1.xlsx
+#   python3 sangani_stringing.py   ->  Sangani-Skyz_Stringing-Plan_v2.png + Sangani-Skyz_Cable-Schedule_v2.xlsx
 import math
 import os
 import sys
@@ -13,8 +15,9 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from geom import BLOCKS, CABIN, PPM, PU, PV, U, N, panel_poly, panel_centre  # noqa: E402
+import routes  # noqa: E402
 
-VERSION = 'v1'
+VERSION = 'v2'
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAYOUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'Sangani-Skyz_2D-layout_v1.2.jpg')
 
@@ -106,11 +109,8 @@ def ends(cells):
 
 
 def flat_dc(cells):
-    p, q = ends(cells)
-    h = max(BLOCKS[b][3] for b, _, _ in cells)
-    vert = h + INV_H
-    lp = to_cabin(p) + vert + CABIN_IN + SLACK
-    lm = to_cabin(q) + vert + CABIN_IN + SLACK
+    lp = routes.length(cells[0])['total']        # + leaves the first panel, − the last (NRG routing, routes.py)
+    lm = routes.length(cells[-1])['total']
     # jumpers between panels that are not side by side (row turns inside a square are module leads)
     jump = 0.0
     for a, z in zip(cells, cells[1:]):
@@ -213,8 +213,9 @@ def draw(rows):
         d.text((xx, y), v, fill='#111', font=font(13, True))
     y += 30
     notes = ['Lengths in metres, per conductor (DC) / per run (AC).',
-             'DC 2.5 sq mm Cu solar cable: string end → down the',
-             'structure → terrace tray → into the cabin → inverter.',
+             'DC 2.5 sq mm Cu solar cable: along a rafter → edge purlin',
+             '→ across onto the cabin / lift room wall → along the wall',
+             '→ sleeve (W or E side) → inverter. B1 goes via B2.',
              f'AC 2.5 sq mm Cu 2-core: cabin {AC_CABIN:.0f} m + shaft {TERRACE_H:.0f} m',
              f'+ ground {AC_GROUND:.0f} m + terminations {AC_TAIL:.0f} m.',
              'F-numbers are string numbers: the flat number of each',
@@ -241,7 +242,7 @@ def excel(rows):
     ws['A2'] = ('192 x 545 Wp, 4 per flat (2.18 kWp) · 1 string of 4 → 1 Solaryaan 2 kW per flat in the staircase cabin · '
                 f'DC {DC_MM2} sq mm Cu, AC {AC_MM2} sq mm Cu 2-core · terrace {TERRACE_H:.0f} m above ground, meters beside the staircase')
     head = ['String / flat', 'Block', 'Panels (block col,row)', 'DC + (m)', 'DC − (m)', 'Jumper (m)', 'DC total (m)',
-            'DC ΔV %', 'AC run (m)', 'AC ΔV % (2 kW)', 'Flat no. (site)']
+            'DC ΔV %', 'AC run (m)', 'AC ΔV % (2 kW)', 'Flat no. (site)', 'Cabin sleeve']
     ws.append([])
     ws.append(head)
     for c in ws[4]:
@@ -252,18 +253,18 @@ def excel(rows):
     for r in rows:
         ws.append([r['sid'], r['blk'], ' '.join(f'{b}:{k+1},{rr+1}' for b, k, rr in r['cells']),
                    round(r['lp'], 1), round(r['lm'], 1), round(r['jump'], 1), None,
-                   round(r['vd_dc'], 2), round(r['ac'], 1), round(r['vd_ac'], 2), ''])
+                   round(r['vd_dc'], 2), round(r['ac'], 1), round(r['vd_ac'], 2), '', routes.length(r['cells'][0])['side']])
         n = ws.max_row
         ws.cell(n, 7).value = f'=D{n}+E{n}+F{n}'
     first, last = 5, ws.max_row
     ws.append(['TOTAL', '', '', f'=SUM(D{first}:D{last})', f'=SUM(E{first}:E{last})', f'=SUM(F{first}:F{last})',
-               f'=SUM(G{first}:G{last})', '', f'=SUM(I{first}:I{last})', '', ''])
+               f'=SUM(G{first}:G{last})', '', f'=SUM(I{first}:I{last})', '', '', ''])
     for c in ws[ws.max_row]:
         c.font = Font(bold=True)
     for row in ws.iter_rows(min_row=5, max_row=ws.max_row):
         for c in row:
             c.border = bd
-    for col, w in zip('ABCDEFGHIJK', [12, 8, 46, 10, 10, 10, 12, 9, 11, 13, 14]):
+    for col, w in zip('ABCDEFGHIJKL', [12, 8, 46, 10, 10, 10, 12, 9, 11, 13, 14, 10]):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = 'A5'
 
