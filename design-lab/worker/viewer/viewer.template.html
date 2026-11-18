@@ -1,6 +1,9 @@
 <!doctype html>
 <!--
-  NRG Design Lab — general 3D viewer · Version: v2.2 (2026-11-18) · NRG Technologists
+  NRG Design Lab — general 3D viewer · Version: v2.3 (2026-11-18) · NRG Technologists
+  v2.3 (worker v1.15.3, owner: "beautify the building, do not put so many windows everywhere"): residential towers
+  (6+ floors) get an apartment look — cream walls, taupe base / corner strips / cornice, louvred strips, a few window
+  stacks with split-AC units — instead of a window every 3.6 m on every floor.
   v2.2 (worker v1.15.2, owner: "after every 2.5 panels take a rafter, you are taking every panel"): the light silver
   border round every module looked like a rafter under each panel — modules now have a dark frame and dark cell gaps.
   v2.1 (worker v1.15.1, owner: "too many supports ... under each panel row one column only ... for every 2.5 panels one
@@ -186,6 +189,11 @@ var M = {
   plaster: new THREE.MeshStandardMaterial({ color: '#f2f0eb', roughness: 0.85, side: THREE.DoubleSide }),
   plaster2: new THREE.MeshStandardMaterial({ color: '#e9e2d4', roughness: 0.85, side: THREE.DoubleSide }),
   greyPl: new THREE.MeshStandardMaterial({ color: '#8d8f91', roughness: 0.8 }),
+  aptCream: new THREE.MeshStandardMaterial({ color: '#ece3cf', roughness: 0.85, side: THREE.DoubleSide }),
+  aptTaupe: new THREE.MeshStandardMaterial({ color: '#8c8174', roughness: 0.85, side: THREE.DoubleSide }),
+  aptLouvre: new THREE.MeshStandardMaterial({ color: '#cfd2d3', roughness: 0.6, metalness: 0.1 }),
+  aptLine: new THREE.MeshStandardMaterial({ color: '#a9adb0', roughness: 0.6 }),
+  aptAc: new THREE.MeshStandardMaterial({ color: '#f4f4f2', roughness: 0.5 }),
   terrace: new THREE.MeshStandardMaterial({ map: tileTex, roughness: 0.9, side: THREE.DoubleSide }),
   unused: new THREE.MeshStandardMaterial({ color: '#a9aeb5', roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide }),
   winFrame: new THREE.MeshStandardMaterial({ color: '#cfd4da', roughness: 0.4, metalness: 0.6 }),
@@ -379,6 +387,56 @@ BUILDINGS.forEach(function (B) {
   var top = B.h, base = B.base, hgt = top - base, storey = 3.2;
   var floors = Math.max(1, Math.round(hgt / storey)), fh = hgt / floors;
   var wallMat = B.onRoof ? M.plaster2 : M.plaster;
+  // v2.3: apartment tower look (residential, 6+ floors) — owner: "beautify the building, do not put so many windows
+  // everywhere" (Sangani Skyz street view): cream walls, a taupe base two floors high, taupe corner strips and cornice,
+  // light grey louvred strips, and only a few stacks of windows per wall with a split-AC unit beside them.
+  if (!B.onRoof && (STYLE === 'residential' || STYLE === 'apartment') && floors >= 6) {
+    var cream = M.aptCream, taupe = M.aptTaupe, louvre = M.aptLouvre;
+    var baseTop = base + Math.min(2, floors - 1) * fh;
+    scene.add(sides(pts, base, top, cream));
+    scene.add(sides(pts, base, baseTop, taupe));
+    scene.add(sides(pts, 0, 0.45, M.greyPl));
+    scene.add(sides(pts, baseTop - 0.1, baseTop + 0.15, taupe));
+    var sdoor = -1, sbest = -2;
+    for (var e2 = 0; e2 < n; e2++) {
+      var q0 = pts[e2], q1 = pts[(e2 + 1) % n], Lq = Math.hypot(q1[0] - q0[0], q1[1] - q0[1]);
+      if (Lq >= 2 && (q1[0] - q0[0]) / Lq > sbest) { sbest = (q1[0] - q0[0]) / Lq; sdoor = e2; }
+    }
+    for (var e3 = 0; e3 < n; e3++) {
+      var A3 = pts[e3], B3 = pts[(e3 + 1) % n], L3 = Math.hypot(B3[0] - A3[0], B3[1] - A3[1]);
+      if (L3 < 1.2) continue;
+      var hUp = top - baseTop, zUp = baseTop + hUp / 2;
+      // taupe corner strips, full height
+      var cw = Math.min(0.9, L3 * 0.18);
+      scene.add(wallItem(A3, B3, (cw / 2) / L3, cw, top - base, (base + top) / 2, 0.12, taupe, 0.06));
+      scene.add(wallItem(A3, B3, 1 - (cw / 2) / L3, cw, top - base, (base + top) / 2, 0.12, taupe, 0.06));
+      if (L3 < 3.5) continue;
+      // window stacks: 1 on a short wall, 2 on a long one; a light grey louvred strip down the middle of long walls
+      var stacks = L3 > 9 ? [0.27, 0.73] : [0.5];
+      if (L3 > 14) {
+        scene.add(wallItem(A3, B3, 0.5, Math.min(2.6, L3 * 0.12), hUp - 0.4, zUp, 0.06, louvre, 0.02));
+        for (var fl = 0; fl < floors - 2; fl++) scene.add(wallItem(A3, B3, 0.5, Math.min(2.6, L3 * 0.12), 0.06, baseTop + fl * fh + fh * 0.5, 0.05, M.aptLine, 0.06));
+      }
+      for (var f3 = 2; f3 < floors; f3++) {
+        var wz3 = base + f3 * fh + fh * 0.5;
+        stacks.forEach(function (tt3, si) {
+          scene.add(wallItem(A3, B3, tt3, 1.34, 1.34, wz3, 0.04, M.winFrame, 0.03));
+          scene.add(wallItem(A3, B3, tt3, 1.2, 1.2, wz3, 0.02, M.winGlass, 0.055));
+          scene.add(wallItem(A3, B3, tt3, 1.6, 0.08, wz3 + 0.8, 0.45, taupe, 0.22));
+          var off = (si ? 1 : -1) * 1.25 / L3;                                // split-AC outdoor unit beside the window
+          scene.add(wallItem(A3, B3, tt3 + off, 0.8, 0.55, wz3 - 0.35, 0.3, M.aptAc, 0.2));
+        });
+      }
+      if (e3 === sdoor) {                                                  // entrance: glass door and a canopy
+        scene.add(wallItem(A3, B3, 0.5, 2.0, 2.4, base + 1.2 + 0.45, 0.04, M.winGlass, 0.05));
+        scene.add(wallItem(A3, B3, 0.5, 3.2, 0.18, base + 3.1, 1.4, taupe, 0.7));
+      }
+    }
+    var parA = B.parapet > 0.05 ? B.parapet : 0;
+    if (parA) scene.add(sides(pts, top, top + parA, cream));
+    scene.add(sides(pts, top + parA - 0.05, top + parA + 0.25, taupe));     // cornice
+    return;
+  }
   scene.add(sides(pts, base, top, wallMat));
   if (!B.onRoof) {
     scene.add(sides(pts, 0, 0.45, M.greyPl));
