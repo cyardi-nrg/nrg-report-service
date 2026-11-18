@@ -1,4 +1,4 @@
-# NRG Technologists — standing rules for solar design work (CLAUDE.md v1.0, 2026-11-18)
+# NRG Technologists — standing rules for solar design work (CLAUDE.md v1.1, 2026-11-18)
 
 The owner is not a coder. These rules come from the owner's corrections on real projects. Follow them on
 **every** project, without being told again.
@@ -21,6 +21,11 @@ The owner is not a coder. These rules come from the owner's corrections on real 
   building and the panel tables) and measured from the drawing's dashed/solid lines.
 - Number blocks from the south (B1 = southmost) unless the owner says otherwise.
 - Use only the area the owner marks; keep the rest of the terrace free.
+
+## Look of the buildings
+- Apartment towers: keep them clean — cream walls, a darker base and corner strips, only one or two stacks of
+  windows per wall with split-AC units; never a window everywhere. Use a street-view photo when the owner gives
+  one (viewer v2.3 does this for residential buildings of 6+ floors).
 
 ## Order of work and deliverables
 1. 2D layout first, for approval. 2. Then 3D views (Design Lab viewer look, NRG branding).
