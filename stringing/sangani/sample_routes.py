@@ -1,4 +1,5 @@
-# Version: v2 (2026-11-18) — draws NRG's routing (routes.py): rafter → edge purlin → across onto the cabin /
+# Version: v3 (2026-11-18) — sleeves on the north, west and south walls only (routes.py v2).
+# Was v2 (2026-11-18) — draws NRG's routing (routes.py): rafter → edge purlin → across onto the cabin /
 #   lift room wall → along the wall → sleeve → inverter. Was v1: straight L to the nearest cabin wall.
 # Sangani Skyz: DC cable route for sample flats
 #   python3 sample_routes.py F48 F12 F30 F21   ->  Sangani-Skyz_DC-Route-Samples_v2.png
@@ -12,9 +13,9 @@ import routes  # noqa: E402
 import sangani_stringing as S  # noqa: E402
 from geom import CABIN, PPM, U, N, panel_poly, panel_centre  # noqa: E402
 
-VERSION = 'v2'
-PICK = sys.argv[1:] or ['F48', 'F12', 'F30', 'F21']
-COLS = ['#2563eb', '#059669', '#d97706', '#7c3aed']
+VERSION = 'v3'
+PICK = sys.argv[1:] or ['F48', 'F18', 'F25', 'F21']
+COLS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#db2777']
 
 
 def px(p):
@@ -102,12 +103,12 @@ def main():
         d.text((x0, y), f'Loop {P_["total"] + M_["total"]:.1f} m · ΔV {vd:.2f} % on 2.5 sq mm', fill='#111', font=S.font(13))
         y += 34
     for side, (eu, ev) in routes.ENTRY.items():           # sleeves last, so no panel hides them
-        x, y = T(px((eu, ev)))
-        d.rectangle([x - 9, y - 9, x + 9, y + 9], fill='white', outline='#92400e', width=2)
-        d.text((x + (14 if side == 'W' else -14), y + 22), f'{side} SLEEVE', fill='#92400e', font=S.font(12, True), anchor='lm' if side == 'W' else 'rm')
+        sx, sy = T(px((eu, ev)))                          # own names: y is the side table's line
+        d.rectangle([sx - 9, sy - 9, sx + 9, sy + 9], fill='white', outline='#92400e', width=2)
+        d.text((sx, sy + (22 if side != 'N' else -22)), f'{side} SLEEVE', fill='#92400e', font=S.font(12, True), anchor='mm')
     notes = ['ASSUMED — please confirm:',
-             '• Two entry sleeves, mid-way along the cabin\'s west and east',
-             '  walls; inverters on those two walls inside.',
+             '• Three entry sleeves, mid-way along the cabin\'s north, west',
+             '  and south walls (no entry from the east — owner).',
              '• Cables cross onto the wall at structure height and run',
              '  along it (clamped) down to the sleeve at 2.5 m.',
              '• B1 has no wall nearby: its cables hop onto B2 and run',

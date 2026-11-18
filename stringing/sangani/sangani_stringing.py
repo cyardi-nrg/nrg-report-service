@@ -1,4 +1,5 @@
-# Version: v2 (2026-11-18) — DC lengths now follow NRG's routing (routes.py): rafter → edge purlin → across onto the
+# Version: v3 (2026-11-18) — owner: cabin entry only from the north, west or south (routes.py v2); DC and AC stay 2.5 sq mm.
+# Was v2 (2026-11-18) — DC lengths now follow NRG's routing (routes.py): rafter → edge purlin → across onto the
 #   cabin / lift room wall → along the wall → entry sleeve → inverter. Stringing and AC unchanged from v1.
 # Was v1 (2026-11-18) — Sangani Skyz (G+12, 48 flats) — per-flat stringing, DC and AC cable schedule
 # 192 x 545 Wp, 4 panels per flat = one string of 4 into one Solaryaan 2 kW single-phase inverter per flat.
@@ -17,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from geom import BLOCKS, CABIN, PPM, PU, PV, U, N, panel_poly, panel_centre  # noqa: E402
 import routes  # noqa: E402
 
-VERSION = 'v2'
+VERSION = 'v3'
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAYOUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'Sangani-Skyz_2D-layout_v1.2.jpg')
 
@@ -215,7 +216,7 @@ def draw(rows):
     notes = ['Lengths in metres, per conductor (DC) / per run (AC).',
              'DC 2.5 sq mm Cu solar cable: along a rafter → edge purlin',
              '→ across onto the cabin / lift room wall → along the wall',
-             '→ sleeve (W or E side) → inverter. B1 goes via B2.',
+             '→ sleeve (N, W or S wall) → inverter. B1 goes via B2.',
              f'AC 2.5 sq mm Cu 2-core: cabin {AC_CABIN:.0f} m + shaft {TERRACE_H:.0f} m',
              f'+ ground {AC_GROUND:.0f} m + terminations {AC_TAIL:.0f} m.',
              'F-numbers are string numbers: the flat number of each',
