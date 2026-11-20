@@ -13,6 +13,7 @@ name (for example `Sangani` or `Jain`). Every file name starts with the project 
 |---|---|---|---|---|---|
 | **Jain Granite & Marble** (shed roof, E–W slopes) | 100 kWp · 160 × Adani 625 Wp · GoodWe GW80K-MT | [`jain-granite/`](jain-granite/) | Layout set with Y-connectors L-01 v2, L-02 v1, L-03 v1 · CEIG set 01–06 v7 · BOM v2 (no-Y) | [`3d-design/jain-granite/`](../3d-design/jain-granite/) | Layout set done; BOM still for the no-Y design |
 | **Sangani Skyz** (G+12, 48 flats, flat terrace) | 104.64 kWp · 192 × 545 Wp · 48 × Solaryaan 2 kW | [`sangani-skyz/`](sangani-skyz/) | Stringing plan v3 · cable schedule v3 · DC route samples v3 | 3D v1.4, proposal v1.1 and walk-around made in the "3D design and walkthrough videos" session (not filed in `3d-design/` yet) | Stringing and cable lengths done |
+| **Express Cranes** (south shed, gable, ridge E–W) | 75 kWp · 120 × Adani 625 Wp · inverter to be confirmed | [`express-cranes/`](express-cranes/) | String layout (landscape) v1 | [`3d-design/express-cranes/`](../3d-design/express-cranes/) | String layout done; inverter / home runs pending |
 | **Two-roof site, 120 kWp** (client name to be given) | 120 kWp · 625 Wp · GoodWe | [`two-roof-120kwp/`](two-roof-120kwp/) | Stringing options v2 · portrait vs landscape v6 · roof B cost v2 | — | Waiting on owner's choices |
 
 ## Conventions (all projects)
